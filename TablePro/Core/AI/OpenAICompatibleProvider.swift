@@ -63,16 +63,38 @@ final class OpenAICompatibleProvider: AIProvider {
                     for try await line in bytes.lines {
                         if Task.isCancelled { break }
 
-                        guard line.hasPrefix("data: ") else { continue }
-                        let jsonString = String(line.dropFirst(6))
-                        guard jsonString != "[DONE]" else { break }
+                        if self.providerType == .ollama {
+                            // Ollama: raw newline-delimited JSON (no SSE "data: " prefix)
+                            guard !line.isEmpty else { continue }
+                            Self.logger.debug("Ollama stream line: \(line.prefix(200), privacy: .public)")
 
-                        if let text = parseChatCompletionDelta(jsonString) {
-                            continuation.yield(.text(text))
-                        }
-                        if let usage = parseUsageFromChunk(jsonString) {
-                            inputTokens = usage.inputTokens
-                            outputTokens = usage.outputTokens
+                            if let text = self.parseChatCompletionDelta(line) {
+                                continuation.yield(.text(text))
+                            }
+                            if let usage = self.parseUsageFromChunk(line) {
+                                inputTokens = usage.inputTokens
+                                outputTokens = usage.outputTokens
+                            }
+                            // Ollama signals completion with "done":true
+                            if let data = line.data(using: .utf8),
+                               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                               json["done"] as? Bool == true
+                            {
+                                break
+                            }
+                        } else {
+                            // OpenAI/OpenRouter/Custom: SSE with "data: " prefix
+                            guard line.hasPrefix("data: ") else { continue }
+                            let jsonString = String(line.dropFirst(6))
+                            guard jsonString != "[DONE]" else { break }
+
+                            if let text = self.parseChatCompletionDelta(jsonString) {
+                                continuation.yield(.text(text))
+                            }
+                            if let usage = self.parseUsageFromChunk(jsonString) {
+                                inputTokens = usage.inputTokens
+                                outputTokens = usage.outputTokens
+                            }
                         }
                     }
 
