@@ -124,7 +124,16 @@ struct ConnectionFormView: View {
 
                     Picker("Database Type", selection: $type) {
                         ForEach(databaseTypes, id: \.0.rawValue) { dbType, label in
-                            Text(label).tag(dbType)
+                            Label {
+                                Text(label)
+                            } icon: {
+                                Image(dbType.iconName)
+                                    .renderingMode(.template)
+                                    .resizable()
+                                    .scaledToFit()
+                                    .frame(width: 20, height: 20)
+                            }
+                            .tag(dbType)
                         }
                     }
                     .onChange(of: type) { _, newType in
