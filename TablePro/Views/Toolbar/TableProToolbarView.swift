@@ -179,7 +179,7 @@ struct TableProToolbar: ViewModifier {
                     } label: {
                         Label("Inspector", systemImage: "sidebar.trailing")
                     }
-                    .help(String(localized: "Toggle Inspector (⌘⌥B)"))
+                    .help(String(localized: "Toggle Inspector (⌘⌥I)"))
                 }
 
                 // MARK: - Secondary Action (Overflow)
