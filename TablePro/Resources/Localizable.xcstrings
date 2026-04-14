@@ -6203,6 +6203,9 @@
         }
       }
     },
+    "Cannot save schema changes: connection is read-only." : {
+
+    },
     "Capabilities" : {
       "localizations" : {
         "tr" : {
@@ -27911,6 +27914,9 @@
         }
       }
     },
+    "Read-Only Connection" : {
+
+    },
     "Reassign" : {
       "localizations" : {
         "tr" : {
@@ -36545,6 +36551,9 @@
           }
         }
       }
+    },
+    "Toggle Sidebar" : {
+
     },
     "Toggle Table Browser" : {
       "localizations" : {

@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.31.5] - 2026-04-14
+
 ### Fixed
 
 - Fix AI chat hanging the app during streaming, schema fetch, and conversation loading (#735)
@@ -1320,7 +1322,8 @@ TablePro is a native macOS database client built with SwiftUI and AppKit, design
     - Custom SQL query templates
     - Performance optimized for large datasets
 
-[Unreleased]: https://github.com/TableProApp/TablePro/compare/v0.31.4...HEAD
+[Unreleased]: https://github.com/TableProApp/TablePro/compare/v0.31.5...HEAD
+[0.31.5]: https://github.com/TableProApp/TablePro/compare/v0.31.4...v0.31.5
 [0.31.4]: https://github.com/TableProApp/TablePro/compare/v0.31.3...v0.31.4
 [0.31.3]: https://github.com/TableProApp/TablePro/compare/v0.31.2...v0.31.3
 [0.31.2]: https://github.com/TableProApp/TablePro/compare/v0.31.1...v0.31.2
