@@ -3,6 +3,45 @@
     <channel>
         <title>TablePro</title>
         <item>
+            <title>0.31.5</title>
+            <pubDate>Tue, 14 Apr 2026 06:46:28 +0000</pubDate>
+            <sparkle:version>69</sparkle:version>
+            <sparkle:shortVersionString>0.31.5</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+            <description><![CDATA[<h3>Fixed</h3>
+<ul>
+<li>Fix AI chat hanging the app during streaming, schema fetch, and conversation loading (#735)</li>
+<li>SSH Agent auth: fall back to key file from `~/.ssh/config` or default paths when agent has no loaded identities (#729)</li>
+<li>Wire AI Explain (⌘L), Optimize (⌘⌥L), and Toggle Sidebar (⌘0) shortcuts to menu bar commands</li>
+<li>Keyboard shortcuts follow macOS HIG — remap Quick Switcher to ⌘⇧O, Format Query to ⌘⇧L, fix stale tooltip hints</li>
+<li>SSH-tunneled connections failing to reconnect after idle/sleep — health monitor now rebuilds the tunnel, OS-level TCP keepalive detects dead NAT mappings, and wake-from-sleep triggers immediate validation (#736)</li>
+<li>Composite primary key tables: editing or deleting a row affects all rows sharing the first PK value instead of just the target row</li>
+<li>Structure view saves bypass safe mode on read-only connections</li>
+</ul>
+]]></description>
+            <enclosure url="https://github.com/TableProApp/TablePro/releases/download/v0.31.5/TablePro-0.31.5-arm64.zip" length="24632288" type="application/octet-stream" sparkle:edSignature="E1lEYWrHva/J/ilZPz9n6+3aFk54sA2tdu5GiqXFzM3Yz0uMKT7y76NRFOccp1cbXQxndEAoF4etQEBnwHAACQ=="/>
+        </item>
+        <item>
+            <title>0.31.5</title>
+            <pubDate>Tue, 14 Apr 2026 06:46:29 +0000</pubDate>
+            <sparkle:version>69</sparkle:version>
+            <sparkle:shortVersionString>0.31.5</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <description><![CDATA[<h3>Fixed</h3>
+<ul>
+<li>Fix AI chat hanging the app during streaming, schema fetch, and conversation loading (#735)</li>
+<li>SSH Agent auth: fall back to key file from `~/.ssh/config` or default paths when agent has no loaded identities (#729)</li>
+<li>Wire AI Explain (⌘L), Optimize (⌘⌥L), and Toggle Sidebar (⌘0) shortcuts to menu bar commands</li>
+<li>Keyboard shortcuts follow macOS HIG — remap Quick Switcher to ⌘⇧O, Format Query to ⌘⇧L, fix stale tooltip hints</li>
+<li>SSH-tunneled connections failing to reconnect after idle/sleep — health monitor now rebuilds the tunnel, OS-level TCP keepalive detects dead NAT mappings, and wake-from-sleep triggers immediate validation (#736)</li>
+<li>Composite primary key tables: editing or deleting a row affects all rows sharing the first PK value instead of just the target row</li>
+<li>Structure view saves bypass safe mode on read-only connections</li>
+</ul>
+]]></description>
+            <enclosure url="https://github.com/TableProApp/TablePro/releases/download/v0.31.5/TablePro-0.31.5-x86_64.zip" length="23927529" type="application/octet-stream" sparkle:edSignature="p1CfGGWSQ8z/0ZMzVJ7ale/YFP53ty2A+tFlUCqMfKqJ8mWj4YjjlI6aPxWDNFU4UhMfemqBV39hzSjQf7a8CQ=="/>
+        </item>
+        <item>
             <title>0.31.4</title>
             <pubDate>Mon, 13 Apr 2026 18:53:27 +0000</pubDate>
             <sparkle:version>68</sparkle:version>
