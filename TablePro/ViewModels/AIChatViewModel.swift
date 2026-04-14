@@ -380,6 +380,7 @@ final class AIChatViewModel {
 
         // Capture value types on main actor before detaching
         let chatMessages = Array(messages.dropLast())
+        let assistantIndex = messages.count - 1
 
         streamingTask = Task.detached(priority: .userInitiated) { [weak self] in
             do {
@@ -389,17 +390,56 @@ final class AIChatViewModel {
                     systemPrompt: systemPrompt
                 )
 
+                // Batch tokens off the main actor, flush on interval
+                var pendingContent = ""
+                var pendingUsage: AITokenUsage?
+                let flushInterval: ContinuousClock.Duration = .milliseconds(80)
+                var lastFlushTime: ContinuousClock.Instant = .now
+
                 for try await event in stream {
                     guard !Task.isCancelled else { break }
+                    switch event {
+                    case .text(let token):
+                        pendingContent += token
+                    case .usage(let usage):
+                        pendingUsage = usage
+                    }
+
+                    if ContinuousClock.now - lastFlushTime >= flushInterval {
+                        let content = pendingContent
+                        let usage = pendingUsage
+                        pendingContent = ""
+                        pendingUsage = nil
+                        await MainActor.run { [weak self] in
+                            guard let self,
+                                  assistantIndex < self.messages.count,
+                                  self.messages[assistantIndex].id == assistantID
+                            else { return }
+                            if !content.isEmpty {
+                                self.messages[assistantIndex].content += content
+                            }
+                            if let usage {
+                                self.messages[assistantIndex].usage = usage
+                            }
+                        }
+                        lastFlushTime = .now
+                    }
+                }
+
+                // Final flush — deliver remaining buffered tokens
+                if !Task.isCancelled, !pendingContent.isEmpty || pendingUsage != nil {
+                    let content = pendingContent
+                    let usage = pendingUsage
                     await MainActor.run { [weak self] in
                         guard let self,
-                              let idx = self.messages.firstIndex(where: { $0.id == assistantID })
+                              assistantIndex < self.messages.count,
+                              self.messages[assistantIndex].id == assistantID
                         else { return }
-                        switch event {
-                        case .text(let token):
-                            self.messages[idx].content += token
-                        case .usage(let usage):
-                            self.messages[idx].usage = usage
+                        if !content.isEmpty {
+                            self.messages[assistantIndex].content += content
+                        }
+                        if let usage {
+                            self.messages[assistantIndex].usage = usage
                         }
                     }
                 }
