@@ -85,7 +85,7 @@ extension MainContentView {
         changeManager.configureForTable(
             tableName: tab.tableName ?? "",
             columns: newColumns,
-            primaryKeyColumn: newColumns.first,
+            primaryKeyColumns: tab.primaryKeyColumns,
             databaseType: connection.type
         )
     }
