@@ -67,7 +67,6 @@ final class OpenAICompatibleProvider: AIProvider {
                         if self.providerType == .ollama {
                             // Ollama: raw newline-delimited JSON (no SSE "data: " prefix)
                             guard !line.isEmpty else { continue }
-                            Self.logger.debug("Ollama stream line: \(line.prefix(200), privacy: .public)")
                             jsonString = line
                         } else {
                             // OpenAI/OpenRouter/Custom: SSE with "data: " prefix

@@ -93,7 +93,7 @@ final class AIChatViewModel {
     /// nonisolated(unsafe) is required because deinit is not @MainActor-isolated,
     /// so accessing a @MainActor property from deinit requires opting out of isolation.
     @ObservationIgnored nonisolated(unsafe) private var streamingTask: Task<Void, Never>?
-    @ObservationIgnored private var schemaFetchTask: Task<Void, Never>?
+    @ObservationIgnored nonisolated(unsafe) private var schemaFetchTask: Task<Void, Never>?
     private var streamingAssistantID: UUID?
     private var lastUsedFeature: AIFeature = .chat
     private let chatStorage = AIChatStorage.shared
@@ -108,6 +108,7 @@ final class AIChatViewModel {
 
     deinit {
         streamingTask?.cancel()
+        schemaFetchTask?.cancel()
     }
 
     // MARK: - Actions
@@ -254,6 +255,7 @@ final class AIChatViewModel {
         streamingTask = nil
         schemaFetchTask?.cancel()
         schemaFetchTask = nil
+        AIProviderFactory.invalidateCache()
         schemaProvider = nil
         connection = nil
         tables = []
