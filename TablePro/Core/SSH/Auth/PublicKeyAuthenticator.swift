@@ -2,6 +2,10 @@
 //  PublicKeyAuthenticator.swift
 //  TablePro
 //
+//  Pure libssh2 public key authenticator. Takes a path and passphrase,
+//  performs authentication. No UI, no Keychain, no prompts — those
+//  responsibilities belong to SSHPassphraseResolver at the factory level.
+//
 
 import Foundation
 

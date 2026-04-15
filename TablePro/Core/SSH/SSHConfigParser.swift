@@ -15,9 +15,12 @@ struct SSHConfigEntry: Identifiable, Hashable {
     let hostname: String?  // Actual hostname/IP
     let port: Int?  // Port number
     let user: String?  // Username
-    let identityFile: String?  // Path to private key
+    let identityFiles: [String]  // Paths to private keys (multiple IdentityFile directives)
     let identityAgent: String?  // Path to SSH agent socket
     let proxyJump: String?  // ProxyJump directive
+    let identitiesOnly: Bool?  // Only use explicitly configured keys
+    let addKeysToAgent: Bool?  // Add key to agent after successful auth
+    let useKeychain: Bool?  // Store/retrieve passphrases from macOS Keychain
 
     /// Display name for UI
     var displayName: String {
@@ -120,13 +123,22 @@ final class SSHConfigParser {
                 pending.user = value
 
             case "identityfile":
-                pending.identityFile = value
+                pending.identityFiles.append(value)
 
             case "identityagent":
                 pending.identityAgent = value
 
             case "proxyjump":
                 pending.proxyJump = value
+
+            case "identitiesonly":
+                pending.identitiesOnly = value.lowercased() == "yes"
+
+            case "addkeystoagent":
+                pending.addKeysToAgent = value.lowercased() == "yes"
+
+            case "usekeychain":
+                pending.useKeychain = value.lowercased() == "yes"
 
             case "include":
                 pending.flush(into: &entries)
@@ -158,9 +170,12 @@ final class SSHConfigParser {
         var hostname: String?
         var port: Int?
         var user: String?
-        var identityFile: String?
+        var identityFiles: [String] = []
         var identityAgent: String?
         var proxyJump: String?
+        var identitiesOnly: Bool?
+        var addKeysToAgent: Bool?
+        var useKeychain: Bool?
 
         /// Flush the pending entry into the entries array and reset state.
         /// Skips wildcard patterns (`*`, `?`) and multi-word hosts.
@@ -177,13 +192,16 @@ final class SSHConfigParser {
                     hostname: hostname,
                     port: port,
                     user: user,
-                    identityFile: identityFile.map {
+                    identityFiles: identityFiles.map {
                         SSHPathUtilities.expandSSHTokens($0, hostname: hostname, remoteUser: user)
                     },
                     identityAgent: identityAgent.map {
                         SSHPathUtilities.expandSSHTokens($0, hostname: hostname, remoteUser: user)
                     },
-                    proxyJump: proxyJump
+                    proxyJump: proxyJump,
+                    identitiesOnly: identitiesOnly,
+                    addKeysToAgent: addKeysToAgent,
+                    useKeychain: useKeychain
                 ))
         }
     }

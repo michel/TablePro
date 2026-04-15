@@ -457,9 +457,13 @@ internal enum LibSSH2TunnelFactory {
         config: SSHConfiguration,
         credentials: SSHTunnelCredentials
     ) throws -> any SSHAuthenticator {
+        // Look up SSH config entry once for the entire auth chain
+        let configEntry = config.useSSHConfig
+            ? SSHConfigParser.findEntry(for: config.host)
+            : nil
+
         switch config.authMethod {
         case .password where config.totpMode != .none:
-            // Guard: nil password means the Keychain lookup failed
             guard let sshPassword = credentials.sshPassword else {
                 logger.error("SSH password is nil (Keychain lookup may have failed) for \(config.host)")
                 throw SSHTunnelError.authenticationFailed
@@ -478,9 +482,11 @@ internal enum LibSSH2TunnelFactory {
             return PasswordAuthenticator(password: sshPassword)
 
         case .privateKey:
-            let primary = PublicKeyAuthenticator(
-                privateKeyPath: config.privateKeyPath,
-                passphrase: credentials.keyPassphrase
+            let primary = buildKeyFileAuthenticator(
+                keyPath: config.privateKeyPath,
+                providedPassphrase: credentials.keyPassphrase,
+                configEntry: configEntry,
+                canPrompt: true
             )
             if config.totpMode != .none {
                 let totpAuth = KeyboardInteractiveAuthenticator(
@@ -492,14 +498,25 @@ internal enum LibSSH2TunnelFactory {
             return primary
 
         case .sshAgent:
-            let socketPath = config.agentSocketPath.isEmpty ? nil : config.agentSocketPath
+            // Resolve agent socket: UI config > SSH config IdentityAgent > system default
+            let socketPath: String?
+            if !config.agentSocketPath.isEmpty {
+                socketPath = config.agentSocketPath
+            } else if let agentPath = configEntry?.identityAgent, !agentPath.isEmpty {
+                socketPath = agentPath
+            } else {
+                socketPath = nil
+            }
+
             var authenticators: [any SSHAuthenticator] = [AgentAuthenticator(socketPath: socketPath)]
 
-            // Fallback: try key file if agent has no loaded identities
-            if let keyPath = resolveIdentityFile(config: config) {
-                authenticators.append(PublicKeyAuthenticator(
-                    privateKeyPath: keyPath,
-                    passphrase: credentials.keyPassphrase
+            // Fallback: try key files if agent has no loaded identities
+            for keyPath in resolveIdentityFiles(config: config, configEntry: configEntry) {
+                authenticators.append(buildKeyFileAuthenticator(
+                    keyPath: keyPath,
+                    providedPassphrase: credentials.keyPassphrase,
+                    configEntry: configEntry,
+                    canPrompt: true
                 ))
             }
 
@@ -523,19 +540,117 @@ internal enum LibSSH2TunnelFactory {
         }
     }
 
+    /// Build a key file authenticator with native macOS passphrase resolution.
+    ///
+    /// Passphrase resolution is DEFERRED to auth time (not build time) so that
+    /// when used as an agent fallback, the user is only prompted if the agent
+    /// actually fails — not preemptively during construction.
+    private static func buildKeyFileAuthenticator(
+        keyPath: String,
+        providedPassphrase: String?,
+        configEntry: SSHConfigEntry?,
+        canPrompt: Bool
+    ) -> any SSHAuthenticator {
+        let authenticator = KeyFileAuthenticator(
+            keyPath: keyPath,
+            providedPassphrase: providedPassphrase,
+            canPrompt: canPrompt,
+            useKeychain: configEntry?.useKeychain ?? true,
+            addKeysToAgent: configEntry?.addKeysToAgent == true
+        )
+        return authenticator
+    }
+
+    /// Authenticator that resolves the passphrase at AUTH time (not build time),
+    /// then delegates to PublicKeyAuthenticator. Saves to Keychain and adds to
+    /// agent only after authentication succeeds.
+    private struct KeyFileAuthenticator: SSHAuthenticator {
+        let keyPath: String
+        let providedPassphrase: String?
+        let canPrompt: Bool
+        let useKeychain: Bool
+        let addKeysToAgent: Bool
+
+        func authenticate(session: OpaquePointer, username: String) throws {
+            let expandedPath = SSHPathUtilities.expandTilde(keyPath)
+
+            // 1. Try with stored passphrase or nil (covers unencrypted keys + Keychain hits)
+            let storedPassphrase = SSHPassphraseResolver.resolve(
+                forKeyAt: keyPath,
+                provided: providedPassphrase,
+                useKeychain: useKeychain
+            )
+            let firstAttempt = PublicKeyAuthenticator(
+                privateKeyPath: keyPath,
+                passphrase: storedPassphrase
+            )
+            do {
+                try firstAttempt.authenticate(session: session, username: username)
+                addToAgentIfNeeded(path: expandedPath)
+                return
+            } catch {
+                // Auth failed — key likely needs a passphrase we don't have yet
+            }
+
+            // 2. Prompt the user if allowed (key is encrypted, no stored passphrase)
+            guard canPrompt else { throw SSHTunnelError.authenticationFailed }
+
+            let provider = PromptPassphraseProvider(keyPath: expandedPath)
+            guard let promptResult = provider.providePassphrase() else {
+                throw SSHTunnelError.authenticationFailed
+            }
+
+            let retryAuth = PublicKeyAuthenticator(
+                privateKeyPath: keyPath,
+                passphrase: promptResult.passphrase
+            )
+            try retryAuth.authenticate(session: session, username: username)
+
+            // Auth succeeded — save to Keychain if user opted in
+            if promptResult.saveToKeychain && useKeychain {
+                SSHKeychainLookup.savePassphrase(promptResult.passphrase, forKeyAt: expandedPath)
+            }
+            addToAgentIfNeeded(path: expandedPath)
+        }
+
+        private func addToAgentIfNeeded(path: String) {
+            guard addKeysToAgent else { return }
+            DispatchQueue.global(qos: .utility).async {
+                let process = Process()
+                process.executableURL = URL(fileURLWithPath: "/usr/bin/ssh-add")
+                // Use --apple-use-keychain so ssh-add reads the passphrase from
+                // Keychain for encrypted keys (no TTY available in GUI apps)
+                process.arguments = ["--apple-use-keychain", path]
+                process.standardOutput = FileHandle.nullDevice
+                process.standardError = FileHandle.nullDevice
+                try? process.run()
+                process.waitUntilExit()
+            }
+        }
+    }
+
     private static func buildJumpAuthenticator(jumpHost: SSHJumpHost) throws -> any SSHAuthenticator {
+        let configEntry = SSHConfigParser.findEntry(for: jumpHost.host)
+
         switch jumpHost.authMethod {
         case .privateKey:
-            return PublicKeyAuthenticator(
-                privateKeyPath: jumpHost.privateKeyPath,
-                passphrase: nil
+            return KeyFileAuthenticator(
+                keyPath: jumpHost.privateKeyPath,
+                providedPassphrase: nil,
+                canPrompt: true,
+                useKeychain: configEntry?.useKeychain ?? true,
+                addKeysToAgent: configEntry?.addKeysToAgent ?? false
             )
         case .sshAgent:
-            let agent = AgentAuthenticator(socketPath: nil)
+            let socketPath = configEntry?.identityAgent
+            let agent = AgentAuthenticator(socketPath: socketPath)
             if !jumpHost.privateKeyPath.isEmpty {
-                let keyAuth = PublicKeyAuthenticator(
-                    privateKeyPath: jumpHost.privateKeyPath,
-                    passphrase: nil
+                let keyAuth = KeyFileAuthenticator(
+                    keyPath: jumpHost.privateKeyPath,
+                    providedPassphrase: nil,
+                    canPrompt: true,
+                    useKeychain: configEntry?.useKeychain ?? true,
+                    addKeysToAgent: configEntry?.addKeysToAgent ?? false
                 )
                 return CompositeAuthenticator(authenticators: [agent, keyAuth])
             }
@@ -543,34 +658,37 @@ internal enum LibSSH2TunnelFactory {
         }
     }
 
-    /// Resolve an identity file path for agent auth fallback.
-    /// Priority: user-configured path > ~/.ssh/config IdentityFile > default key paths.
-    private static func resolveIdentityFile(config: SSHConfiguration) -> String? {
+    /// Resolve identity file paths for key file authentication.
+    /// Priority: user-configured path > SSH config IdentityFile(s) > default key paths.
+    /// Respects `IdentitiesOnly` — skips default paths when set.
+    /// Returns multiple paths when SSH config has multiple IdentityFile directives.
+    private static func resolveIdentityFiles(
+        config: SSHConfiguration,
+        configEntry: SSHConfigEntry?
+    ) -> [String] {
+        // User-configured path in the connection UI always takes priority
         if !config.privateKeyPath.isEmpty {
-            return config.privateKeyPath
+            return [config.privateKeyPath]
         }
 
-        if let entry = SSHConfigParser.findEntry(for: config.host),
-           let identityFile = entry.identityFile,
-           !identityFile.isEmpty {
-            return identityFile
+        // SSH config IdentityFile(s) — try all in order
+        if let files = configEntry?.identityFiles, !files.isEmpty {
+            return files
         }
 
+        // When IdentitiesOnly is set, don't try default key paths
+        if configEntry?.identitiesOnly == true {
+            return []
+        }
+
+        // Fall back to default key paths
         let sshDir = FileManager.default.homeDirectoryForCurrentUser
             .appendingPathComponent(".ssh", isDirectory: true)
-        let defaultPaths = [
-            sshDir.appendingPathComponent("id_ed25519").path,
-            sshDir.appendingPathComponent("id_rsa").path,
-            sshDir.appendingPathComponent("id_ecdsa").path
-        ]
-        for path in defaultPaths {
-            if FileManager.default.isReadableFile(atPath: path) {
-                return path
-            }
-        }
-
-        return nil
+        return ["id_ed25519", "id_rsa", "id_ecdsa"]
+            .map { sshDir.appendingPathComponent($0).path }
+            .filter { FileManager.default.isReadableFile(atPath: $0) }
     }
+
 
     private static func buildTOTPProvider(
         config: SSHConfiguration,
