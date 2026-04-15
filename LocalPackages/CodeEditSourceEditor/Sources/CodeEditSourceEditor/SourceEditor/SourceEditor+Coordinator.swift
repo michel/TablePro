@@ -119,12 +119,29 @@ extension SourceEditor {
             self.highlightProviders = highlightProviders
         }
 
+        private var textBindingTask: Task<Void, Never>?
+
         @objc func textViewDidChangeText(_ notification: Notification) {
             guard let textView = notification.object as? TextView else {
                 return
             }
             // A plain string binding is one-way (from this view, up the hierarchy) so it's not in the state binding
-            if case .binding(let binding) = text {
+            guard case .binding(let binding) = text else { return }
+
+            // For large documents, debounce the binding writeback to avoid
+            // copying megabytes of text into SwiftUI on every keystroke.
+            let docLength = textView.textStorage.length
+            // Set flag immediately so SwiftUI's updateNSViewController knows
+            // the text view is the source of truth during the debounce window.
+            isUpdateFromTextView = true
+            if docLength > 500_000 {
+                textBindingTask?.cancel()
+                textBindingTask = Task { @MainActor [weak self, weak textView] in
+                    try? await Task.sleep(for: .milliseconds(150))
+                    guard !Task.isCancelled, let self, let textView else { return }
+                    binding.wrappedValue = textView.string
+                }
+            } else {
                 binding.wrappedValue = textView.string
             }
         }

@@ -174,7 +174,11 @@ public final class TreeSitterClient: HighlightProviding {
         }
 
         if !forceSyncOperation {
-            executor.cancelAll(below: .reset) // Cancel all edits, add it to the pending edit queue
+            // Only cancel pending highlight queries (.access), not edits.
+            // Cancelling edits causes them to accumulate in pendingEdits,
+            // making the next parse even slower. Let edits queue and apply
+            // incrementally instead.
+            executor.cancelAll(below: .edit)
             executor.execAsync(
                 priority: .edit,
                 operation: { completion(.success(operation())) },
@@ -214,10 +218,17 @@ public final class TreeSitterClient: HighlightProviding {
         }
 
         let longQuery = range.length > Constants.maxSyncQueryLength
-        let longDocument = textView.documentRange.length > Constants.maxSyncContentLength
+        // For small highlight queries (typical per-keystroke chunks of 4096 chars),
+        // run synchronously to avoid the async cancellation delay that causes
+        // highlights to only appear after typing stops.
+        let isSmallQuery = range.length <= 8192
+        let longDocument = !isSmallQuery && textView.documentRange.length > Constants.maxSyncContentLength
         let execAsync = longQuery || longDocument
 
         if !execAsync || forceSyncOperation {
+            // Small queries attempt sync first. If the executor queue is
+            // busy (e.g., pending large parse), fall through to async path.
+            // This is thread-safe because execSync acquires the lock.
             let result = executor.execSync(operation)
             if case .success(let highlights) = result {
                 DispatchQueue.dispatchMainIfNot { completion(.success(highlights)) }
