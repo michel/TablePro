@@ -329,20 +329,20 @@ final class MainContentCommandActions {
 
     // MARK: - Tab Operations (Group A — Called Directly)
 
+    func reopenClosedTab() {
+        coordinator?.reopenClosedTab()
+    }
+
+    var canReopenClosedTab: Bool {
+        coordinator?.tabManager.hasClosedTabs ?? false
+    }
+
     func newTab(initialQuery: String? = nil) {
-        // If no tabs exist (empty state), add directly to this window
-        if coordinator?.tabManager.tabs.isEmpty == true {
+        if let initialQuery {
             coordinator?.tabManager.addTab(initialQuery: initialQuery, databaseName: connection.database)
-            return
+        } else {
+            coordinator?.addNewQueryTab()
         }
-        // Open a new native macOS window tab with a query editor
-        let payload = EditorTabPayload(
-            connectionId: connection.id,
-            tabType: .query,
-            initialQuery: initialQuery,
-            intent: .newEmptyTab
-        )
-        WindowOpener.shared.openNativeTab(payload)
     }
 
     func closeTab() {
@@ -369,20 +369,17 @@ final class MainContentCommandActions {
     }
 
     private func performClose() {
-        guard let keyWindow = NSApp.keyWindow else { return }
-        let tabbedWindows = keyWindow.tabbedWindows ?? [keyWindow]
+        guard let coordinator else {
+            NSApp.keyWindow?.close()
+            return
+        }
 
-        if tabbedWindows.count > 1 {
-            keyWindow.close()
-        } else if coordinator?.tabManager.tabs.isEmpty == true {
-            keyWindow.close()
+        // Close the active in-app tab. Empty state is shown when no tabs remain.
+        if let selectedId = coordinator.tabManager.selectedTabId {
+            coordinator.closeInAppTab(selectedId)
         } else {
-            for tab in coordinator?.tabManager.tabs ?? [] {
-                tab.rowBuffer.evict()
-            }
-            coordinator?.tabManager.tabs.removeAll()
-            coordinator?.tabManager.selectedTabId = nil
-            coordinator?.toolbarState.isTableTab = false
+            // No tabs open — close the connection window
+            coordinator.contentWindow?.close()
         }
     }
 
@@ -454,6 +451,12 @@ final class MainContentCommandActions {
         pendingTruncates.wrappedValue.removeAll()
         pendingDeletes.wrappedValue.removeAll()
         rightPanelState.editState.clearEdits()
+        // Clear file dirty state to prevent closeInAppTab from showing a second dialog
+        if let tab = coordinator?.tabManager.selectedTab, tab.isFileDirty,
+           let index = coordinator?.tabManager.selectedTabIndex
+        {
+            coordinator?.tabManager.tabs[index].savedFileContent = tab.query
+        }
         performClose()
     }
 
@@ -490,11 +493,26 @@ final class MainContentCommandActions {
     // MARK: - Tab Navigation (Group A — Called Directly)
 
     func selectTab(number: Int) {
-        // Switch to the nth native window tab
-        guard let keyWindow = NSApp.keyWindow,
-              let tabbedWindows = keyWindow.tabbedWindows,
-              number > 0, number <= tabbedWindows.count else { return }
-        tabbedWindows[number - 1].makeKeyAndOrderFront(nil)
+        guard let tabs = coordinator?.tabManager.tabs,
+              number > 0, number <= tabs.count else { return }
+        let targetId = tabs[number - 1].id
+        // Skip if already on this tab (keyboard repeat of same Cmd+N)
+        guard coordinator?.tabManager.selectedTabId != targetId else { return }
+        coordinator?.tabManager.selectedTabId = targetId
+    }
+
+    func selectPreviousTab() {
+        guard let tabs = coordinator?.tabManager.tabs, tabs.count > 1,
+              let currentIndex = coordinator?.tabManager.selectedTabIndex else { return }
+        let newIndex = (currentIndex - 1 + tabs.count) % tabs.count
+        coordinator?.tabManager.selectedTabId = tabs[newIndex].id
+    }
+
+    func selectNextTab() {
+        guard let tabs = coordinator?.tabManager.tabs, tabs.count > 1,
+              let currentIndex = coordinator?.tabManager.selectedTabIndex else { return }
+        let newIndex = (currentIndex + 1) % tabs.count
+        coordinator?.tabManager.selectedTabId = tabs[newIndex].id
     }
 
     // MARK: - Filter Operations (Group A — Called Directly)
@@ -799,13 +817,14 @@ final class MainContentCommandActions {
                 }.value
 
                 if let content {
-                    let payload = EditorTabPayload(
-                        connectionId: connection.id,
-                        tabType: .query,
+                    coordinator?.tabManager.addTab(
                         initialQuery: content,
+                        databaseName: connection.database,
                         sourceFileURL: url
                     )
-                    WindowOpener.shared.openNativeTab(payload)
+                    if let windowId = coordinator?.windowId {
+                        WindowLifecycleMonitor.shared.registerSourceFile(url, windowId: windowId)
+                    }
                 }
             }
         }

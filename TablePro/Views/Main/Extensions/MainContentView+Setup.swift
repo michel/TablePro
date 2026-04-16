@@ -95,44 +95,24 @@ extension MainContentView {
                 }
             }
 
-            let selectedId = result.selectedTabId
+            // All tabs go into one QueryTabManager — no native window loop
+            tabManager.tabs = restoredTabs
+            tabManager.selectedTabId = result.selectedTabId ?? restoredTabs.first?.id
 
-            // First tab in the array gets the current window to preserve order.
-            // Remaining tabs open as native window tabs in order.
-            let firstTab = restoredTabs[0]
-            tabManager.tabs = [firstTab]
-            tabManager.selectedTabId = firstTab.id
-
-            let remainingTabs = Array(restoredTabs.dropFirst())
-
-            if !remainingTabs.isEmpty {
-                let selectedWasFirst = firstTab.id == selectedId
-                Task { @MainActor in
-                    for tab in remainingTabs {
-                        let restorePayload = EditorTabPayload(
-                            from: tab, connectionId: connection.id, skipAutoExecute: true)
-                        WindowOpener.shared.openNativeTab(restorePayload)
-                    }
-                    // Bring the first window to front only if it had the selected tab.
-                    // Otherwise let the last restored window stay focused.
-                    if selectedWasFirst {
-                        viewWindow?.makeKeyAndOrderFront(nil)
-                    }
-                }
-            }
-
-            if firstTab.tabType == .table,
-                !firstTab.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            // Execute the selected tab's query if it's a table tab
+            if let selectedTab = tabManager.selectedTab,
+                selectedTab.tabType == .table,
+                !selectedTab.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             {
                 if let session = DatabaseManager.shared.activeSessions[connection.id],
                     session.isConnected
                 {
-                    if !firstTab.databaseName.isEmpty,
-                        firstTab.databaseName != session.activeDatabase
+                    if !selectedTab.databaseName.isEmpty,
+                        selectedTab.databaseName != session.activeDatabase
                     {
-                        Task { await coordinator.switchDatabase(to: firstTab.databaseName) }
+                        Task { await coordinator.switchDatabase(to: selectedTab.databaseName) }
                     } else {
-                        if let tableName = firstTab.tableName {
+                        if let tableName = selectedTab.tableName {
                             coordinator.restoreColumnLayoutForTable(tableName)
                         }
                         coordinator.executeTableTabQueryDirectly()
@@ -188,18 +168,47 @@ extension MainContentView {
 
         let resolvedId = WindowOpener.tabbingIdentifier(for: connection.id)
         window.tabbingIdentifier = resolvedId
-        window.tabbingMode = .preferred
+        // Disallow native window tabbing — tabs are managed in-app via EditorTabBar
+        window.tabbingMode = .disallowed
         coordinator.windowId = windowId
 
         WindowLifecycleMonitor.shared.register(
             window: window,
             connectionId: connection.id,
             windowId: windowId,
-            isPreview: isPreview
+            isPreview: isPreview,
+            onWindowClose: { [coordinator, rightPanelState] in
+                coordinator.teardown()
+                rightPanelState.teardown()
+            }
         )
+
         viewWindow = window
         coordinator.contentWindow = window
         isKeyWindow = window.isKeyWindow
+
+        // Intercept Cmd+W via NSEvent monitor — close the active in-app tab
+        // instead of the window. Uses event monitor (like VimKeyInterceptor)
+        // instead of window.delegate to avoid overwriting SwiftUI's internal delegate.
+        if coordinator.closeTabMonitor == nil {
+            let capturedTabManager = tabManager
+            let capturedCoordinator = coordinator
+            weak var capturedWindow = window
+            coordinator.closeTabMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+                guard event.modifierFlags.contains(.command),
+                      !event.modifierFlags.contains(.shift),
+                      event.charactersIgnoringModifiers == "w",
+                      NSApp.keyWindow === capturedWindow
+                else { return event }
+
+                if let selectedId = capturedTabManager.selectedTabId {
+                    capturedCoordinator.closeInAppTab(selectedId)
+                } else {
+                    capturedWindow?.close()
+                }
+                return nil // Consume the event
+            }
+        }
 
         if let payloadId = payload?.id {
             WindowOpener.shared.acknowledgePayload(payloadId)

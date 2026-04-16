@@ -69,12 +69,11 @@ extension AppDelegate {
               })
         else { return }
 
-        let payload = EditorTabPayload(
-            connectionId: connectionId,
-            intent: .newEmptyTab
-        )
+        // Add an in-app tab to the active coordinator instead of creating a new native window
         MainActor.assumeIsolated {
-            WindowOpener.shared.openNativeTab(payload)
+            if let coordinator = MainContentCoordinator.firstCoordinator(for: connectionId) {
+                coordinator.addNewQueryTab()
+            }
         }
     }
 
@@ -90,9 +89,7 @@ extension AppDelegate {
             do {
                 try await DatabaseManager.shared.connectToSession(connection)
 
-                for window in NSApp.windows where self.isWelcomeWindow(window) {
-                    window.close()
-                }
+                self.closeAllWelcomeWindows()
             } catch {
                 windowLogger.error("Dock connection failed for '\(connection.name)': \(error.localizedDescription)")
 
@@ -253,7 +250,9 @@ extension AppDelegate {
         }
 
         if isMainWindow(window) && !configuredWindows.contains(windowId) {
-            window.tabbingMode = .preferred
+            // In-app tabs: disallow native window tabbing for editor tabs.
+            // Connection-level grouping (groupAllConnectionTabs) uses addTabbedWindow below.
+            window.tabbingMode = .disallowed
             window.isRestorable = false
             configuredWindows.insert(windowId)
 
@@ -293,6 +292,7 @@ extension AppDelegate {
                             && $0.tabbingIdentifier == resolvedIdentifier
                     }
                 }
+
                 if let existingWindow = matchingWindow {
                     let targetWindow = existingWindow.tabbedWindows?.last ?? existingWindow
                     targetWindow.addTabbedWindow(window, ordered: .above)
@@ -311,7 +311,6 @@ extension AppDelegate {
             let remainingMainWindows = NSApp.windows.filter {
                 $0 !== window && isMainWindow($0) && $0.isVisible
             }.count
-
             if remainingMainWindows == 0 {
                 NotificationCenter.default.post(name: .mainWindowWillClose, object: nil)
                 openWelcomeWindow()
@@ -333,7 +332,7 @@ extension AppDelegate {
 
     // MARK: - Auto-Reconnect
 
-    func attemptAutoReconnectAll(connectionIds: [UUID]) {
+    func attemptAutoReconnect(connectionIds: [UUID]) {
         let connections = ConnectionStorage.shared.loadConnections()
         let validConnections = connectionIds.compactMap { id in
             connections.first { $0.id == id }
@@ -365,9 +364,7 @@ extension AppDelegate {
                     }
                     continue
                 } catch {
-                    windowLogger.error(
-                        "Auto-reconnect failed for '\(connection.name)': \(error.localizedDescription)"
-                    )
+                    windowLogger.error("Auto-reconnect failed for '\(connection.name)': \(error.localizedDescription)")
                     for window in WindowLifecycleMonitor.shared.windows(for: connection.id) {
                         window.close()
                     }
@@ -375,9 +372,7 @@ extension AppDelegate {
                 }
             }
 
-            for window in NSApp.windows where self.isWelcomeWindow(window) {
-                window.close()
-            }
+            self.closeAllWelcomeWindows()
 
             // If all connections failed, show the welcome window
             if !NSApp.windows.contains(where: { self.isMainWindow($0) && $0.isVisible }) {
@@ -386,54 +381,9 @@ extension AppDelegate {
         }
     }
 
-    func attemptAutoReconnect(connectionId: UUID) {
-        let connections = ConnectionStorage.shared.loadConnections()
-        guard let connection = connections.first(where: { $0.id == connectionId }) else {
-            AppSettingsStorage.shared.saveLastConnectionId(nil)
-            closeRestoredMainWindows()
-            openWelcomeWindow()
-            return
-        }
-
-        isAutoReconnecting = true
-
-        Task { @MainActor [weak self] in
-            guard let self else { return }
-            let payload = EditorTabPayload(connectionId: connection.id, intent: .restoreOrDefault)
-            WindowOpener.shared.openNativeTab(payload)
-
-            defer { self.isAutoReconnecting = false }
-            do {
-                try await DatabaseManager.shared.connectToSession(connection)
-
-                for window in NSApp.windows where self.isWelcomeWindow(window) {
-                    window.close()
-                }
-            } catch is CancellationError {
-                for window in WindowLifecycleMonitor.shared.windows(for: connection.id) {
-                    window.close()
-                }
-                if !NSApp.windows.contains(where: { self.isMainWindow($0) && $0.isVisible }) {
-                    self.openWelcomeWindow()
-                }
-            } catch {
-                windowLogger.error("Auto-reconnect failed for '\(connection.name)': \(error.localizedDescription)")
-
-                for window in WindowLifecycleMonitor.shared.windows(for: connection.id) {
-                    window.close()
-                }
-                if !NSApp.windows.contains(where: { self.isMainWindow($0) && $0.isVisible }) {
-                    self.openWelcomeWindow()
-                }
-            }
-        }
-    }
-
     func closeRestoredMainWindows() {
-        DispatchQueue.main.async { [weak self] in
-            for window in NSApp.windows where self?.isMainWindow(window) == true {
-                window.close()
-            }
+        for window in NSApp.windows where isMainWindow(window) {
+            window.close()
         }
     }
 }

@@ -23,6 +23,9 @@
         }
       }
     },
+    "\n\n… (%d more characters not shown)" : {
+
+    },
     " — %@" : {
       "localizations" : {
         "tr" : {
@@ -1229,6 +1232,9 @@
           }
         }
       }
+    },
+    "%d plugin(s) could not be loaded" : {
+
     },
     "%d-%d of %@%@ rows" : {
       "localizations" : {
@@ -4438,6 +4444,9 @@
         }
       }
     },
+    "An external link wants to apply a filter:\n\n%@" : {
+
+    },
     "An external link wants to open a query on connection \"%@\":\n\n%@" : {
       "localizations" : {
         "en" : {
@@ -4803,6 +4812,12 @@
           }
         }
       }
+    },
+    "Apply Filter" : {
+
+    },
+    "Apply Filter from Link" : {
+
     },
     "Apply filters" : {
       "localizations" : {
@@ -7304,6 +7319,9 @@
         }
       }
     },
+    "Close All" : {
+
+    },
     "Close Others" : {
       "localizations" : {
         "tr" : {
@@ -7370,6 +7388,9 @@
         }
       }
     },
+    "Close tab" : {
+
+    },
     "Close Tab" : {
       "localizations" : {
         "tr" : {
@@ -7391,6 +7412,9 @@
           }
         }
       }
+    },
+    "Close Tabs to the Right" : {
+
     },
     "Closing this tab will discard all unsaved changes." : {
       "extractionState" : "stale",
@@ -13449,6 +13473,9 @@
         }
       }
     },
+    "Enter the passphrase for SSH key \"%@\":" : {
+
+    },
     "Enter the passphrase to decrypt and import connections." : {
       "localizations" : {
         "tr" : {
@@ -16542,7 +16569,11 @@
     "Format Query" : {
 
     },
+    "Format Query (⇧⌘L)" : {
+
+    },
     "Format Query (⌥⌘F)" : {
+      "extractionState" : "stale",
       "localizations" : {
         "tr" : {
           "stringUnit" : {
@@ -25592,6 +25623,9 @@
         }
       }
     },
+    "Pin Tab" : {
+
+    },
     "Pink" : {
       "localizations" : {
         "tr" : {
@@ -26344,6 +26378,9 @@
           }
         }
       }
+    },
+    "Preferred" : {
+
     },
     "Preserve all values as strings" : {
       "extractionState" : "stale",
@@ -27623,7 +27660,11 @@
         }
       }
     },
+    "Quick Switcher (⇧⌘O)" : {
+
+    },
     "Quick Switcher (⌘P)" : {
+      "extractionState" : "stale",
       "localizations" : {
         "tr" : {
           "stringUnit" : {
@@ -27666,6 +27707,9 @@
           }
         }
       }
+    },
+    "Quit Anyway" : {
+
     },
     "Quote" : {
       "extractionState" : "stale",
@@ -28780,6 +28824,9 @@
           }
         }
       }
+    },
+    "Reopen Closed Tab" : {
+
     },
     "Reopen Last Session" : {
       "localizations" : {
@@ -30185,6 +30232,9 @@
           }
         }
       }
+    },
+    "Save passphrase in Keychain" : {
+
     },
     "Save Sidebar Changes" : {
       "localizations" : {
@@ -32494,6 +32544,15 @@
         }
       }
     },
+    "Some tabs have unsaved changes that will be lost." : {
+
+    },
+    "Some tabs have unsaved edits. Quitting will discard these changes." : {
+
+    },
+    "Some tabs to the right have unsaved changes that will be lost." : {
+
+    },
     "Something went wrong (error %d). Try again in a moment." : {
       "localizations" : {
         "tr" : {
@@ -33093,6 +33152,9 @@
           }
         }
       }
+    },
+    "SSH Key Passphrase Required" : {
+
     },
     "SSH Port" : {
       "localizations" : {
@@ -35195,6 +35257,9 @@
         }
       }
     },
+    "The following plugins were rejected:\n\n%@\n\nPlease update them from the plugin registry." : {
+
+    },
     "The license has been suspended." : {
       "localizations" : {
         "tr" : {
@@ -36306,7 +36371,11 @@
         }
       }
     },
+    "Toggle Filters (⇧⌘F)" : {
+
+    },
     "Toggle Filters (⌘F)" : {
+      "extractionState" : "stale",
       "localizations" : {
         "tr" : {
           "stringUnit" : {
@@ -37465,6 +37534,9 @@
           }
         }
       }
+    },
+    "Unpin Tab" : {
+
     },
     "Unset" : {
       "localizations" : {
@@ -39107,6 +39179,12 @@
           }
         }
       }
+    },
+    "You have unsaved changes" : {
+
+    },
+    "You have unsaved changes that will be lost." : {
+
     },
     "You have unsaved changes to the table structure. Refreshing will discard these changes." : {
       "localizations" : {

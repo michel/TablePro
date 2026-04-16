@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- In-app tab bar with instant switching, drag reorder, pinned tabs, and dirty indicators
+- Reopen closed tab (Cmd+Shift+T), MRU tab selection on close
+- Deeplinks and Handoff route to in-app tabs instead of creating duplicate windows
+
+### Changed
+
+- Replace native macOS window tabs with in-app tab bar (600ms+ → instant)
+- Tab content preserved across switches (no view destruction/recreation)
+- Connection state persisted incrementally (survives force quit)
+
 ### Fixed
 
 - Raw SQL injection via external URL scheme deeplinks — now requires user confirmation

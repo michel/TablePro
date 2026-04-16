@@ -75,7 +75,7 @@ struct MainEditorContentView: View {
     @State private var serverDashboardViewModels: [UUID: ServerDashboardViewModel] = [:]
     @State private var favoriteDialogQuery: FavoriteDialogQuery?
 
-    // Native macOS window tabs — no LRU tracking needed (single tab per window)
+    // In-app tabs with LRU eviction for inactive tab RowBuffers
 
     // MARK: - Environment
 
@@ -90,18 +90,63 @@ struct MainEditorContentView: View {
         return AnyChangeManager(dataManager: changeManager)
     }
 
+    /// Composite version counter for the active tab — drives `updateNSView`
+    /// when query results, metadata, or pagination change. Hidden tabs are
+    /// not tracked; their rootView is refreshed when they become active.
+    private var activeTabContentVersion: Int {
+        var v = tabManager.selectedTab?.contentVersion ?? 0
+        // Include shared manager state that affects tab content rendering
+        // but isn't part of QueryTab's contentVersion (which only tracks per-tab data).
+        // Without this, NSHostingView rootView isn't rebuilt when these toggle.
+        if filterStateManager.isVisible { v = v &+ 17 }
+        if filterStateManager.hasAppliedFilters { v = v &+ 23 }
+        if coordinator.toolbarState.isHistoryPanelVisible { v = v &+ 19 }
+        if coordinator.safeModeLevel.blocksAllWrites { v = v &+ 29 }
+        v = v &+ columnVisibilityManager.hiddenColumns.hashValue &* 37
+        if AppSettingsManager.shared.dataGrid.showRowNumbers { v = v &+ 41 }
+        return v
+    }
+
     // MARK: - Body
 
     var body: some View {
         let isHistoryVisible = coordinator.toolbarState.isHistoryPanelVisible
 
         VStack(spacing: 0) {
-            // Native macOS window tabs replace the custom tab bar.
-            // Each window-tab contains a single tab — no ZStack keep-alive needed.
-            if let tab = tabManager.selectedTab {
-                tabContent(for: tab)
-            } else {
+            if !tabManager.tabs.isEmpty {
+                EditorTabBar(
+                    tabs: tabManager.tabs,
+                    selectedTabId: Binding(
+                        get: { tabManager.selectedTabId },
+                        set: { tabManager.selectedTabId = $0 }
+                    ),
+                    databaseType: connection.type,
+                    onClose: { id in coordinator.closeInAppTab(id) },
+                    onCloseOthers: { id in coordinator.closeOtherTabs(excluding: id) },
+                    onCloseTabsToRight: { id in coordinator.closeTabsToRight(of: id) },
+                    onCloseAll: { coordinator.closeAllTabs() },
+                    onReorder: { tabs in coordinator.reorderTabs(tabs) },
+                    onRename: { id, name in coordinator.renameTab(id, to: name) },
+                    onAddTab: { coordinator.addNewQueryTab() },
+                    onDuplicate: { id in coordinator.duplicateTab(id) },
+                    onTogglePin: { id in coordinator.togglePinTab(id) },
+                    isActiveTabDirty: changeManager.hasChanges
+                )
+                Divider()
+            }
+
+            if tabManager.tabs.isEmpty {
                 emptyStateView
+            } else {
+                // Tab content lives in AppKit NSHostingViews managed by a
+                // Coordinator. Tab switching toggles NSView.isHidden —
+                // no SwiftUI body re-evaluation, no CALayer opacity relayout.
+                TabContentContainerView(
+                    tabManager: tabManager,
+                    tabIds: tabManager.tabIds,
+                    activeTabContentVersion: activeTabContentVersion,
+                    contentBuilder: { tab in AnyView(tabContent(for: tab)) }
+                )
             }
 
             // Global History Panel
@@ -140,7 +185,7 @@ struct MainEditorContentView: View {
             if cached?.resultVersion != tab.resultVersion
                 || cached?.metadataVersion != tab.metadataVersion
             {
-                cacheRowProvider(for: tab)
+                    cacheRowProvider(for: tab)
             }
         }
         .onAppear {
@@ -159,7 +204,7 @@ struct MainEditorContentView: View {
             guard let tab = tabManager.selectedTab, newVersion != nil else { return }
             cacheRowProvider(for: tab)
         }
-        .onChange(of: tabManager.selectedTab?.metadataVersion) { _, _ in
+        .onChange(of: tabManager.selectedTab?.metadataVersion) { _, newVersion in
             guard let tab = tabManager.selectedTab else { return }
             cacheRowProvider(for: tab)
         }
@@ -255,7 +300,11 @@ struct MainEditorContentView: View {
                         connectionId: coordinator.connection.id,
                         connectionAIPolicy: coordinator.connection.aiPolicy ?? AppSettingsManager.shared.ai.defaultConnectionPolicy,
                         onCloseTab: {
-                            NSApp.keyWindow?.close()
+                            if tabManager.tabs.count > 1, let selectedId = tabManager.selectedTabId {
+                                coordinator.closeInAppTab(selectedId)
+                            } else {
+                                NSApp.keyWindow?.close()
+                            }
                         },
                         onExecuteQuery: { coordinator.runQuery() },
                         onExplain: { variant in
@@ -553,6 +602,15 @@ struct MainEditorContentView: View {
     }
 
     private func cacheRowProvider(for tab: QueryTab) {
+        // Skip if the cached entry is still valid
+        if let entry = tabProviderCache[tab.id],
+           entry.resultVersion == tab.resultVersion,
+           entry.metadataVersion == tab.metadataVersion,
+           entry.sortState == tab.sortState,
+           !tab.rowBuffer.isEvicted
+        {
+            return
+        }
         let provider = makeRowProvider(for: tab)
         tabProviderCache[tab.id] = RowProviderCacheEntry(
             provider: provider,

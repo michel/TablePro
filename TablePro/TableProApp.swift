@@ -183,14 +183,7 @@ struct AppMenuCommands: Commands {
                 if let actions {
                     actions.closeTab()
                 } else if let window = NSApp.keyWindow {
-                    // Only performClose for non-main windows (Settings, Welcome, Connection Form).
-                    // For main windows where @FocusedValue hasn't resolved yet, do nothing —
-                    // prevents accidentally closing the connection window when user intended
-                    // to close a tab.
-                    let isMainWindow = window.identifier?.rawValue.hasPrefix("main") == true
-                    if !isMainWindow {
-                        window.performClose(nil)
-                    }
+                    window.performClose(nil)
                 }
             }
             .optionalKeyboardShortcut(shortcut(for: .closeTab))
@@ -441,7 +434,7 @@ struct AppMenuCommands: Commands {
             .keyboardShortcut("-", modifiers: .command)
         }
 
-        // Tab navigation shortcuts — native macOS window tabs
+        // Tab navigation shortcuts — in-app tab switching
         CommandGroup(after: .windowArrangement) {
             // Tab switching by number (Cmd+1 through Cmd+9)
             ForEach(1...9, id: \.self) { number in
@@ -457,19 +450,27 @@ struct AppMenuCommands: Commands {
 
             Divider()
 
-            // Previous tab (Cmd+Shift+[) — delegate to native macOS tab switching
+            // Previous tab (Cmd+Shift+[) — in-app tab switching
             Button("Show Previous Tab") {
-                NSApp.sendAction(#selector(NSWindow.selectPreviousTab(_:)), to: nil, from: nil)
+                actions?.selectPreviousTab()
             }
             .optionalKeyboardShortcut(shortcut(for: .showPreviousTab))
             .disabled(!(actions?.isConnected ?? false))
 
-            // Next tab (Cmd+Shift+]) — delegate to native macOS tab switching
+            // Next tab (Cmd+Shift+]) — in-app tab switching
             Button("Show Next Tab") {
-                NSApp.sendAction(#selector(NSWindow.selectNextTab(_:)), to: nil, from: nil)
+                actions?.selectNextTab()
             }
             .optionalKeyboardShortcut(shortcut(for: .showNextTab))
             .disabled(!(actions?.isConnected ?? false))
+
+            Divider()
+
+            Button(String(localized: "Reopen Closed Tab")) {
+                actions?.reopenClosedTab()
+            }
+            .optionalKeyboardShortcut(shortcut(for: .reopenClosedTab))
+            .disabled(!(actions?.canReopenClosedTab ?? false))
 
             Divider()
 
@@ -533,7 +534,7 @@ struct TableProApp: App {
         .windowResizability(.contentSize)
 
         // Main Window - opens when connecting to database
-        // Each native window-tab gets its own ContentView with independent state.
+        // Each connection window gets its own ContentView with independent state.
         WindowGroup(id: "main", for: EditorTabPayload.self) { $payload in
             ContentView(payload: payload)
                 .background(OpenWindowHandler())

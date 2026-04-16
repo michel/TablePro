@@ -108,6 +108,10 @@ final class MainContentCoordinator {
     /// Avoids NSApp.keyWindow which may return a sheet window, causing stuck dialogs.
     @ObservationIgnored weak var contentWindow: NSWindow?
 
+    /// NSEvent monitor that intercepts Cmd+W to close tabs instead of the window.
+    /// Removed in teardown.
+    @ObservationIgnored var closeTabMonitor: Any?
+
     // MARK: - Published State
 
     var schemaProvider: SQLSchemaProvider
@@ -133,6 +137,7 @@ final class MainContentCoordinator {
     @ObservationIgnored internal var currentQueryTask: Task<Void, Never>?
     @ObservationIgnored internal var redisDatabaseSwitchTask: Task<Void, Never>?
     @ObservationIgnored private var changeManagerUpdateTask: Task<Void, Never>?
+    @ObservationIgnored internal var tabSwitchTask: Task<Void, Never>?
     @ObservationIgnored private var activeSortTasks: [UUID: Task<Void, Never>] = [:]
     @ObservationIgnored private var terminationObserver: NSObjectProtocol?
     @ObservationIgnored private var urlFilterObservers: [NSObjectProtocol] = []
@@ -156,6 +161,9 @@ final class MainContentCoordinator {
 
     /// Called during teardown to let the view layer release cached row providers and sort data.
     @ObservationIgnored var onTeardown: (() -> Void)?
+    /// Called from Phase 2 of tab switch after deferred state is settled.
+    /// View layer uses this to update title, sidebar, and persistence.
+    @ObservationIgnored var onTabSwitchSettled: (() -> Void)?
 
     /// True once the coordinator's view has appeared (onAppear fired).
     /// Coordinators that SwiftUI creates during body re-evaluation but never
@@ -165,13 +173,8 @@ final class MainContentCoordinator {
     /// Tracks whether teardown() was called; used by deinit to log missed teardowns
     @ObservationIgnored private let _didTeardown = OSAllocatedUnfairLock(initialState: false)
 
-    /// Tracks whether teardown has been scheduled (but not yet executed)
-    /// so deinit doesn't warn if SwiftUI deallocates before the delayed Task fires
-    @ObservationIgnored private let _teardownScheduled = OSAllocatedUnfairLock(initialState: false)
-
-    /// Whether teardown is scheduled or already completed — used by views to skip
-    /// persistence during window close teardown
-    var isTearingDown: Bool { _teardownScheduled.withLock { $0 } || _didTeardown.withLock { $0 } }
+    /// Whether teardown has completed — used by views to skip persistence during teardown
+    var isTearingDown: Bool { _didTeardown.withLock { $0 } }
 
     /// Set when NSApplication is terminating — suppresses deinit warning since
     /// SwiftUI does not call onDisappear during app termination
@@ -200,10 +203,16 @@ final class MainContentCoordinator {
         activeCoordinators.values.first { $0.windowId == windowId }
     }
 
+    /// Find the first coordinator for a connection (used by AppDelegate for Cmd+T).
+    static func firstCoordinator(for connectionId: UUID) -> MainContentCoordinator? {
+        activeCoordinators.values.first { $0.connectionId == connectionId }
+    }
+
     /// Check whether any active coordinator has unsaved edits.
     static func hasAnyUnsavedChanges() -> Bool {
         activeCoordinators.values.contains { coordinator in
-            coordinator.tabManager.tabs.contains { $0.pendingChanges.hasChanges }
+            coordinator.changeManager.hasChanges
+                || coordinator.tabManager.tabs.contains { $0.pendingChanges.hasChanges || $0.isFileDirty }
         }
     }
 
@@ -212,45 +221,6 @@ final class MainContentCoordinator {
         activeCoordinators.values
             .filter { $0.connectionId == connectionId }
             .flatMap { $0.tabManager.tabs }
-    }
-
-    /// Collect non-preview tabs for persistence.
-    private static func aggregatedTabs(for connectionId: UUID) -> [QueryTab] {
-        let coordinators = activeCoordinators.values
-            .filter { $0.connectionId == connectionId }
-
-        // Sort by native window tab order to preserve left-to-right position
-        let orderedCoordinators: [MainContentCoordinator]
-        if let firstWindow = coordinators.compactMap({ $0.contentWindow }).first,
-           let tabbedWindows = firstWindow.tabbedWindows {
-            let windowOrder = Dictionary(uniqueKeysWithValues:
-                tabbedWindows.enumerated().map { (ObjectIdentifier($0.element), $0.offset) }
-            )
-            orderedCoordinators = coordinators.sorted { a, b in
-                let aIdx = a.contentWindow.flatMap { windowOrder[ObjectIdentifier($0)] } ?? Int.max
-                let bIdx = b.contentWindow.flatMap { windowOrder[ObjectIdentifier($0)] } ?? Int.max
-                return aIdx < bIdx
-            }
-        } else {
-            orderedCoordinators = Array(coordinators)
-        }
-
-        return orderedCoordinators
-            .flatMap { $0.tabManager.tabs }
-            .filter { !$0.isPreview }
-    }
-
-    /// Get selected tab ID from any coordinator for a given connectionId.
-    private static func aggregatedSelectedTabId(for connectionId: UUID) -> UUID? {
-        activeCoordinators.values
-            .first { $0.connectionId == connectionId && $0.tabManager.selectedTabId != nil }?
-            .tabManager.selectedTabId
-    }
-
-    /// Check if this coordinator is the first registered for its connection.
-    private func isFirstCoordinatorForConnection() -> Bool {
-        Self.activeCoordinators.values
-            .first { $0.connectionId == self.connectionId } === self
     }
 
     private static let registerTerminationObserver: Void = {
@@ -264,7 +234,7 @@ final class MainContentCoordinator {
     }()
 
     /// Evict row data for background tabs in this coordinator to free memory.
-    /// Called when the coordinator's native window-tab becomes inactive.
+    /// Called when the connection window becomes inactive.
     /// The currently selected tab is kept in memory so the user sees no
     /// refresh flicker when switching back — matching native macOS behavior.
     /// Background tabs are re-fetched automatically when selected.
@@ -329,17 +299,10 @@ final class MainContentCoordinator {
         ) { [weak self] _ in
             MainActor.assumeIsolated {
                 guard let self else { return }
-                // Only the first coordinator for this connection saves,
-                // aggregating tabs from all windows to fix last-write-wins bug.
-                // Skip isTearingDown check: during Cmd+Q, onDisappear fires
-                // markTeardownScheduled() before willTerminate, and we still
-                // need to save here.
-                guard self.isFirstCoordinatorForConnection() else { return }
-                let allTabs = Self.aggregatedTabs(for: self.connectionId)
-                let selectedId = Self.aggregatedSelectedTabId(for: self.connectionId)
+                // Save all tabs directly — single coordinator per connection
                 self.persistence.saveNowSync(
-                    tabs: allTabs,
-                    selectedTabId: selectedId
+                    tabs: self.tabManager.tabs,
+                    selectedTabId: self.tabManager.selectedTabId
                 )
             }
         }
@@ -404,14 +367,6 @@ final class MainContentCoordinator {
         }
     }
 
-    func markTeardownScheduled() {
-        _teardownScheduled.withLock { $0 = true }
-    }
-
-    func clearTeardownScheduled() {
-        _teardownScheduled.withLock { $0 = false }
-    }
-
     func refreshTables() async {
         lastSchemaRefreshDate = Date()
         sidebarLoadingState = .loading
@@ -460,6 +415,16 @@ final class MainContentCoordinator {
     func teardown() {
         _didTeardown.withLock { $0 = true }
 
+        // Resume any pending save continuation to prevent Task leak
+        saveCompletionContinuation?.resume(returning: false)
+        saveCompletionContinuation = nil
+
+        // Remove Cmd+W event monitor
+        if let monitor = closeTabMonitor {
+            NSEvent.removeMonitor(monitor)
+            closeTabMonitor = nil
+        }
+
         unregisterFromPersistence()
         for observer in urlFilterObservers {
             NotificationCenter.default.removeObserver(observer)
@@ -473,6 +438,7 @@ final class MainContentCoordinator {
             NotificationCenter.default.removeObserver(observer)
             pluginDriverObserver = nil
         }
+
         fileWatcher?.stopWatching(connectionId: connectionId)
         fileWatcher = nil
         currentQueryTask?.cancel()
@@ -481,6 +447,8 @@ final class MainContentCoordinator {
         changeManagerUpdateTask = nil
         redisDatabaseSwitchTask?.cancel()
         redisDatabaseSwitchTask = nil
+        tabSwitchTask?.cancel()
+        tabSwitchTask = nil
         for task in activeSortTasks.values { task.cancel() }
         activeSortTasks.removeAll()
 
@@ -526,7 +494,7 @@ final class MainContentCoordinator {
         saveCompletionContinuation = nil
 
         let connectionId = connection.id
-        let alreadyHandled = _didTeardown.withLock { $0 } || _teardownScheduled.withLock { $0 }
+        let alreadyHandled = _didTeardown.withLock { $0 }
 
         // Never-activated coordinators are throwaway instances created by SwiftUI
         // during body re-evaluation — @State only keeps the first, rest are discarded
@@ -690,13 +658,13 @@ final class MainContentCoordinator {
         if level == .silent {
             if statements.count == 1 {
                 Task { @MainActor in
-                    let window = NSApp.keyWindow
+                    let window = self.contentWindow
                     guard await confirmDangerousQueryIfNeeded(statements[0], window: window) else { return }
                     executeQueryInternal(statements[0])
                 }
             } else {
                 Task { @MainActor in
-                    let window = NSApp.keyWindow
+                    let window = self.contentWindow
                     let dangerousStatements = statements.filter { isDangerousQuery($0) }
                     if !dangerousStatements.isEmpty {
                         guard await confirmDangerousQueries(dangerousStatements, window: window) else { return }
@@ -709,7 +677,7 @@ final class MainContentCoordinator {
             isShowingSafeModePrompt = true
             Task { @MainActor in
                 defer { isShowingSafeModePrompt = false }
-                let window = NSApp.keyWindow
+                let window = self.contentWindow
                 let combinedSQL = statements.joined(separator: "\n")
                 let hasWrite = statements.contains { isWriteQuery($0) }
                 let permission = await SafeModeGuard.checkPermission(
@@ -760,13 +728,12 @@ final class MainContentCoordinator {
             isShowingSafeModePrompt = true
             Task { @MainActor in
                 defer { isShowingSafeModePrompt = false }
-                let window = NSApp.keyWindow
                 let permission = await SafeModeGuard.checkPermission(
                     level: level,
                     isWriteOperation: false,
                     sql: sql,
                     operationDescription: String(localized: "Execute Query"),
-                    window: window,
+                    window: self.contentWindow,
                     databaseType: connection.type
                 )
                 switch permission {
@@ -792,12 +759,7 @@ final class MainContentCoordinator {
             tabManager.tabs[tabIndex].query = query
             tabManager.tabs[tabIndex].hasUserInteraction = true
         } else {
-            let payload = EditorTabPayload(
-                connectionId: connection.id,
-                tabType: .query,
-                initialQuery: query
-            )
-            WindowOpener.shared.openNativeTab(payload)
+            tabManager.addTab(initialQuery: query, databaseName: connection.database)
         }
     }
 
@@ -815,12 +777,7 @@ final class MainContentCoordinator {
         } else if tabManager.tabs.isEmpty {
             tabManager.addTab(initialQuery: query, databaseName: connection.database)
         } else {
-            let payload = EditorTabPayload(
-                connectionId: connection.id,
-                tabType: .query,
-                initialQuery: query
-            )
-            WindowOpener.shared.openNativeTab(payload)
+            tabManager.addTab(initialQuery: query, databaseName: connection.database)
         }
     }
 
@@ -869,13 +826,12 @@ final class MainContentCoordinator {
         if !explainVariants.isEmpty {
             if needsConfirmation {
                 Task { @MainActor in
-                    let window = NSApp.keyWindow
                     let permission = await SafeModeGuard.checkPermission(
                         level: level,
                         isWriteOperation: false,
                         sql: "EXPLAIN",
                         operationDescription: String(localized: "Execute Query"),
-                        window: window,
+                        window: self.contentWindow,
                         databaseType: connection.type
                     )
                     if case .allowed = permission {
@@ -898,13 +854,12 @@ final class MainContentCoordinator {
 
         if needsConfirmation {
             Task { @MainActor in
-                let window = NSApp.keyWindow
                 let permission = await SafeModeGuard.checkPermission(
                     level: level,
                     isWriteOperation: false,
                     sql: explainSQL,
                     operationDescription: String(localized: "Execute Query"),
-                    window: window,
+                    window: self.contentWindow,
                     databaseType: connection.type
                 )
                 if case .allowed = permission {
@@ -1106,9 +1061,6 @@ final class MainContentCoordinator {
                     }
                 }
             } catch {
-                // Always reset isExecuting even if generation is stale —
-                // skipping this leaves the tab permanently stuck in "executing"
-                // state, requiring a reconnect to recover.
                 await MainActor.run { [weak self] in
                     guard let self else { return }
                     if let idx = tabManager.tabs.firstIndex(where: { $0.id == tabId }) {
