@@ -204,7 +204,7 @@ struct MainEditorContentView: View {
             guard let tab = tabManager.selectedTab, newVersion != nil else { return }
             cacheRowProvider(for: tab)
         }
-        .onChange(of: tabManager.selectedTab?.metadataVersion) { _, newVersion in
+        .onChange(of: tabManager.selectedTab?.metadataVersion) { _, _ in
             guard let tab = tabManager.selectedTab else { return }
             cacheRowProvider(for: tab)
         }
