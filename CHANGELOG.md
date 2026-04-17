@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.32.1] - 2026-04-17
+
+### Changed
+
+- Revert in-app tab bar refactor to restore native macOS window tabs (stability)
+
 ## [0.32.0] - 2026-04-16
 
 ### Fixed
@@ -1342,7 +1348,8 @@ TablePro is a native macOS database client built with SwiftUI and AppKit, design
     - Custom SQL query templates
     - Performance optimized for large datasets
 
-[Unreleased]: https://github.com/TableProApp/TablePro/compare/v0.32.0...HEAD
+[Unreleased]: https://github.com/TableProApp/TablePro/compare/v0.32.1...HEAD
+[0.32.1]: https://github.com/TableProApp/TablePro/compare/v0.32.0...v0.32.1
 [0.32.0]: https://github.com/TableProApp/TablePro/compare/v0.31.5...v0.32.0
 [0.31.5]: https://github.com/TableProApp/TablePro/compare/v0.31.4...v0.31.5
 [0.31.4]: https://github.com/TableProApp/TablePro/compare/v0.31.3...v0.31.4
