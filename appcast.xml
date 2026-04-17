@@ -3,6 +3,33 @@
     <channel>
         <title>TablePro</title>
         <item>
+            <title>0.32.1</title>
+            <pubDate>Fri, 17 Apr 2026 00:51:02 +0000</pubDate>
+            <sparkle:version>71</sparkle:version>
+            <sparkle:shortVersionString>0.32.1</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+            <description><![CDATA[<h3>Changed</h3>
+<ul>
+<li>Revert in-app tab bar refactor to restore native macOS window tabs (stability)</li>
+</ul>
+]]></description>
+            <enclosure url="https://github.com/TableProApp/TablePro/releases/download/v0.32.1/TablePro-0.32.1-arm64.zip" length="24668630" type="application/octet-stream" sparkle:edSignature="6q8j4WtM4TboUSfO+PTnEttsUKcZ4DVghGaQUO1u9TBCik4+0/YscUgrysJeMglcneh6i9nC21ezOkCT7eRwAQ=="/>
+        </item>
+        <item>
+            <title>0.32.1</title>
+            <pubDate>Fri, 17 Apr 2026 00:51:03 +0000</pubDate>
+            <sparkle:version>71</sparkle:version>
+            <sparkle:shortVersionString>0.32.1</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <description><![CDATA[<h3>Changed</h3>
+<ul>
+<li>Revert in-app tab bar refactor to restore native macOS window tabs (stability)</li>
+</ul>
+]]></description>
+            <enclosure url="https://github.com/TableProApp/TablePro/releases/download/v0.32.1/TablePro-0.32.1-x86_64.zip" length="23958562" type="application/octet-stream" sparkle:edSignature="5oLLaPr5sdAClrKXsFhGIfbGedvkbnAsa2+8gJl/0INV9J1PlQG6oIn0Z/u5nEOKKkh9W7uC9/sx05O9H6j3CA=="/>
+        </item>
+        <item>
             <title>0.32.0</title>
             <pubDate>Thu, 16 Apr 2026 16:08:08 +0000</pubDate>
             <sparkle:version>70</sparkle:version>
