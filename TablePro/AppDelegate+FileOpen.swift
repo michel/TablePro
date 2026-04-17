@@ -32,39 +32,31 @@ extension AppDelegate {
 
         let tableName = activity.userInfo?["tableName"] as? String
 
-        // Already connected — route to existing window's in-app tab bar
         if DatabaseManager.shared.activeSessions[connectionId]?.driver != nil {
             if let tableName {
                 let payload = EditorTabPayload(connectionId: connectionId, tabType: .table, tableName: tableName)
-                if !routeToExistingWindow(connectionId: connectionId, payload: payload) {
-                    WindowOpener.shared.openNativeTab(payload)
-                }
+                WindowOpener.shared.openNativeTab(payload)
             } else {
-                bringConnectionWindowToFront(connectionId)
+                for window in NSApp.windows where isMainWindow(window) {
+                    window.makeKeyAndOrderFront(nil)
+                    return
+                }
             }
             return
         }
 
-        // Window already pending (e.g., auto-reconnect in progress) — just bring to front
-        let hasPending = WindowOpener.shared.pendingPayloads.contains { $0.connectionId == connectionId }
-        if hasPending {
-            bringConnectionWindowToFront(connectionId)
-            return
-        }
-
-        // Not connected — create window, connect, then route content as in-app tab
-        let initialPayload = EditorTabPayload(connectionId: connectionId, intent: .restoreOrDefault)
+        let initialPayload = EditorTabPayload(connectionId: connectionId)
         WindowOpener.shared.openNativeTab(initialPayload)
 
         Task { @MainActor in
             do {
                 try await DatabaseManager.shared.connectToSession(connection)
-                self.closeAllWelcomeWindows()
+                for window in NSApp.windows where self.isWelcomeWindow(window) {
+                    window.close()
+                }
                 if let tableName {
                     let payload = EditorTabPayload(connectionId: connectionId, tabType: .table, tableName: tableName)
-                    if !routeToExistingWindow(connectionId: connectionId, payload: payload) {
-                        WindowOpener.shared.openNativeTab(payload)
-                    }
+                    WindowOpener.shared.openNativeTab(payload)
                 }
             } catch {
                 fileOpenLogger.error("Handoff connect failed: \(error.localizedDescription)")
@@ -94,11 +86,6 @@ extension AppDelegate {
     // MARK: - Main Dispatch
 
     func handleOpenURLs(_ urls: [URL]) {
-        // application(_:open:) fires in the same run loop pass as applicationDidFinishLaunching
-        // on cold launch from URL. The deferred auto-reconnect Task yields to the next run loop,
-        // so this flag is guaranteed to be set before the Task checks it.
-        suppressAutoReconnect = true
-
         let deeplinks = urls.filter { $0.scheme == "tablepro" }
         if !deeplinks.isEmpty {
             Task { @MainActor in
@@ -156,7 +143,9 @@ extension AppDelegate {
                 for window in NSApp.windows where isMainWindow(window) {
                     window.makeKeyAndOrderFront(nil)
                 }
-                closeAllWelcomeWindows()
+                for window in NSApp.windows where isWelcomeWindow(window) {
+                    window.close()
+                }
                 NotificationCenter.default.post(name: .openSQLFiles, object: sqlFiles)
                 endFileOpenSuppression()
             } else {
@@ -164,36 +153,6 @@ extension AppDelegate {
                 openWelcomeWindow()
             }
         }
-    }
-
-    // MARK: - In-App Tab Routing
-
-    /// Route content to an existing connection window's in-app tab bar when possible.
-    /// Returns true if the content was routed to an existing window.
-    /// Falls back gracefully (returns false) when no coordinator exists for the connection.
-    @discardableResult
-    func routeToExistingWindow(
-        connectionId: UUID,
-        payload: EditorTabPayload
-    ) -> Bool {
-        guard let coordinator = MainContentCoordinator.firstCoordinator(for: connectionId) else {
-            return false
-        }
-        switch payload.tabType {
-        case .table:
-            if let tableName = payload.tableName {
-                coordinator.openTableTab(tableName, showStructure: payload.showStructure, isView: payload.isView)
-            }
-        case .query:
-            coordinator.tabManager.addTab(
-                initialQuery: payload.initialQuery,
-                databaseName: payload.databaseName ?? coordinator.connection.database
-            )
-        default:
-            coordinator.addNewQueryTab()
-        }
-        coordinator.contentWindow?.makeKeyAndOrderFront(nil)
-        return true
     }
 
     // MARK: - Welcome Window Suppression
@@ -257,7 +216,7 @@ extension AppDelegate {
         makePayload: (@Sendable (UUID) -> EditorTabPayload)? = nil
     ) {
         guard let connection = DeeplinkHandler.resolveConnection(named: connectionName) else {
-            fileOpenLogger.error("No connection named '\(connectionName, privacy: .public)'")
+            fileOpenLogger.error("Deep link: no connection named '\(connectionName, privacy: .public)'")
             AlertHelper.showErrorSheet(
                 title: String(localized: "Connection Not Found"),
                 message: String(format: String(localized: "No saved connection named \"%@\"."), connectionName),
@@ -266,32 +225,15 @@ extension AppDelegate {
             return
         }
 
-        let hasDriver = DatabaseManager.shared.activeSessions[connection.id]?.driver != nil
-        let hasCoordinator = MainContentCoordinator.firstCoordinator(for: connection.id) != nil
-
-        // Already connected — route to existing window's in-app tab bar
-        if hasDriver {
+        if DatabaseManager.shared.activeSessions[connection.id]?.driver != nil {
             if let payload = makePayload?(connection.id) {
-                if !routeToExistingWindow(connectionId: connection.id, payload: payload) {
-                    WindowOpener.shared.openNativeTab(payload)
-                }
+                WindowOpener.shared.openNativeTab(payload)
             } else {
-                bringConnectionWindowToFront(connection.id)
+                for window in NSApp.windows where isMainWindow(window) {
+                    window.makeKeyAndOrderFront(nil)
+                    return
+                }
             }
-            return
-        }
-
-        // Prevent duplicate connections from rapid deeplink invocations
-        let hasPendingWindow = WindowOpener.shared.pendingPayloads.contains { $0.connectionId == connection.id }
-        let isAlreadyConnecting = connectingURLConnectionIds.contains(connection.id)
-        guard !isAlreadyConnecting, !hasPendingWindow else {
-            bringConnectionWindowToFront(connection.id)
-            return
-        }
-
-        // Has coordinator but no driver — window exists, connection may be in progress
-        if hasCoordinator {
-            bringConnectionWindowToFront(connection.id)
             return
         }
 
@@ -300,13 +242,10 @@ extension AppDelegate {
             NSWindow.allowsAutomaticWindowTabbing = false
         }
 
-        connectingURLConnectionIds.insert(connection.id)
-
-        let deeplinkPayload = EditorTabPayload(connectionId: connection.id, intent: .restoreOrDefault)
+        let deeplinkPayload = EditorTabPayload(connectionId: connection.id)
         WindowOpener.shared.openNativeTab(deeplinkPayload)
 
         Task { @MainActor in
-            defer { self.connectingURLConnectionIds.remove(connection.id) }
             do {
                 // Confirm pre-connect script if present (deep links are external, so always confirm)
                 if let script = connection.preConnectScript,
@@ -323,14 +262,14 @@ extension AppDelegate {
                 }
 
                 try await DatabaseManager.shared.connectToSession(connection)
-                self.closeAllWelcomeWindows()
+                for window in NSApp.windows where self.isWelcomeWindow(window) {
+                    window.close()
+                }
                 if let payload = makePayload?(connection.id) {
-                    if !self.routeToExistingWindow(connectionId: connection.id, payload: payload) {
-                        WindowOpener.shared.openNativeTab(payload)
-                    }
+                    WindowOpener.shared.openNativeTab(payload)
                 }
             } catch {
-                fileOpenLogger.error("Deeplink connect failed for \"\(connectionName, privacy: .public)\": \(error.localizedDescription, privacy: .public)")
+                fileOpenLogger.error("Deep link connect failed: \(error.localizedDescription)")
                 await self.handleConnectionFailure(error)
             }
         }

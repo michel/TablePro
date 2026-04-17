@@ -11,14 +11,34 @@ import SwiftUI
 extension MainContentView {
     // MARK: - Event Handlers
 
-    func handleTabsChange(_ newTabs: [QueryTab]) {
-        // Skip during tab switch — handleTabChange saves outgoing tab state which
-        // mutates tabs[], triggering this handler redundantly. The tab selection
-        // handler already persists at the end.
-        guard !coordinator.isHandlingTabSwitch else { return }
+    func handleTabSelectionChange(from oldTabId: UUID?, to newTabId: UUID?) {
+        coordinator.handleTabChange(
+            from: oldTabId,
+            to: newTabId,
+            selectedRowIndices: &selectedRowIndices,
+            tabs: tabManager.tabs
+        )
 
         updateWindowTitleAndFileState()
 
+        // Sync sidebar selection to match the newly selected tab.
+        // Critical for new native windows: localSelectedTables starts empty,
+        // and this is the only place that can seed it from the restored tab.
+        syncSidebarToCurrentTab()
+
+        // Persist tab selection explicitly (skip during teardown)
+        guard !coordinator.isTearingDown else { return }
+        coordinator.persistence.saveNow(
+            tabs: tabManager.tabs,
+            selectedTabId: newTabId
+        )
+    }
+
+    func handleTabsChange(_ newTabs: [QueryTab]) {
+        updateWindowTitleAndFileState()
+
+        // Don't persist during teardown — SwiftUI may fire onChange with empty tabs
+        // as the view is being deallocated
         guard !coordinator.isTearingDown else { return }
         guard !coordinator.isUpdatingColumnLayout else { return }
 
@@ -80,13 +100,13 @@ extension MainContentView {
         }
 
         // Only navigate when this is the focused window.
-        // Prevents feedback loops when shared sidebar state syncs across connection windows.
+        // Prevents feedback loops when shared sidebar state syncs across native tabs.
         guard isKeyWindow else {
             return
         }
 
         let isPreviewMode = AppSettingsManager.shared.tabs.enablePreviewTabs
-        let hasPreview = tabManager.tabs.contains { $0.isPreview }
+        let hasPreview = WindowLifecycleMonitor.shared.previewWindow(for: connection.id) != nil
 
         let result = SidebarNavigationResult.resolve(
             clickedTableName: tableName,

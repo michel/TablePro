@@ -13,7 +13,7 @@ import TableProPluginKit
 struct ContentView: View {
     private static let logger = Logger(subsystem: "com.TablePro", category: "ContentView")
 
-    /// Payload identifying what this connection window should display.
+    /// Payload identifying what this native window-tab should display.
     /// nil = default empty query tab (first window on connection).
     let payload: EditorTabPayload?
 
@@ -54,7 +54,7 @@ struct ContentView: View {
 
         // Resolve session synchronously to avoid "Connecting..." flash.
         // For payload with connectionId: look up that specific session.
-        // For nil payload: fall back to current session.
+        // For nil payload (native tab bar "+"): fall back to current session.
         var resolvedSession: ConnectionSession?
         if let connectionId = payload?.connectionId {
             resolvedSession = DatabaseManager.shared.activeSessions[connectionId]
@@ -63,10 +63,20 @@ struct ContentView: View {
         }
         _currentSession = State(initialValue: resolvedSession)
 
-        // SessionState is created lazily in ensureSessionState() on first
-        // connection event — not in init, which SwiftUI may call speculatively.
-        _rightPanelState = State(initialValue: nil)
-        _sessionState = State(initialValue: nil)
+        if let session = resolvedSession {
+            _rightPanelState = State(initialValue: RightPanelState())
+            let state = SessionStateFactory.create(
+                connection: session.connection, payload: payload
+            )
+            _sessionState = State(initialValue: state)
+            if payload?.intent == .newEmptyTab,
+               let tabTitle = state.coordinator.tabManager.selectedTab?.title {
+                _windowTitle = State(initialValue: tabTitle)
+            }
+        } else {
+            _rightPanelState = State(initialValue: nil)
+            _sessionState = State(initialValue: nil)
+        }
     }
 
     var body: some View {
@@ -103,7 +113,15 @@ struct ContentView: View {
                     currentSession = DatabaseManager.shared.activeSessions[connectionId]
                     columnVisibility = currentSession != nil ? .all : .detailOnly
                     if let session = currentSession {
-                        ensureSessionState(for: session)
+                        if rightPanelState == nil {
+                            rightPanelState = RightPanelState()
+                        }
+                        if sessionState == nil {
+                            sessionState = SessionStateFactory.create(
+                                connection: session.connection,
+                                payload: payload
+                            )
+                        }
                     }
                 } else {
                     currentSession = nil
@@ -113,6 +131,29 @@ struct ContentView: View {
             .task { handleConnectionStatusChange() }
             .onReceive(NotificationCenter.default.publisher(for: .connectionStatusDidChange)) { _ in
                 handleConnectionStatusChange()
+            }
+            .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { notification in
+                // Only process notifications for our own window to avoid every
+                // ContentView instance re-rendering on every window focus change.
+                // Match by checking if the window is registered for our connectionId
+                // in WindowLifecycleMonitor (subtitle may not be set yet on first appear).
+                guard let notificationWindow = notification.object as? NSWindow,
+                      let windowId = notificationWindow.identifier?.rawValue,
+                      windowId == "main" || windowId.hasPrefix("main-"),
+                      let connectionId = payload?.connectionId
+                else { return }
+
+                // Verify this notification is for our window. Check WindowLifecycleMonitor
+                // first (reliable after onAppear registers), fall back to subtitle match
+                // for the brief window before registration completes.
+                let isOurWindow = WindowLifecycleMonitor.shared.windows(for: connectionId)
+                    .contains(where: { $0 === notificationWindow })
+                    || {
+                        guard let name = currentSession?.connection.name, !name.isEmpty else { return false }
+                        return notificationWindow.subtitle == name
+                            || notificationWindow.subtitle == "\(name) — Preview"
+                    }()
+                guard isOurWindow else { return }
             }
     }
 
@@ -130,9 +171,21 @@ struct ContentView: View {
                         activeTableName: windowTitle,
                         onDoubleClick: { table in
                             let isView = table.type == .view
-                            // Promote any in-app preview tab, then open the table permanently
-                            sessionState.coordinator.promotePreviewTab()
-                            sessionState.coordinator.openTableTab(table.name, isView: isView)
+                            if let preview = WindowLifecycleMonitor.shared.previewWindow(for: currentSession.connection.id),
+                               let previewCoordinator = MainContentCoordinator.coordinator(for: preview.windowId) {
+                                // If the preview tab shows this table, promote it
+                                if previewCoordinator.tabManager.selectedTab?.tableName == table.name {
+                                    previewCoordinator.promotePreviewTab()
+                                } else {
+                                    // Preview shows a different table — promote it first, then open this table permanently
+                                    previewCoordinator.promotePreviewTab()
+                                    sessionState.coordinator.openTableTab(table.name, isView: isView)
+                                }
+                            } else {
+                                // No preview tab — promote current if it's a preview, otherwise open permanently
+                                sessionState.coordinator.promotePreviewTab()
+                                sessionState.coordinator.openTableTab(table.name, isView: isView)
+                            }
                         },
                         pendingTruncates: sessionPendingTruncatesBinding,
                         pendingDeletes: sessionPendingDeletesBinding,
@@ -292,30 +345,18 @@ struct ContentView: View {
             return
         }
         currentSession = newSession
-        ensureSessionState(for: newSession)
-    }
-
-    /// Create SessionState exactly once per connection. Called from reactive
-    /// handlers (onChange, handleConnectionStatusChange) — never from init,
-    /// because SwiftUI may call init speculatively during body evaluation.
-    private func ensureSessionState(for session: ConnectionSession) {
-        guard sessionState == nil else { return }
+        // Update window title on first session connect (fixes cold-launch stale title)
+        if payload?.tableName == nil, windowTitle == "SQL Query" || windowTitle.hasSuffix(" Query") {
+            windowTitle = newSession.connection.name
+        }
         if rightPanelState == nil {
             rightPanelState = RightPanelState()
         }
-        let state = SessionStateFactory.create(
-            connection: session.connection,
-            payload: payload
-        )
-        sessionState = state
-        columnVisibility = .all
-        // Update window title on first connect
-        if payload?.intent == .newEmptyTab,
-           let tabTitle = state.coordinator.tabManager.selectedTab?.title {
-            windowTitle = tabTitle
-        } else if payload?.tableName == nil,
-                  windowTitle == "SQL Query" || windowTitle.hasSuffix(" Query") {
-            windowTitle = session.connection.name
+        if sessionState == nil {
+            sessionState = SessionStateFactory.create(
+                connection: newSession.connection,
+                payload: payload
+            )
         }
     }
 

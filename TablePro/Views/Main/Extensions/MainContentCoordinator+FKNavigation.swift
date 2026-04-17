@@ -53,7 +53,7 @@ extension MainContentCoordinator {
             return
         }
 
-        // If current tab has unsaved changes, open in a new in-app tab instead of replacing
+        // If current tab has unsaved changes, open in a new native tab instead of replacing
         if changeManager.hasChanges {
             let fkFilterState = TabFilterState(
                 filters: [filter],
@@ -61,18 +61,16 @@ extension MainContentCoordinator {
                 isVisible: true,
                 filterLogicMode: .and
             )
-            tabManager.addTableTab(
+            let payload = EditorTabPayload(
+                connectionId: connection.id,
+                tabType: .table,
                 tableName: referencedTable,
-                databaseType: connection.type,
-                databaseName: currentDatabase
+                databaseName: currentDatabase,
+                schemaName: targetSchema,
+                isView: false,
+                initialFilterState: fkFilterState
             )
-            if let tabIndex = tabManager.selectedTabIndex {
-                tabManager.tabs[tabIndex].schemaName = targetSchema
-                tabManager.tabs[tabIndex].filterState = fkFilterState
-                filterStateManager.restoreFromTabState(fkFilterState)
-            }
-            restoreColumnLayoutForTable(referencedTable)
-            runQuery()
+            WindowOpener.shared.openNativeTab(payload)
             return
         }
 

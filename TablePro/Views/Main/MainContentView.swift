@@ -53,8 +53,8 @@ struct MainContentView: View {
     @State var queryResultsSummaryCache: (tabId: UUID, version: Int, summary: String?)?
     @State var inspectorUpdateTask: Task<Void, Never>?
     @State var lazyLoadTask: Task<Void, Never>?
-    // pendingTabSwitch removed — tab switch is synchronous (2ms), no debounce needed
-    // evictionTask removed — eviction only on memory pressure, not window resign
+    @State var pendingTabSwitch: Task<Void, Never>?
+    @State var evictionTask: Task<Void, Never>?
     /// Stable identifier for this window in WindowLifecycleMonitor
     @State var windowId = UUID()
     @State var hasInitialized = false
@@ -63,6 +63,10 @@ struct MainContentView: View {
     @State var lastResignKeyDate = Date.distantPast
     /// Reference to this view's NSWindow for filtering notifications
     @State var viewWindow: NSWindow?
+
+    /// Grace period for onDisappear: SwiftUI fires onDisappear transiently
+    /// during tab group merges, then re-fires onAppear shortly after.
+    private static let tabGroupMergeGracePeriod: Duration = .milliseconds(200)
 
     // MARK: - Environment
 
@@ -223,9 +227,12 @@ struct MainContentView: View {
                     configureWindow(window)
                 }
             }
-            // Metadata loading moved to query completion (executeQueryInternal)
-            // and Phase 2 tab switch settlement. Removed .task(id: currentTab?.tableName)
-            // which created N queued tasks during rapid Cmd+1/2/3 switching.
+            .task(id: currentTab?.tableName) {
+                // Only load metadata after the tab has executed at least once —
+                // avoids a redundant DB query racing with the initial data query
+                guard currentTab?.lastExecutedAt != nil else { return }
+                await loadTableMetadataIfNeeded()
+            }
             .onChange(of: inspectorTrigger) {
                 scheduleInspectorUpdate()
             }
@@ -242,29 +249,47 @@ struct MainContentView: View {
                 rightPanelState.aiViewModel.schemaProvider = coordinator.schemaProvider
                 coordinator.aiViewModel = rightPanelState.aiViewModel
                 coordinator.rightPanelState = rightPanelState
-                coordinator.onTabSwitchSettled = {
-                    // Capture reference types explicitly — MainContentView is a struct,
-                    // but @State/@Binding storage is reference-stable.
-                    self.selectedRowIndices = []
-                    self.updateWindowTitleAndFileState()
-                    self.syncSidebarToCurrentTab()
-                    guard !self.coordinator.isTearingDown else { return }
-                    self.coordinator.persistence.saveNow(
-                        tabs: self.tabManager.tabs,
-                        selectedTabId: self.tabManager.selectedTabId
-                    )
-                    if let tab = self.tabManager.selectedTab, tab.lastExecutedAt != nil {
-                        Task { await self.loadTableMetadataIfNeeded() }
-                    }
-                }
 
                 // Window registration is handled by WindowAccessor in .background
             }
             .onDisappear {
-                // No teardown here. Coordinator and panel cleanup is handled by
-                // WindowLifecycleMonitor.handleWindowClose (NSWindow.willCloseNotification)
-                // — a deterministic AppKit signal. SwiftUI's onDisappear fires transiently
-                // during view hierarchy reconstruction and is not reliable for resource cleanup.
+                // Mark teardown intent synchronously so deinit doesn't warn
+                // if SwiftUI deallocates the coordinator before the delayed Task fires
+                coordinator.markTeardownScheduled()
+
+                let capturedWindowId = windowId
+                let connectionId = connection.id
+                Task { @MainActor in
+                    // Grace period: SwiftUI fires onDisappear transiently during tab group
+                    // merges/splits, then re-fires onAppear shortly after. The onAppear
+                    // handler re-registers via WindowLifecycleMonitor on DispatchQueue.main.async,
+                    // so this delay must exceed that dispatch latency to avoid tearing down
+                    // a window that's about to reappear.
+                    try? await Task.sleep(for: Self.tabGroupMergeGracePeriod)
+
+                    // If this window re-registered (temporary disappear during tab group merge), skip cleanup
+                    if WindowLifecycleMonitor.shared.isRegistered(windowId: capturedWindowId) {
+                        coordinator.clearTeardownScheduled()
+                        return
+                    }
+
+                    // Window truly closed — teardown coordinator
+                    coordinator.teardown()
+                    rightPanelState.teardown()
+
+                    // If no more windows for this connection, disconnect.
+                    // Tab state is NOT cleared here — it's preserved for next reconnect.
+                    // Only handleTabsChange(count=0) clears state (user explicitly closed all tabs).
+                    guard !WindowLifecycleMonitor.shared.hasWindows(for: connectionId) else {
+                        return
+                    }
+                    await DatabaseManager.shared.disconnectSession(connectionId)
+
+                    // Give SwiftUI/AppKit time to deallocate view hierarchies,
+                    // then hint malloc to return freed pages to the OS
+                    try? await Task.sleep(for: .seconds(2))
+                    malloc_zone_pressure_relief(nil, 0)
+                }
             }
             .onChange(of: pendingChangeTrigger) {
                 updateToolbarPendingState()
@@ -296,13 +321,13 @@ struct MainContentView: View {
             .modifier(ToolbarTintModifier(connectionColor: connection.color))
             .task { await initializeAndRestoreTabs() }
             .onChange(of: tabManager.selectedTabId) { _, newTabId in
-                // ZStack opacity flip happens automatically from selectedTabId binding.
-                // ALL work is deferred to Phase 2 (handleTabChange's Task) which
-                // coalesces rapid Cmd+1/2/3 switches via tabSwitchTask cancellation.
-                // No synchronous mutations here — avoids triggering body re-evals
-                // that block the main thread during keyboard repeat spam.
-                coordinator.scheduleTabSwitch(from: previousSelectedTabId, to: newTabId)
-                previousSelectedTabId = newTabId
+                pendingTabSwitch?.cancel()
+                pendingTabSwitch = Task { @MainActor in
+                    await Task.yield()
+                    guard !Task.isCancelled else { return }
+                    handleTabSelectionChange(from: previousSelectedTabId, to: newTabId)
+                    previousSelectedTabId = newTabId
+                }
             }
             .onChange(of: tabManager.tabs) { _, newTabs in
                 handleTabsChange(newTabs)
@@ -328,6 +353,8 @@ struct MainContentView: View {
                 notificationWindow === viewWindow
             else { return }
             isKeyWindow = true
+            evictionTask?.cancel()
+            evictionTask = nil
             Task { @MainActor in
                 syncSidebarToCurrentTab()
             }
@@ -367,10 +394,16 @@ struct MainContentView: View {
             isKeyWindow = false
             lastResignKeyDate = Date()
 
-            // Row data eviction only happens under system memory pressure
-            // (via MemoryPressureAdvisor), not on window resign. Other DB clients
-            // (Beekeeper, DataGrip, TablePlus) keep data in memory until close.
-            // Evicting on resign caused re-fetch delays when switching back.
+            // Schedule row data eviction for inactive native window-tabs.
+            // 5s delay avoids thrashing when quickly switching between tabs.
+            // Per-tab pendingChanges checks inside evictInactiveRowData() protect
+            // tabs with unsaved changes from eviction.
+            evictionTask?.cancel()
+            evictionTask = Task { @MainActor in
+                try? await Task.sleep(for: .seconds(5))
+                guard !Task.isCancelled else { return }
+                coordinator.evictInactiveRowData()
+            }
             }
             .onChange(of: tables) { _, newTables in
                 let syncAction = SidebarSyncAction.resolveOnTablesLoad(

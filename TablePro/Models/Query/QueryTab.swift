@@ -104,9 +104,6 @@ struct QueryTab: Identifiable, Equatable {
     // Whether this tab is a preview (temporary) tab that gets replaced on next navigation
     var isPreview: Bool
 
-    // Whether this tab is pinned (cannot be closed, always at left)
-    var isPinned: Bool
-
     // Multi-result-set support (Phase 0: added alongside existing single-result properties)
     var resultSets: [ResultSet] = []
     var activeResultSetId: UUID?
@@ -132,18 +129,6 @@ struct QueryTab: Identifiable, Equatable {
 
     // Version counter incremented on pagination changes, used to scroll grid to top
     var paginationVersion: Int
-
-    /// Composite version for NSHostingView rootView rebuild decisions.
-    /// Includes all state that affects visual content.
-    var contentVersion: Int {
-        // Use prime multipliers to avoid hash collisions between states.
-        // Previous formula used simple addition, causing collisions like:
-        // isExecuting(+2) == resultVersion(1) + metadataVersion(1)
-        var v = resultVersion &* 97 &+ metadataVersion &* 31 &+ paginationVersion &* 13
-        if errorMessage != nil { v = v &+ 7 }
-        if isExecuting { v = v &+ 3 }
-        return v
-    }
 
     /// Whether the editor content differs from the last saved/loaded file content.
     /// Returns false for tabs not backed by a file.
@@ -189,7 +174,6 @@ struct QueryTab: Identifiable, Equatable {
         self.filterState = TabFilterState()
         self.columnLayout = ColumnLayoutState()
         self.isPreview = false
-        self.isPinned = false
         self.sourceFileURL = nil
         self.resultVersion = 0
         self.metadataVersion = 0
@@ -227,7 +211,6 @@ struct QueryTab: Identifiable, Equatable {
         self.filterState = TabFilterState()
         self.columnLayout = ColumnLayoutState()
         self.isPreview = false
-        self.isPinned = persisted.isPinned
         self.sourceFileURL = persisted.sourceFileURL
         self.resultVersion = 0
         self.metadataVersion = 0
