@@ -159,6 +159,22 @@ When adding a new method to the driver protocol: add to `PluginDatabaseDriver` (
 | Filter presets       | UserDefaults     | `FilterSettingsStorage`                     |
 | Per-table filters    | UserDefaults     | `FilterSettingsStorage` (saves `appliedFilters` only) |
 
+### Window Close (Cmd+W)
+
+`EditorWindow` (NSWindow subclass in `TabWindowController.swift`) overrides `performClose:` to route Cmd+W through `closeTab()`. SwiftUI's `.commands { Button(...).keyboardShortcut("w") }` does NOT replace AppKit's built-in "File > Close" — both fire, and AppKit's wins. The NSWindow subclass is the correct native pattern (same as Safari/Xcode).
+
+### Window Tab Titles
+
+Window tab titles are resolved in TWO places that must stay in sync:
+1. `ContentView.init` (title resolution chain) — initial title from payload (handles `.serverDashboard`, `.erDiagram`, `.createTable`)
+2. `MainContentView+Setup.swift` `updateWindowTitleAndFileState()` — ongoing title updates (must also handle all special tab types)
+
+Missing a case produces a wrong "{Language} Query" title on the first frame.
+
+### Schema Loading
+
+`SQLSchemaProvider` (actor) stores an in-flight `loadTask: Task<Void, Never>?`. Concurrent callers `await` the same Task instead of firing duplicate `fetchTables()` queries. Never use a boolean `isLoading` guard that returns without data — callers need to await the result.
+
 ### Logging
 
 Use OSLog, never `print()`:
