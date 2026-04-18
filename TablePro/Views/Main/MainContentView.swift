@@ -14,11 +14,14 @@
 //
 
 import Combine
+import os
 import SwiftUI
 import TableProPluginKit
 
 /// Main content view - thin presentation layer
 struct MainContentView: View {
+    static let lifecycleLogger = Logger(subsystem: "com.TablePro", category: "NativeTabLifecycle")
+
     // MARK: - Properties
 
     let connection: DatabaseConnection
@@ -54,19 +57,11 @@ struct MainContentView: View {
     @State var inspectorUpdateTask: Task<Void, Never>?
     @State var lazyLoadTask: Task<Void, Never>?
     @State var pendingTabSwitch: Task<Void, Never>?
-    @State var evictionTask: Task<Void, Never>?
     /// Stable identifier for this window in WindowLifecycleMonitor
     @State var windowId = UUID()
     @State var hasInitialized = false
-    /// Tracks whether this view's window is the key (focused) window
-    @State var isKeyWindow = false
-    @State var lastResignKeyDate = Date.distantPast
     /// Reference to this view's NSWindow for filtering notifications
     @State var viewWindow: NSWindow?
-
-    /// Grace period for onDisappear: SwiftUI fires onDisappear transiently
-    /// during tab group merges, then re-fires onAppear shortly after.
-    private static let tabGroupMergeGracePeriod: Duration = .milliseconds(200)
 
     // MARK: - Environment
 
@@ -237,6 +232,10 @@ struct MainContentView: View {
                 scheduleInspectorUpdate()
             }
             .onAppear {
+                let start = Date()
+                Self.lifecycleLogger.info(
+                    "[open] MainContentView.onAppear start windowId=\(windowId, privacy: .public) connId=\(connection.id, privacy: .public) tabs=\(tabManager.tabs.count)"
+                )
                 coordinator.markActivated()
 
                 // Set window title for empty state (no tabs restored)
@@ -250,83 +249,102 @@ struct MainContentView: View {
                 coordinator.aiViewModel = rightPanelState.aiViewModel
                 coordinator.rightPanelState = rightPanelState
 
-                // Window registration is handled by WindowAccessor in .background
-            }
-            .onDisappear {
-                // Mark teardown intent synchronously so deinit doesn't warn
-                // if SwiftUI deallocates the coordinator before the delayed Task fires
-                coordinator.markTeardownScheduled()
+                // (NSToolbar install moved to `configureWindow(_:)` — at onAppear
+                // time `viewWindow` is still nil because WindowAccessor fires its
+                // callback on viewDidMoveToWindow, which runs AFTER SwiftUI's
+                // onAppear in NSHostingView-hosted content.)
 
-                let capturedWindowId = windowId
+                // Wire view-layer callbacks invoked by TabWindowController's
+                // NSWindowDelegate → coordinator lifecycle methods. The closures
+                // capture SwiftUI-scoped state (tables binding, sidebarState,
+                // rightPanelState) that the coordinator can't reach directly.
                 let connectionId = connection.id
-                Task { @MainActor in
-                    // Grace period: SwiftUI fires onDisappear transiently during tab group
-                    // merges/splits, then re-fires onAppear shortly after. The onAppear
-                    // handler re-registers via WindowLifecycleMonitor on DispatchQueue.main.async,
-                    // so this delay must exceed that dispatch latency to avoid tearing down
-                    // a window that's about to reappear.
-                    try? await Task.sleep(for: Self.tabGroupMergeGracePeriod)
-
-                    // If this window re-registered (temporary disappear during tab group merge), skip cleanup
-                    if WindowLifecycleMonitor.shared.isRegistered(windowId: capturedWindowId) {
-                        coordinator.clearTeardownScheduled()
-                        return
+                coordinator.onWindowBecameKey = { [tabManager, sidebarState] in
+                    // Read tables fresh from DatabaseManager every invocation —
+                    // capturing the @Binding's wrappedValue (or `tables`
+                    // shorthand) snapshots an empty array at onAppear time
+                    // because the schema load is async, and the closure is
+                    // installed once but invoked on every windowDidBecomeKey.
+                    let liveTables = DatabaseManager.shared
+                        .session(for: connectionId)?.tables ?? []
+                    let target: Set<TableInfo>
+                    if let currentTableName = tabManager.selectedTab?.tableName,
+                       let match = liveTables.first(where: { $0.name == currentTableName }) {
+                        target = [match]
+                    } else {
+                        target = []
                     }
-
-                    // Window truly closed — teardown coordinator
-                    coordinator.teardown()
-                    rightPanelState.teardown()
-
-                    // If no more windows for this connection, disconnect.
-                    // Tab state is NOT cleared here — it's preserved for next reconnect.
-                    // Only handleTabsChange(count=0) clears state (user explicitly closed all tabs).
-                    guard !WindowLifecycleMonitor.shared.hasWindows(for: connectionId) else {
-                        return
+                    if sidebarState.selectedTables != target {
+                        // Don't clear sidebar selection while tables still loading —
+                        // avoids double-navigation race against SidebarSyncAction.
+                        if target.isEmpty && liveTables.isEmpty { return }
+                        sidebarState.selectedTables = target
                     }
-                    await DatabaseManager.shared.disconnectSession(connectionId)
-
-                    // Give SwiftUI/AppKit time to deallocate view hierarchies,
-                    // then hint malloc to return freed pages to the OS
-                    try? await Task.sleep(for: .seconds(2))
-                    malloc_zone_pressure_relief(nil, 0)
                 }
+                coordinator.onWindowWillClose = { [rightPanelState] in
+                    rightPanelState.teardown()
+                }
+
+                Self.lifecycleLogger.info(
+                    "[open] MainContentView.onAppear done windowId=\(windowId, privacy: .public) elapsedMs=\(Int(Date().timeIntervalSince(start) * 1_000))"
+                )
             }
             .onChange(of: pendingChangeTrigger) {
                 updateToolbarPendingState()
-            }
-            .userActivity("com.TablePro.viewConnection") { activity in
-                activity.title = connection.name.isEmpty
-                    ? connection.host
-                    : connection.name
-                activity.isEligibleForHandoff = true
-                activity.userInfo = ["connectionId": connection.id.uuidString]
-            }
-            .userActivity("com.TablePro.viewTable") { activity in
-                guard let tableName = tabManager.selectedTab?.tableName else {
-                    activity.invalidate()
-                    return
-                }
-                activity.title = tableName
-                activity.isEligibleForHandoff = true
-                activity.userInfo = [
-                    "connectionId": connection.id.uuidString,
-                    "tableName": tableName
-                ]
             }
     }
 
     private var bodyContentCore: some View {
         mainContentView
-            .openTableToolbar(state: toolbarState)
-            .modifier(ToolbarTintModifier(connectionColor: connection.color))
-            .task { await initializeAndRestoreTabs() }
+            // Phase 3: SwiftUI `.toolbar { ... }` removed — NSToolbar is now
+            // installed directly on NSWindow by TabWindowController (see
+            // `MainWindowToolbar`). Reuses every existing SwiftUI subview
+            // (ConnectionStatusView, SafeModeBadgeView, popovers, etc.) via
+            // `NSHostingView` inside `NSToolbarItem.view`. Connection color
+            // tint is not yet ported; `ToolbarTintModifier` no-ops under
+            // NSHostingView so leaving the modifier off has no visible loss.
+            .task {
+                let start = Date()
+                Self.lifecycleLogger.info(
+                    "[open] bodyContentCore.task initializeAndRestoreTabs start windowId=\(windowId, privacy: .public)"
+                )
+                await initializeAndRestoreTabs()
+                Self.lifecycleLogger.info(
+                    "[open] bodyContentCore.task initializeAndRestoreTabs done windowId=\(windowId, privacy: .public) elapsedMs=\(Int(Date().timeIntervalSince(start) * 1_000))"
+                )
+            }
             .onChange(of: tabManager.selectedTabId) { _, newTabId in
+                guard !coordinator.isTearingDown else {
+                    Self.lifecycleLogger.debug("[switch] selectedTabId SKIPPED (tearingDown) to=\(newTabId?.uuidString ?? "nil", privacy: .public) windowId=\(windowId, privacy: .public)")
+                    return
+                }
+                guard previousSelectedTabId != nil || newTabId != nil else {
+                    Self.lifecycleLogger.debug("[switch] selectedTabId SKIPPED (nil→nil) windowId=\(windowId, privacy: .public)")
+                    return
+                }
+                let seq = MainContentCoordinator.nextSwitchSeq()
+                let switchQueued = Date()
+                Self.lifecycleLogger.debug(
+                    "[switch] selectedTabId changed seq=\(seq) from=\(previousSelectedTabId?.uuidString ?? "nil", privacy: .public) to=\(newTabId?.uuidString ?? "nil", privacy: .public) windowId=\(windowId, privacy: .public)"
+                )
+                (viewWindow?.windowController as? TabWindowController)?.refreshUserActivity()
+                if pendingTabSwitch != nil {
+                    Self.lifecycleLogger.debug("[switch] cancelling previous pendingTabSwitch seq=\(seq)")
+                }
                 pendingTabSwitch?.cancel()
                 pendingTabSwitch = Task { @MainActor in
                     await Task.yield()
-                    guard !Task.isCancelled else { return }
+                    guard !Task.isCancelled else {
+                        Self.lifecycleLogger.debug("[switch] pendingTabSwitch CANCELLED seq=\(seq) waitMs=\(Int(Date().timeIntervalSince(switchQueued) * 1_000))")
+                        return
+                    }
+                    let handleStart = Date()
+                    Self.lifecycleLogger.debug("[switch] pendingTabSwitch executing seq=\(seq) waitMs=\(Int(Date().timeIntervalSince(switchQueued) * 1_000))")
                     handleTabSelectionChange(from: previousSelectedTabId, to: newTabId)
                     previousSelectedTabId = newTabId
+                    Self.lifecycleLogger.debug(
+                        "[switch] handleTabSelectionChange done seq=\(seq) handleMs=\(Int(Date().timeIntervalSince(handleStart) * 1_000)) totalMs=\(Int(Date().timeIntervalSince(switchQueued) * 1_000))"
+                    )
                 }
             }
             .onChange(of: tabManager.tabs) { _, newTabs in
@@ -344,67 +362,17 @@ struct MainContentView: View {
             }
 
             .onChange(of: sidebarState.selectedTables) { _, newTables in
+                guard !coordinator.isTearingDown else {
+                    Self.lifecycleLogger.debug("[switch] sidebarState.selectedTables SKIPPED (tearingDown) windowId=\(windowId, privacy: .public)")
+                    return
+                }
                 handleTableSelectionChange(from: previousSelectedTables, to: newTables)
                 previousSelectedTables = newTables
             }
-            .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification))
-        { notification in
-            guard let notificationWindow = notification.object as? NSWindow,
-                notificationWindow === viewWindow
-            else { return }
-            isKeyWindow = true
-            evictionTask?.cancel()
-            evictionTask = nil
-            Task { @MainActor in
-                syncSidebarToCurrentTab()
-            }
-            // Lazy-load: execute query for restored tabs that skipped auto-execute,
-            // or re-query tabs whose row data was evicted while inactive.
-            // Skip if the user has unsaved changes (in-memory or tab-level).
-            let hasPendingEdits =
-                changeManager.hasChanges
-                || (tabManager.selectedTab?.pendingChanges.hasChanges ?? false)
-            let isConnected =
-                DatabaseManager.shared.activeSessions[connection.id]?.isConnected ?? false
-            let needsLazyLoad =
-                tabManager.selectedTab.map { tab in
-                    tab.tabType == .table
-                        && (tab.resultRows.isEmpty || tab.rowBuffer.isEvicted)
-                        && (tab.lastExecutedAt == nil || tab.rowBuffer.isEvicted)
-                        && tab.errorMessage == nil
-                        && !tab.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                } ?? false
-            // Skip lazy-load if this is a menu-interaction bounce (resign+become within 200ms)
-            let isMenuBounce = Date().timeIntervalSince(lastResignKeyDate) < 0.2
-            if needsLazyLoad && !hasPendingEdits && isConnected && !isMenuBounce {
-                coordinator.runQuery()
-            }
-
-            // Auto-refresh schema for file-based connections (SQLite, DuckDB)
-            // when window regains focus — catches external modifications.
-            if PluginManager.shared.connectionMode(for: connection.type) == .fileBased && isConnected {
-                Task { await coordinator.refreshTablesIfStale() }
-            }
-            }
-            .onReceive(NotificationCenter.default.publisher(for: NSWindow.didResignKeyNotification))
-        { notification in
-            guard let notificationWindow = notification.object as? NSWindow,
-                notificationWindow === viewWindow
-            else { return }
-            isKeyWindow = false
-            lastResignKeyDate = Date()
-
-            // Schedule row data eviction for inactive native window-tabs.
-            // 5s delay avoids thrashing when quickly switching between tabs.
-            // Per-tab pendingChanges checks inside evictInactiveRowData() protect
-            // tabs with unsaved changes from eviction.
-            evictionTask?.cancel()
-            evictionTask = Task { @MainActor in
-                try? await Task.sleep(for: .seconds(5))
-                guard !Task.isCancelled else { return }
-                coordinator.evictInactiveRowData()
-            }
-            }
+            // Phase 2: NSWindow.didBecomeKey / .didResignKey observers removed.
+            // TabWindowController's NSWindowDelegate dispatches to
+            // MainContentCoordinator.handleWindowDidBecomeKey / handleWindowDidResignKey
+            // directly — window-scoped, fires once per focus change.
             .onChange(of: tables) { _, newTables in
                 let syncAction = SidebarSyncAction.resolveOnTablesLoad(
                     newTables: newTables,

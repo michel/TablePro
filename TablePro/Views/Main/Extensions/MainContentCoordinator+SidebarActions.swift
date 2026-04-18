@@ -48,12 +48,8 @@ extension MainContentCoordinator {
                 tabType: .createTable,
                 databaseName: connection.database
             )
-            WindowOpener.shared.openNativeTab(payload)
+            WindowManager.shared.openTab(payload: payload)
         }
-    }
-
-    func showERDiagram() {
-        openERDiagramTab()
     }
 
     // MARK: - View Operations
@@ -71,7 +67,7 @@ extension MainContentCoordinator {
             databaseName: connection.database,
             initialQuery: template
         )
-        WindowOpener.shared.openNativeTab(payload)
+        WindowManager.shared.openTab(payload: payload)
     }
 
     func editViewDefinition(_ viewName: String) {
@@ -85,7 +81,7 @@ extension MainContentCoordinator {
                     tabType: .query,
                     initialQuery: definition
                 )
-                WindowOpener.shared.openNativeTab(payload)
+                WindowManager.shared.openTab(payload: payload)
             } catch {
                 let driver = DatabaseManager.shared.driver(for: self.connection.id)
                 let template = driver?.editViewFallbackTemplate(viewName: viewName)
@@ -97,7 +93,7 @@ extension MainContentCoordinator {
                     tabType: .query,
                     initialQuery: fallbackSQL
                 )
-                WindowOpener.shared.openNativeTab(payload)
+                WindowManager.shared.openTab(payload: payload)
             }
         }
     }

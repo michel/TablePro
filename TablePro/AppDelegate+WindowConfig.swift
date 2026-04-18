@@ -65,7 +65,7 @@ extension AppDelegate {
     @objc func newWindowForTab(_ sender: Any?) {
         guard let keyWindow = NSApp.keyWindow,
               let connectionId = MainActor.assumeIsolated({
-                  WindowLifecycleMonitor.shared.connectionId(fromWindow: keyWindow)
+                  WindowLifecycleMonitor.shared.connectionId(forWindow: keyWindow)
               })
         else { return }
 
@@ -74,7 +74,7 @@ extension AppDelegate {
             intent: .newEmptyTab
         )
         MainActor.assumeIsolated {
-            WindowOpener.shared.openNativeTab(payload)
+            WindowManager.shared.openTab(payload: payload)
         }
     }
 
@@ -84,7 +84,7 @@ extension AppDelegate {
         guard let connection = connections.first(where: { $0.id == connectionId }) else { return }
 
         let payload = EditorTabPayload(connectionId: connection.id, intent: .restoreOrDefault)
-        WindowOpener.shared.openNativeTab(payload)
+        WindowManager.shared.openTab(payload: payload)
 
         Task { @MainActor in
             do {
@@ -252,71 +252,34 @@ extension AppDelegate {
             closeWelcomeWindowIfMainExists()
         }
 
-        if isMainWindow(window) && !configuredWindows.contains(windowId) {
-            window.tabbingMode = .preferred
-            window.isRestorable = false
-            configuredWindows.insert(windowId)
-
-            let pendingConnectionId = MainActor.assumeIsolated {
-                WindowOpener.shared.consumeOldestPendingConnectionId()
-            }
-
-            if pendingConnectionId == nil && !isAutoReconnecting {
-                if let tabbedWindows = window.tabbedWindows, tabbedWindows.count > 1 {
-                    return
-                }
-                window.orderOut(nil)
-                return
-            }
-
-            if let connectionId = pendingConnectionId {
-                let groupAll = MainActor.assumeIsolated { AppSettingsManager.shared.tabs.groupAllConnectionTabs }
-                let resolvedIdentifier = WindowOpener.tabbingIdentifier(for: connectionId)
-                window.tabbingIdentifier = resolvedIdentifier
-
-                if !NSWindow.allowsAutomaticWindowTabbing {
-                    NSWindow.allowsAutomaticWindowTabbing = true
-                }
-
-                let matchingWindow: NSWindow?
-                if groupAll {
-                    let existingMainWindows = NSApp.windows.filter {
-                        $0 !== window && isMainWindow($0) && $0.isVisible
-                    }
-                    for existing in existingMainWindows {
-                        existing.tabbingIdentifier = resolvedIdentifier
-                    }
-                    matchingWindow = existingMainWindows.first
-                } else {
-                    matchingWindow = NSApp.windows.first {
-                        $0 !== window && isMainWindow($0) && $0.isVisible
-                            && $0.tabbingIdentifier == resolvedIdentifier
-                    }
-                }
-                if let existingWindow = matchingWindow {
-                    let targetWindow = existingWindow.tabbedWindows?.last ?? existingWindow
-                    targetWindow.addTabbedWindow(window, ordered: .above)
-                    window.makeKeyAndOrderFront(nil)
-                }
-            }
-        }
+        // Phase 5: removed legacy main-window tabbing block. `WindowManager.openTab`
+        // now performs the tab-group merge at creation time with the correct
+        // ordering, and pre-marks `configuredWindows` so this method is a no-op
+        // for main windows. The old block consumed `WindowOpener.pendingPayloads`
+        // and called `addTabbedWindow` mid-`windowDidBecomeKey`, which produced
+        // the 200–7000 ms grace-period delay we removed in Phase 2.
     }
 
     @objc func windowWillClose(_ notification: Notification) {
+        let seq = MainContentCoordinator.nextSwitchSeq()
+        let t0 = Date()
         guard let window = notification.object as? NSWindow else { return }
+        let isMain = isMainWindow(window)
 
         configuredWindows.remove(ObjectIdentifier(window))
 
-        if isMainWindow(window) {
+        if isMain {
             let remainingMainWindows = NSApp.windows.filter {
                 $0 !== window && isMainWindow($0) && $0.isVisible
             }.count
+            windowLogger.info("[close] AppDelegate.windowWillClose seq=\(seq) isMain=true remaining=\(remainingMainWindows)")
 
             if remainingMainWindows == 0 {
                 NotificationCenter.default.post(name: .mainWindowWillClose, object: nil)
                 openWelcomeWindow()
             }
         }
+        windowLogger.info("[close] AppDelegate.windowWillClose seq=\(seq) total ms=\(Int(Date().timeIntervalSince(t0) * 1_000))")
     }
 
     @objc func windowDidChangeOcclusionState(_ notification: Notification) {
@@ -355,7 +318,7 @@ extension AppDelegate {
 
             for connection in validConnections {
                 let payload = EditorTabPayload(connectionId: connection.id, intent: .restoreOrDefault)
-                WindowOpener.shared.openNativeTab(payload)
+                WindowManager.shared.openTab(payload: payload)
 
                 do {
                     try await DatabaseManager.shared.connectToSession(connection)
@@ -400,7 +363,7 @@ extension AppDelegate {
         Task { @MainActor [weak self] in
             guard let self else { return }
             let payload = EditorTabPayload(connectionId: connection.id, intent: .restoreOrDefault)
-            WindowOpener.shared.openNativeTab(payload)
+            WindowManager.shared.openTab(payload: payload)
 
             defer { self.isAutoReconnecting = false }
             do {

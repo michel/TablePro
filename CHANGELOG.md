@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Main editor window rewritten on AppKit (`NSWindowController` + `NSToolbar`) for faster tab opens and correct lifecycle
+- Toolbar layout follows Apple HIG (sidebar left, connection center, view actions right)
+
+### Fixed
+
+- Cmd+W closing the connection window instead of clearing to empty state
+- ER Diagram and Server Dashboard replacing the current tab instead of opening a new one
+- Welcome window stealing focus on connect, disabling Cmd+T until manual click
+- Toolbar empty on second tab, menu shortcuts disabled after toolbar click
+
+### Added
+
+- Handoff via NSUserActivity
+
 ## [0.32.1] - 2026-04-17
 
 ### Changed

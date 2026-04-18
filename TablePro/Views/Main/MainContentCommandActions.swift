@@ -302,6 +302,19 @@ final class MainContentCommandActions {
         !(coordinator?.tabManager.selectedTab?.query.isEmpty ?? true)
     }
 
+    /// Whether there are pending data changes that the SQL preview can show.
+    /// Mirrors the toolbar Preview SQL button's enabled condition so the
+    /// menu shortcut (Cmd+Shift+P) doesn't open an empty preview popover.
+    var hasDataPendingChanges: Bool {
+        coordinator?.toolbarState.hasDataPendingChanges ?? false
+    }
+
+    /// Any pending changes (data edits OR file edits). Mirrors the toolbar
+    /// Save Changes button's enabled condition.
+    var hasPendingChanges: Bool {
+        coordinator?.toolbarState.hasPendingChanges ?? false
+    }
+
     var hasStructureChanges: Bool {
         coordinator?.toolbarState.hasStructureChanges ?? false
     }
@@ -342,10 +355,12 @@ final class MainContentCommandActions {
             initialQuery: initialQuery,
             intent: .newEmptyTab
         )
-        WindowOpener.shared.openNativeTab(payload)
+        WindowManager.shared.openTab(payload: payload)
     }
 
     func closeTab() {
+        let seq = MainContentCoordinator.nextSwitchSeq()
+        Self.logger.info("[close] closeTab seq=\(seq) hasUnsavedChanges=\(self.hasUnsavedChanges)")
         if hasUnsavedChanges {
             Task { @MainActor in
                 let keyWindow = NSApp.keyWindow
@@ -369,13 +384,15 @@ final class MainContentCommandActions {
     }
 
     private func performClose() {
-        guard let keyWindow = NSApp.keyWindow else { return }
-        let tabbedWindows = keyWindow.tabbedWindows ?? [keyWindow]
+        let t0 = Date()
+        guard let window = coordinator?.contentWindow ?? NSApp.keyWindow else { return }
+        let visibleTabbedWindows = (window.tabbedWindows ?? [window]).filter(\.isVisible)
+        Self.logger.info("[close] performClose visibleTabs=\(visibleTabbedWindows.count) tabManagerTabs=\(self.coordinator?.tabManager.tabs.count ?? 0)")
 
-        if tabbedWindows.count > 1 {
-            keyWindow.close()
+        if visibleTabbedWindows.count > 1 {
+            window.close()
         } else if coordinator?.tabManager.tabs.isEmpty == true {
-            keyWindow.close()
+            window.close()
         } else {
             for tab in coordinator?.tabManager.tabs ?? [] {
                 tab.rowBuffer.evict()
@@ -384,6 +401,7 @@ final class MainContentCommandActions {
             coordinator?.tabManager.selectedTabId = nil
             coordinator?.toolbarState.isTableTab = false
         }
+        Self.logger.info("[close] performClose done ms=\(Int(Date().timeIntervalSince(t0) * 1_000))")
     }
 
     private func saveAndClose() async {
@@ -479,7 +497,7 @@ final class MainContentCommandActions {
     }
 
     func showServerDashboard() {
-        coordinator?.openServerDashboardTab()
+        coordinator?.showServerDashboard()
     }
 
     var supportsServerDashboard: Bool {
@@ -805,7 +823,7 @@ final class MainContentCommandActions {
                         initialQuery: content,
                         sourceFileURL: url
                     )
-                    WindowOpener.shared.openNativeTab(payload)
+                    WindowManager.shared.openTab(payload: payload)
                 }
             }
         }

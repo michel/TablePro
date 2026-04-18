@@ -22,6 +22,7 @@ actor SQLSchemaProvider {
     private var lastLoadError: Error?
     private var lastRetryAttempt: Date?
     private let retryCooldown: TimeInterval = 30
+    private var loadTask: Task<Void, Never>?
 
     // Store a weak driver reference to avoid retaining it after disconnect (MEM-9)
     private weak var cachedDriver: (any DatabaseDriver)?
@@ -31,23 +32,46 @@ actor SQLSchemaProvider {
 
     // MARK: - Public API
 
-    /// Load schema from the database (driver should already be connected)
+    /// Load schema from the database (driver should already be connected).
+    /// Concurrent callers await the same in-flight Task instead of firing duplicate queries.
     func loadSchema(using driver: DatabaseDriver, connection: DatabaseConnection? = nil) async {
-        guard !isLoading else { return }
+        if let existing = loadTask {
+            Self.logger.debug("[schema] loadSchema awaiting existing in-flight task")
+            let t0 = Date()
+            await existing.value
+            Self.logger.debug("[schema] loadSchema coalesced — awaited existing task ms=\(Int(Date().timeIntervalSince(t0) * 1_000)) tableCount=\(self.tables.count)")
+            return
+        }
 
-        // Store driver reference for later column fetching
+        Self.logger.info("[schema] loadSchema starting new fetch")
+        let t0 = Date()
         self.cachedDriver = driver
         self.connectionInfo = connection
         isLoading = true
         lastLoadError = nil
 
-        do {
-            tables = try await driver.fetchTables()
-            isLoading = false
-        } catch {
-            lastLoadError = error
-            isLoading = false
+        let task = Task<Void, Never> {
+            do {
+                let fetched = try await driver.fetchTables()
+                await self.setLoadedTables(fetched)
+            } catch {
+                await self.setLoadError(error)
+            }
         }
+        loadTask = task
+        await task.value
+        loadTask = nil
+        Self.logger.info("[schema] loadSchema done ms=\(Int(Date().timeIntervalSince(t0) * 1_000)) tableCount=\(self.tables.count) error=\(self.lastLoadError != nil)")
+    }
+
+    private func setLoadedTables(_ newTables: [TableInfo]) {
+        tables = newTables
+        isLoading = false
+    }
+
+    private func setLoadError(_ error: Error) {
+        lastLoadError = error
+        isLoading = false
     }
 
     /// Get all tables

@@ -12,6 +12,7 @@ import TableProPluginKit
 
 struct ContentView: View {
     private static let logger = Logger(subsystem: "com.TablePro", category: "ContentView")
+    private static let lifecycleLogger = Logger(subsystem: "com.TablePro", category: "NativeTabLifecycle")
 
     /// Payload identifying what this native window-tab should display.
     /// nil = default empty query tab (first window on connection).
@@ -35,10 +36,18 @@ struct ContentView: View {
     private let storage = ConnectionStorage.shared
 
     init(payload: EditorTabPayload?) {
+        let initStart = Date()
+        Self.lifecycleLogger.info(
+            "[open] ContentView.init start payloadId=\(payload?.id.uuidString ?? "nil", privacy: .public) connId=\(payload?.connectionId.uuidString ?? "nil", privacy: .public) tabType=\(String(describing: payload?.tabType), privacy: .public)"
+        )
         self.payload = payload
         let defaultTitle: String
         if payload?.tabType == .serverDashboard {
             defaultTitle = String(localized: "Server Dashboard")
+        } else if payload?.tabType == .erDiagram {
+            defaultTitle = String(localized: "ER Diagram")
+        } else if payload?.tabType == .createTable {
+            defaultTitle = String(localized: "Create Table")
         } else if let tabTitle = payload?.tabTitle {
             defaultTitle = tabTitle
         } else if let tableName = payload?.tableName {
@@ -65,9 +74,27 @@ struct ContentView: View {
 
         if let session = resolvedSession {
             _rightPanelState = State(initialValue: RightPanelState())
-            let state = SessionStateFactory.create(
-                connection: session.connection, payload: payload
-            )
+            let factoryStart = Date()
+            // Prefer the SessionState that `WindowManager.openTab` created
+            // eagerly (so the NSToolbar could be installed in
+            // `TabWindowController.init` without a flash). Fall back to
+            // creating one here for code paths that bypass WindowManager
+            // (currently none in production — kept defensively).
+            let state: SessionStateFactory.SessionState
+            if let payloadId = payload?.id,
+               let pending = SessionStateFactory.consumePending(for: payloadId) {
+                state = pending
+                Self.lifecycleLogger.info(
+                    "[open] ContentView.init SessionStateFactory consumed pending payloadId=\(payloadId, privacy: .public) connId=\(session.connection.id, privacy: .public)"
+                )
+            } else {
+                state = SessionStateFactory.create(
+                    connection: session.connection, payload: payload
+                )
+                Self.lifecycleLogger.info(
+                    "[open] ContentView.init SessionStateFactory.create elapsedMs=\(Int(Date().timeIntervalSince(factoryStart) * 1_000)) connId=\(session.connection.id, privacy: .public)"
+                )
+            }
             _sessionState = State(initialValue: state)
             if payload?.intent == .newEmptyTab,
                let tabTitle = state.coordinator.tabManager.selectedTab?.title {
@@ -77,6 +104,9 @@ struct ContentView: View {
             _rightPanelState = State(initialValue: nil)
             _sessionState = State(initialValue: nil)
         }
+        Self.lifecycleLogger.info(
+            "[open] ContentView.init done payloadId=\(payload?.id.uuidString ?? "nil", privacy: .public) hasSession=\(resolvedSession != nil) elapsedMs=\(Int(Date().timeIntervalSince(initStart) * 1_000))"
+        )
     }
 
     var body: some View {
@@ -117,10 +147,12 @@ struct ContentView: View {
                             rightPanelState = RightPanelState()
                         }
                         if sessionState == nil {
+                            let t0 = Date()
                             sessionState = SessionStateFactory.create(
                                 connection: session.connection,
                                 payload: payload
                             )
+                            Self.lifecycleLogger.info("[open] ContentView.onChange(currentSessionId) created SessionState connId=\(session.connection.id, privacy: .public) ms=\(Int(Date().timeIntervalSince(t0) * 1_000))")
                         }
                     }
                 } else {
@@ -132,29 +164,10 @@ struct ContentView: View {
             .onReceive(NotificationCenter.default.publisher(for: .connectionStatusDidChange)) { _ in
                 handleConnectionStatusChange()
             }
-            .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { notification in
-                // Only process notifications for our own window to avoid every
-                // ContentView instance re-rendering on every window focus change.
-                // Match by checking if the window is registered for our connectionId
-                // in WindowLifecycleMonitor (subtitle may not be set yet on first appear).
-                guard let notificationWindow = notification.object as? NSWindow,
-                      let windowId = notificationWindow.identifier?.rawValue,
-                      windowId == "main" || windowId.hasPrefix("main-"),
-                      let connectionId = payload?.connectionId
-                else { return }
-
-                // Verify this notification is for our window. Check WindowLifecycleMonitor
-                // first (reliable after onAppear registers), fall back to subtitle match
-                // for the brief window before registration completes.
-                let isOurWindow = WindowLifecycleMonitor.shared.windows(for: connectionId)
-                    .contains(where: { $0 === notificationWindow })
-                    || {
-                        guard let name = currentSession?.connection.name, !name.isEmpty else { return false }
-                        return notificationWindow.subtitle == name
-                            || notificationWindow.subtitle == "\(name) — Preview"
-                    }()
-                guard isOurWindow else { return }
-            }
+            // Phase 2: removed global `NSWindow.didBecomeKeyNotification` observer.
+            // Window focus is now routed via `TabWindowController` NSWindowDelegate
+            // directly into `MainContentCoordinator.handleWindowDidBecomeKey`,
+            // eliminating the per-ContentView-instance fan-out.
     }
 
     // MARK: - View Components
@@ -326,6 +339,7 @@ struct ContentView: View {
         }
         guard let newSession = sessions[sid] else {
             if currentSession?.id == sid {
+                Self.lifecycleLogger.info("[close] ContentView.handleConnectionStatusChange session removed connId=\(sid, privacy: .public)")
                 closingSessionId = sid
                 rightPanelState?.teardown()
                 rightPanelState = nil
@@ -353,10 +367,12 @@ struct ContentView: View {
             rightPanelState = RightPanelState()
         }
         if sessionState == nil {
+            let t0 = Date()
             sessionState = SessionStateFactory.create(
                 connection: newSession.connection,
                 payload: payload
             )
+            Self.lifecycleLogger.info("[open] ContentView.handleConnectionStatusChange created SessionState connId=\(newSession.connection.id, privacy: .public) ms=\(Int(Date().timeIntervalSince(t0) * 1_000))")
         }
     }
 

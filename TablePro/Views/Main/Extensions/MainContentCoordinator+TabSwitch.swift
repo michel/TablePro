@@ -7,6 +7,7 @@
 //
 
 import Foundation
+import os
 
 extension MainContentCoordinator {
     func handleTabChange(
@@ -15,10 +16,20 @@ extension MainContentCoordinator {
         selectedRowIndices: inout Set<Int>,
         tabs: [QueryTab]
     ) {
+        let start = Date()
+        Self.lifecycleLogger.debug(
+            "[switch] handleTabChange start from=\(oldTabId?.uuidString ?? "nil", privacy: .public) to=\(newTabId?.uuidString ?? "nil", privacy: .public) connId=\(self.connectionId, privacy: .public) tabsCount=\(self.tabManager.tabs.count)"
+        )
         isHandlingTabSwitch = true
-        defer { isHandlingTabSwitch = false }
+        defer {
+            isHandlingTabSwitch = false
+            Self.lifecycleLogger.debug(
+                "[switch] handleTabChange done to=\(newTabId?.uuidString ?? "nil", privacy: .public) elapsedMs=\(Int(Date().timeIntervalSince(start) * 1_000))"
+            )
+        }
 
-        // Persist the outgoing tab's unsaved changes and filter state so they survive the switch
+        // Phase: save outgoing tab state
+        let saveStart = Date()
         if let oldId = oldTabId,
            let oldIndex = tabManager.tabs.firstIndex(where: { $0.id == oldId })
         {
@@ -32,12 +43,18 @@ extension MainContentCoordinator {
             saveColumnVisibilityToTab()
             saveColumnLayoutForTable()
         }
+        let saveMs = Int(Date().timeIntervalSince(saveStart) * 1_000)
 
+        // Phase: evict inactive tabs
+        let evictStart = Date()
         if tabManager.tabs.count > 2 {
             let activeIds: Set<UUID> = Set([oldTabId, newTabId].compactMap { $0 })
             evictInactiveTabs(excluding: activeIds)
         }
+        let evictMs = Int(Date().timeIntervalSince(evictStart) * 1_000)
 
+        // Phase: restore incoming tab state
+        let restoreStart = Date()
         if let newId = newTabId,
            let newIndex = tabManager.tabs.firstIndex(where: { $0.id == newId }) {
             let newTab = tabManager.tabs[newIndex]
@@ -69,10 +86,10 @@ extension MainContentCoordinator {
                 )
             }
 
-            // Defer reloadVersion bump — only needed when we won't run a query.
-            // When a query runs, executeQueryInternal Phase 1 sets new result data
-            // that triggers its own SwiftUI update; bumping beforehand causes a
-            // redundant re-evaluation that blocks the Task executor (15-40ms).
+            let restoreMs = Int(Date().timeIntervalSince(restoreStart) * 1_000)
+            Self.lifecycleLogger.debug(
+                "[switch] handleTabChange phases: saveOutgoing=\(saveMs)ms evict=\(evictMs)ms restoreIncoming=\(restoreMs)ms"
+            )
 
             if !newTab.databaseName.isEmpty {
                 let currentDatabase: String
@@ -83,6 +100,9 @@ extension MainContentCoordinator {
                 }
 
                 if newTab.databaseName != currentDatabase {
+                    Self.lifecycleLogger.debug(
+                        "[switch] handleTabChange triggering switchDatabase from=\(currentDatabase, privacy: .public) to=\(newTab.databaseName, privacy: .public)"
+                    )
                     changeManager.reloadVersion += 1
                     Task { @MainActor in
                         await switchDatabase(to: newTab.databaseName)
@@ -113,8 +133,14 @@ extension MainContentCoordinator {
 
             if needsLazyQuery {
                 if let session = DatabaseManager.shared.session(for: connectionId), session.isConnected {
+                    Self.lifecycleLogger.debug(
+                        "[switch] handleTabChange lazy query executing (eviction=\(isEvicted)) tabId=\(newId, privacy: .public)"
+                    )
                     executeTableTabQueryDirectly()
                 } else {
+                    Self.lifecycleLogger.debug(
+                        "[switch] handleTabChange lazy query deferred (not connected) tabId=\(newId, privacy: .public)"
+                    )
                     changeManager.reloadVersion += 1
                     needsLazyLoad = true
                 }
@@ -129,6 +155,7 @@ extension MainContentCoordinator {
     }
 
     private func evictInactiveTabs(excluding activeTabIds: Set<UUID>) {
+        let start = Date()
         let candidates = tabManager.tabs.filter {
             !activeTabIds.contains($0.id)
                 && !$0.rowBuffer.isEvicted
@@ -154,11 +181,19 @@ extension MainContentCoordinator {
         }
 
         let maxInactiveLoaded = MemoryPressureAdvisor.budgetForInactiveTabs()
-        guard sorted.count > maxInactiveLoaded else { return }
+        guard sorted.count > maxInactiveLoaded else {
+            Self.lifecycleLogger.debug(
+                "[switch] evictInactiveTabs no-op candidates=\(sorted.count) budget=\(maxInactiveLoaded) elapsedMs=\(Int(Date().timeIntervalSince(start) * 1_000))"
+            )
+            return
+        }
         let toEvict = sorted.dropLast(maxInactiveLoaded)
 
         for tab in toEvict {
             tab.rowBuffer.evict()
         }
+        Self.lifecycleLogger.debug(
+            "[switch] evictInactiveTabs evicted=\(toEvict.count) keptInactive=\(maxInactiveLoaded) elapsedMs=\(Int(Date().timeIntervalSince(start) * 1_000))"
+        )
     }
 }

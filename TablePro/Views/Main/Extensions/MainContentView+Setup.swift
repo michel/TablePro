@@ -6,20 +6,36 @@
 //  for MainContentView. Extracted to reduce main view complexity.
 //
 
+import os
 import SwiftUI
 
 extension MainContentView {
     // MARK: - Initialization
 
     func initializeAndRestoreTabs() async {
-        guard !hasInitialized else { return }
+        guard !hasInitialized else {
+            MainContentView.lifecycleLogger.info(
+                "[open] initializeAndRestoreTabs skipped (already initialized) windowId=\(windowId, privacy: .public)"
+            )
+            return
+        }
         hasInitialized = true
-        Task { await coordinator.loadSchemaIfNeeded() }
+        let schemaTaskStart = Date()
+        Task {
+            await coordinator.loadSchemaIfNeeded()
+            MainContentView.lifecycleLogger.info(
+                "[open] loadSchemaIfNeeded done windowId=\(windowId, privacy: .public) elapsedMs=\(Int(Date().timeIntervalSince(schemaTaskStart) * 1_000))"
+            )
+        }
 
         guard let payload else {
             await handleRestoreOrDefault()
             return
         }
+
+        MainContentView.lifecycleLogger.info(
+            "[open] initializeAndRestoreTabs intent=\(String(describing: payload.intent), privacy: .public) windowId=\(windowId, privacy: .public) skipAutoExecute=\(payload.skipAutoExecute)"
+        )
 
         switch payload.intent {
         case .openContent:
@@ -79,10 +95,17 @@ extension MainContentView {
                 let title = QueryTabManager.nextQueryTitle(existingTabs: allTabs)
                 tabManager.addTab(title: title, databaseName: connection.database)
             }
+            MainContentView.lifecycleLogger.info(
+                "[open] handleRestoreOrDefault short-circuit (other windows exist) windowId=\(windowId, privacy: .public)"
+            )
             return
         }
 
+        let restoreStart = Date()
         let result = await coordinator.persistence.restoreFromDisk()
+        MainContentView.lifecycleLogger.info(
+            "[open] restoreFromDisk done windowId=\(windowId, privacy: .public) tabsRestored=\(result.tabs.count) source=\(String(describing: result.source), privacy: .public) elapsedMs=\(Int(Date().timeIntervalSince(restoreStart) * 1_000))"
+        )
         if !result.tabs.isEmpty {
             var restoredTabs = result.tabs
             for i in restoredTabs.indices where restoredTabs[i].tabType == .table {
@@ -111,7 +134,7 @@ extension MainContentView {
                     for tab in remainingTabs {
                         let restorePayload = EditorTabPayload(
                             from: tab, connectionId: connection.id, skipAutoExecute: true)
-                        WindowOpener.shared.openNativeTab(restorePayload)
+                        WindowManager.shared.openTab(payload: restorePayload)
                     }
                     // Bring the first window to front only if it had the selected tab.
                     // Otherwise let the last restored window stay focused.
@@ -164,6 +187,8 @@ extension MainContentView {
             windowTitle = String(localized: "Server Dashboard")
         } else if selectedTab?.tabType == .createTable {
             windowTitle = String(localized: "Create Table")
+        } else if selectedTab?.tabType == .erDiagram {
+            windowTitle = String(localized: "ER Diagram")
         } else if let fileURL = selectedTab?.sourceFileURL {
             windowTitle = fileURL.deletingPathExtension().lastPathComponent
         } else {
@@ -179,6 +204,10 @@ extension MainContentView {
 
     /// Configure the hosting NSWindow — called by WindowAccessor when the window is available.
     func configureWindow(_ window: NSWindow) {
+        let start = Date()
+        MainContentView.lifecycleLogger.info(
+            "[open] configureWindow start windowId=\(windowId, privacy: .public) connId=\(connection.id, privacy: .public)"
+        )
         let isPreview = tabManager.selectedTab?.isPreview ?? payload?.isPreview ?? false
         if isPreview {
             window.subtitle = "\(connection.name) — Preview"
@@ -186,7 +215,7 @@ extension MainContentView {
             window.subtitle = connection.name
         }
 
-        let resolvedId = WindowOpener.tabbingIdentifier(for: connection.id)
+        let resolvedId = WindowManager.tabbingIdentifier(for: connection.id)
         window.tabbingIdentifier = resolvedId
         window.tabbingMode = .preferred
         coordinator.windowId = windowId
@@ -199,11 +228,7 @@ extension MainContentView {
         )
         viewWindow = window
         coordinator.contentWindow = window
-        isKeyWindow = window.isKeyWindow
-
-        if let payloadId = payload?.id {
-            WindowOpener.shared.acknowledgePayload(payloadId)
-        }
+        coordinator.isKeyWindow = window.isKeyWindow
 
         // Native proxy icon (Cmd+click shows path in Finder) and dirty dot
         window.representedURL = tabManager.selectedTab?.sourceFileURL
@@ -211,6 +236,36 @@ extension MainContentView {
 
         // Update command actions window reference now that it's available
         commandActions?.window = window
+
+        // Publish command actions to the registry NOW. `windowDidBecomeKey`
+        // also publishes, but for the first window after welcome→connect the
+        // coordinator's `contentWindow` isn't set when AppKit's first
+        // becomeKey fires — `coordinator(forWindow:)` returns nil and the
+        // publish is skipped. configureWindow IS the moment the coordinator
+        // gets linked to its NSWindow, so this is the earliest reliable
+        // point to publish.
+        //
+        // No `window.isKeyWindow` guard: when this method runs, the window
+        // has been ordered front but isn't yet key (becomeKey fires after
+        // a runloop tick). We trust that newly opened windows will become
+        // key shortly; overwriting from a non-key window is acceptable
+        // because the next becomeKey on any window will rewrite the
+        // registry anyway.
+        if let actions = commandActions {
+            CommandActionsRegistry.shared.current = actions
+        }
+
+        // Install NSToolbar. `installToolbar` is idempotent — safe to call
+        // from multiple lifecycle triggers. Called from both here AND
+        // `TabWindowController.windowDidBecomeKey` because the two tab-open
+        // paths (Cmd+T menu vs. toolbar "+" button click) have different
+        // calling contexts, and each hits one trigger but not the other.
+        if let controller = window.windowController as? TabWindowController {
+            controller.installToolbar(coordinator: coordinator)
+        }
+        MainContentView.lifecycleLogger.info(
+            "[open] configureWindow done windowId=\(windowId, privacy: .public) tabbingId=\(resolvedId, privacy: .public) isPreview=\(isPreview) elapsedMs=\(Int(Date().timeIntervalSince(start) * 1_000))"
+        )
     }
 
     func setupCommandActions() {
@@ -230,6 +285,7 @@ extension MainContentView {
             editingCell: $editingCell
         )
         actions.window = viewWindow
+        coordinator.commandActions = actions
         commandActions = actions
     }
 
