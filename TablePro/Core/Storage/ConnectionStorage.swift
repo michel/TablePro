@@ -191,10 +191,12 @@ final class ConnectionStorage {
             tagId: connection.tagId,
             groupId: connection.groupId,
             sshProfileId: connection.sshProfileId,
+            sshTunnelMode: connection.sshTunnelMode,
             safeModeLevel: connection.safeModeLevel,
             aiPolicy: connection.aiPolicy,
             redisDatabase: connection.redisDatabase,
             startupCommands: connection.startupCommands,
+            sortOrder: connection.sortOrder,
             additionalFields: connection.additionalFields.isEmpty ? nil : connection.additionalFields
         )
 
@@ -237,7 +239,11 @@ final class ConnectionStorage {
 
     func loadPassword(for connectionId: UUID) -> String? {
         let key = "com.TablePro.password.\(connectionId.uuidString)"
-        return KeychainHelper.shared.loadString(forKey: key)
+        let (value, isLocked) = KeychainHelper.shared.loadStringWithStatus(forKey: key)
+        if isLocked {
+            Self.logger.warning("Database password unavailable — Keychain locked (connId=\(connectionId.uuidString, privacy: .public))")
+        }
+        return value
     }
 
     func deletePassword(for connectionId: UUID) {
@@ -254,7 +260,11 @@ final class ConnectionStorage {
 
     func loadSSHPassword(for connectionId: UUID) -> String? {
         let key = "com.TablePro.sshpassword.\(connectionId.uuidString)"
-        return KeychainHelper.shared.loadString(forKey: key)
+        let (value, isLocked) = KeychainHelper.shared.loadStringWithStatus(forKey: key)
+        if isLocked {
+            Self.logger.warning("SSH password unavailable — Keychain locked (connId=\(connectionId.uuidString, privacy: .public))")
+        }
+        return value
     }
 
     func deleteSSHPassword(for connectionId: UUID) {
@@ -271,7 +281,11 @@ final class ConnectionStorage {
 
     func loadKeyPassphrase(for connectionId: UUID) -> String? {
         let key = "com.TablePro.keypassphrase.\(connectionId.uuidString)"
-        return KeychainHelper.shared.loadString(forKey: key)
+        let (value, isLocked) = KeychainHelper.shared.loadStringWithStatus(forKey: key)
+        if isLocked {
+            Self.logger.warning("Key passphrase unavailable — Keychain locked (connId=\(connectionId.uuidString, privacy: .public))")
+        }
+        return value
     }
 
     func deleteKeyPassphrase(for connectionId: UUID) {
@@ -420,6 +434,9 @@ private struct StoredConnection: Codable {
     let totpDigits: Int
     let totpPeriod: Int
 
+    // SSH tunnel mode (v2 JSON blob preserving jump hosts + profile links)
+    let sshTunnelModeJson: Data?
+
     // Plugin-driven additional fields
     let additionalFields: [String: String]?
 
@@ -486,6 +503,9 @@ private struct StoredConnection: Codable {
         // Sort order
         self.sortOrder = connection.sortOrder
 
+        // SSH tunnel mode (v2 format preserving jump hosts, profiles, etc.)
+        self.sshTunnelModeJson = try? JSONEncoder().encode(connection.sshTunnelMode)
+
         // Plugin-driven additional fields
         self.additionalFields = connection.additionalFields.isEmpty ? nil : connection.additionalFields
     }
@@ -502,6 +522,7 @@ private struct StoredConnection: Codable {
         case aiPolicy
         case mongoAuthSource, mongoReadPreference, mongoWriteConcern, redisDatabase
         case mssqlSchema, oracleServiceName, startupCommands, sortOrder
+        case sshTunnelModeJson
         case additionalFields
     }
 
@@ -539,6 +560,7 @@ private struct StoredConnection: Codable {
         try container.encodeIfPresent(redisDatabase, forKey: .redisDatabase)
         try container.encodeIfPresent(startupCommands, forKey: .startupCommands)
         try container.encode(sortOrder, forKey: .sortOrder)
+        try container.encodeIfPresent(sshTunnelModeJson, forKey: .sshTunnelModeJson)
         try container.encodeIfPresent(additionalFields, forKey: .additionalFields)
     }
 
@@ -602,6 +624,7 @@ private struct StoredConnection: Codable {
         oracleServiceName = try container.decodeIfPresent(String.self, forKey: .oracleServiceName)
         startupCommands = try container.decodeIfPresent(String.self, forKey: .startupCommands)
         sortOrder = try container.decodeIfPresent(Int.self, forKey: .sortOrder) ?? 0
+        sshTunnelModeJson = try container.decodeIfPresent(Data.self, forKey: .sshTunnelModeJson)
         additionalFields = try container.decodeIfPresent([String: String].self, forKey: .additionalFields)
     }
 
@@ -620,6 +643,23 @@ private struct StoredConnection: Codable {
         sshConfig.totpAlgorithm = TOTPAlgorithm(rawValue: totpAlgorithm) ?? .sha1
         sshConfig.totpDigits = totpDigits
         sshConfig.totpPeriod = totpPeriod
+
+        // Prefer sshTunnelModeJson (v2 format) over legacy flat fields
+        let resolvedTunnelMode: SSHTunnelMode
+        if let json = sshTunnelModeJson,
+           let decoded = try? JSONDecoder().decode(SSHTunnelMode.self, from: json) {
+            resolvedTunnelMode = decoded
+            switch decoded {
+            case .disabled:
+                break
+            case .inline(let config):
+                sshConfig = config
+            case .profile(_, let snapshot):
+                sshConfig = snapshot
+            }
+        } else {
+            resolvedTunnelMode = .disabled
+        }
 
         let sslConfig = SSLConfiguration(
             mode: SSLMode(rawValue: sslMode) ?? .disabled,
@@ -665,6 +705,7 @@ private struct StoredConnection: Codable {
             tagId: parsedTagId,
             groupId: parsedGroupId,
             sshProfileId: parsedSSHProfileId,
+            sshTunnelMode: resolvedTunnelMode,
             safeModeLevel: SafeModeLevel(rawValue: safeModeLevel) ?? .silent,
             aiPolicy: parsedAIPolicy,
             redisDatabase: redisDatabase,
