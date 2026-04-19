@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Query tabs load rows progressively (default 10,000) with Load More and Fetch All in status bar
 - Main editor window rewritten on AppKit (`NSWindowController` + `NSToolbar`) for faster tab opens and correct lifecycle
 - Toolbar layout follows Apple HIG (sidebar left, connection center, view actions right)
 - Export engine rewritten to use streaming row fetch instead of offset/limit pagination
@@ -45,6 +46,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Cancel running query from toolbar or `Cmd+.`
+- Query result limit setting in Data Grid preferences
 - Import error handling modes: Stop and Rollback, Stop and Commit, Skip and Continue
 - Handoff via NSUserActivity
 
