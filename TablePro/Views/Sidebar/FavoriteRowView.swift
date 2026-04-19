@@ -12,14 +12,22 @@ internal struct FavoriteRowView: View {
     var body: some View {
         HStack(spacing: 6) {
             Image(systemName: "star.fill")
-                .font(.system(size: 10))
+                .font(.system(size: 12))
                 .foregroundStyle(Color(nsColor: .systemYellow))
                 .accessibilityHidden(true)
 
             Text(favorite.name)
                 .lineLimit(1)
+                .help(favorite.name)
 
             Spacer()
+
+            if favorite.connectionId == nil {
+                Image(systemName: "globe")
+                    .font(.system(size: 9))
+                    .foregroundStyle(.tertiary)
+                    .accessibilityHidden(true)
+            }
 
             if let keyword = favorite.keyword, !keyword.isEmpty {
                 Text(keyword)
@@ -39,9 +47,13 @@ internal struct FavoriteRowView: View {
     }
 
     private var accessibilityDescription: String {
-        if let keyword = favorite.keyword, !keyword.isEmpty {
-            return "\(favorite.name), \(String(format: String(localized: "keyword: %@"), keyword))"
+        var desc = favorite.name
+        if favorite.connectionId == nil {
+            desc += ", " + String(localized: "global")
         }
-        return favorite.name
+        if let keyword = favorite.keyword, !keyword.isEmpty {
+            desc += ", " + String(format: String(localized: "keyword: %@"), keyword)
+        }
+        return desc
     }
 }

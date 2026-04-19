@@ -55,8 +55,7 @@ struct HistoryPanelView: View {
             FavoriteEditDialog(
                 connectionId: connectionId,
                 favorite: nil,
-                initialQuery: item.query,
-                forceGlobal: true
+                initialQuery: item.query
             )
         }
     }

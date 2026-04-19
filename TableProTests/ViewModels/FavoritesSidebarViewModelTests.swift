@@ -7,8 +7,8 @@ import Foundation
 @testable import TablePro
 import Testing
 
-@Suite("FavoriteTreeItem")
-struct FavoriteTreeItemTests {
+@Suite("FavoriteNode")
+struct FavoriteNodeTests {
     // MARK: - Helpers
 
     private func makeFavorite(
@@ -29,20 +29,20 @@ struct FavoriteTreeItemTests {
         SQLFavoriteFolder(id: id, name: name, parentId: parentId)
     }
 
-    // MARK: - Tree Item IDs
+    // MARK: - Tree Node IDs
 
-    @Test("Favorite tree item ID has 'fav-' prefix")
-    func favoriteItemId() {
+    @Test("Favorite node ID has 'fav-' prefix")
+    func favoriteNodeId() {
         let fav = makeFavorite()
-        let item = FavoriteTreeItem.favorite(fav)
-        #expect(item.id == "fav-\(fav.id)")
+        let node = FavoriteNode.favorite(fav)
+        #expect(node.id == "fav-\(fav.id)")
     }
 
-    @Test("Folder tree item ID has 'folder-' prefix")
-    func folderItemId() {
+    @Test("Folder node ID has 'folder-' prefix")
+    func folderNodeId() {
         let folder = makeFolder()
-        let item = FavoriteTreeItem.folder(folder, children: [])
-        #expect(item.id == "folder-\(folder.id)")
+        let node = FavoriteNode.folder(folder, children: [])
+        #expect(node.id == "folder-\(folder.id)")
     }
 
     // MARK: - collectFavorites
@@ -51,9 +51,9 @@ struct FavoriteTreeItemTests {
     func collectFromFlat() {
         let fav1 = makeFavorite(name: "A")
         let fav2 = makeFavorite(name: "B")
-        let items: [FavoriteTreeItem] = [.favorite(fav1), .favorite(fav2)]
+        let nodes: [FavoriteNode] = [.favorite(fav1), .favorite(fav2)]
 
-        let collected = collectFavorites(from: items)
+        let collected = nodes.collectFavorites()
         #expect(collected.count == 2)
         #expect(collected.contains { $0.id == fav1.id })
         #expect(collected.contains { $0.id == fav2.id })
@@ -65,17 +65,17 @@ struct FavoriteTreeItemTests {
         let fav2 = makeFavorite(name: "In Folder")
         let fav3 = makeFavorite(name: "In Subfolder")
 
-        let subfolder = FavoriteTreeItem.folder(
+        let subfolder = FavoriteNode.folder(
             makeFolder(name: "Sub"),
             children: [.favorite(fav3)]
         )
-        let folder = FavoriteTreeItem.folder(
+        let folder = FavoriteNode.folder(
             makeFolder(name: "Parent"),
             children: [.favorite(fav2), subfolder]
         )
-        let items: [FavoriteTreeItem] = [.favorite(fav1), folder]
+        let nodes: [FavoriteNode] = [.favorite(fav1), folder]
 
-        let collected = collectFavorites(from: items)
+        let collected = nodes.collectFavorites()
         #expect(collected.count == 3)
         #expect(collected.contains { $0.id == fav1.id })
         #expect(collected.contains { $0.id == fav2.id })
@@ -84,14 +84,14 @@ struct FavoriteTreeItemTests {
 
     @Test("collectFavorites from empty tree")
     func collectFromEmpty() {
-        let collected = collectFavorites(from: [])
+        let collected = [FavoriteNode]().collectFavorites()
         #expect(collected.isEmpty)
     }
 
     @Test("collectFavorites from folders only (no favorites)")
     func collectFromFoldersOnly() {
-        let folder = FavoriteTreeItem.folder(makeFolder(), children: [])
-        let collected = collectFavorites(from: [folder])
+        let folder = FavoriteNode.folder(makeFolder(), children: [])
+        let collected = [folder].collectFavorites()
         #expect(collected.isEmpty)
     }
 
@@ -103,16 +103,15 @@ struct FavoriteTreeItemTests {
         let fav2 = makeFavorite(name: "B")
         let fav3 = makeFavorite(name: "C")
 
-        let folder = FavoriteTreeItem.folder(
+        let folder = FavoriteNode.folder(
             makeFolder(),
             children: [.favorite(fav2)]
         )
-        let items: [FavoriteTreeItem] = [.favorite(fav1), folder, .favorite(fav3)]
+        let nodes: [FavoriteNode] = [.favorite(fav1), folder, .favorite(fav3)]
 
-        // Simulate selecting fav1 and fav2 (one at root, one in folder)
         let selectedIds: Set<String> = ["fav-\(fav1.id)", "fav-\(fav2.id)"]
 
-        let allFavorites = collectFavorites(from: items)
+        let allFavorites = nodes.collectFavorites()
         let toDelete = allFavorites.filter { selectedIds.contains("fav-\($0.id)") }
 
         #expect(toDelete.count == 2)
@@ -125,15 +124,14 @@ struct FavoriteTreeItemTests {
     func folderSelectionExcluded() {
         let fav = makeFavorite()
         let folder = makeFolder()
-        let items: [FavoriteTreeItem] = [
+        let nodes: [FavoriteNode] = [
             .favorite(fav),
             .folder(folder, children: [])
         ]
 
-        // Only the folder is selected
         let selectedIds: Set<String> = ["folder-\(folder.id)"]
 
-        let allFavorites = collectFavorites(from: items)
+        let allFavorites = nodes.collectFavorites()
         let toDelete = allFavorites.filter { selectedIds.contains("fav-\($0.id)") }
 
         #expect(toDelete.isEmpty)
@@ -145,7 +143,7 @@ struct FavoriteTreeItemTests {
         let fav2 = makeFavorite(name: "B")
         let folder = makeFolder()
 
-        let items: [FavoriteTreeItem] = [
+        let nodes: [FavoriteNode] = [
             .favorite(fav1),
             .folder(folder, children: [.favorite(fav2)])
         ]
@@ -156,7 +154,7 @@ struct FavoriteTreeItemTests {
             "fav-\(fav2.id)"
         ]
 
-        let allFavorites = collectFavorites(from: items)
+        let allFavorites = nodes.collectFavorites()
         let toDelete = allFavorites.filter { selectedIds.contains("fav-\($0.id)") }
 
         #expect(toDelete.count == 2)
@@ -170,12 +168,12 @@ struct FavoriteTreeItemTests {
     func filterByName() {
         let fav1 = makeFavorite(name: "User Report")
         let fav2 = makeFavorite(name: "Sales Data")
-        let items: [FavoriteTreeItem] = [.favorite(fav1), .favorite(fav2)]
+        let nodes: [FavoriteNode] = [.favorite(fav1), .favorite(fav2)]
 
-        let filtered = filterTree(items, searchText: "user")
+        let filtered = filterTree(nodes, searchText: "user")
         #expect(filtered.count == 1)
-        if case .favorite(let f) = filtered.first {
-            #expect(f.id == fav1.id)
+        if let first = filtered.first?.asFavorite {
+            #expect(first.id == fav1.id)
         }
     }
 
@@ -183,9 +181,9 @@ struct FavoriteTreeItemTests {
     func filterByKeyword() {
         let fav1 = makeFavorite(name: "A", keyword: "usr")
         let fav2 = makeFavorite(name: "B", keyword: "sls")
-        let items: [FavoriteTreeItem] = [.favorite(fav1), .favorite(fav2)]
+        let nodes: [FavoriteNode] = [.favorite(fav1), .favorite(fav2)]
 
-        let filtered = filterTree(items, searchText: "usr")
+        let filtered = filterTree(nodes, searchText: "usr")
         #expect(filtered.count == 1)
     }
 
@@ -193,9 +191,9 @@ struct FavoriteTreeItemTests {
     func filterByQuery() {
         let fav1 = makeFavorite(name: "A", query: "SELECT * FROM large_table")
         let fav2 = makeFavorite(name: "B", query: "INSERT INTO logs")
-        let items: [FavoriteTreeItem] = [.favorite(fav1), .favorite(fav2)]
+        let nodes: [FavoriteNode] = [.favorite(fav1), .favorite(fav2)]
 
-        let filtered = filterTree(items, searchText: "large_table")
+        let filtered = filterTree(nodes, searchText: "large_table")
         #expect(filtered.count == 1)
     }
 
@@ -203,44 +201,85 @@ struct FavoriteTreeItemTests {
     func filterPreservesFolder() {
         let fav = makeFavorite(name: "Matching Item")
         let folder = makeFolder(name: "Unrelated Folder")
-        let items: [FavoriteTreeItem] = [
+        let nodes: [FavoriteNode] = [
             .folder(folder, children: [.favorite(fav)])
         ]
 
-        let filtered = filterTree(items, searchText: "matching")
+        let filtered = filterTree(nodes, searchText: "matching")
         #expect(filtered.count == 1)
-        if case .folder(_, let children) = filtered.first {
+        if let first = filtered.first, let children = first.children {
             #expect(children.count == 1)
         }
     }
 
-    // MARK: - Private helpers (duplicated from ViewModel for testing)
+    // MARK: - autoName
 
-    private func collectFavorites(from items: [FavoriteTreeItem]) -> [SQLFavorite] {
-        var result: [SQLFavorite] = []
-        for item in items {
-            switch item {
-            case .favorite(let fav):
-                result.append(fav)
-            case .folder(_, let children):
-                result.append(contentsOf: collectFavorites(from: children))
-            }
-        }
-        return result
+    @Test("autoName extracts comment text")
+    func autoNameFromComment() {
+        let name = SQLFavorite.autoName(from: "-- Get active users\nSELECT * FROM users WHERE active = 1")
+        #expect(name == "Get active users")
     }
 
-    private func filterTree(_ items: [FavoriteTreeItem], searchText: String) -> [FavoriteTreeItem] {
-        items.compactMap { item in
-            switch item {
+    @Test("autoName uses first non-empty line when no comment")
+    func autoNameFromFirstLine() {
+        let name = SQLFavorite.autoName(from: "SELECT * FROM orders")
+        #expect(name == "SELECT * FROM orders")
+    }
+
+    @Test("autoName truncates to 50 characters")
+    func autoNameTruncation() {
+        let longQuery = String(repeating: "A", count: 100)
+        let name = SQLFavorite.autoName(from: longQuery)
+        #expect((name as NSString).length == 50)
+    }
+
+    @Test("autoName returns Untitled for empty input")
+    func autoNameEmpty() {
+        let name = SQLFavorite.autoName(from: "")
+        #expect(name == String(localized: "Untitled"))
+    }
+
+    @Test("autoName skips empty comment lines")
+    func autoNameSkipsEmptyComment() {
+        let name = SQLFavorite.autoName(from: "--\nSELECT 1")
+        #expect(name == "SELECT 1")
+    }
+
+    // MARK: - collectFolders
+
+    @Test("collectFolders gathers all folders from tree")
+    func collectFoldersFromTree() {
+        let folder1 = makeFolder(name: "A")
+        let folder2 = makeFolder(name: "B")
+        let fav = makeFavorite()
+
+        let nodes: [FavoriteNode] = [
+            .folder(folder1, children: [
+                .folder(folder2, children: []),
+                .favorite(fav)
+            ])
+        ]
+
+        let folders = nodes.collectFolders()
+        #expect(folders.count == 2)
+        #expect(folders.contains { $0.id == folder1.id })
+        #expect(folders.contains { $0.id == folder2.id })
+    }
+
+    // MARK: - Private helpers (duplicated from ViewModel for testing)
+
+    private func filterTree(_ items: [FavoriteNode], searchText: String) -> [FavoriteNode] {
+        items.compactMap { node in
+            switch node.content {
             case .favorite(let fav):
                 if fav.name.localizedCaseInsensitiveContains(searchText) ||
                     (fav.keyword?.localizedCaseInsensitiveContains(searchText) == true) ||
                     fav.query.localizedCaseInsensitiveContains(searchText) {
-                    return item
+                    return node
                 }
                 return nil
-            case .folder(let folder, let children):
-                let filteredChildren = filterTree(children, searchText: searchText)
+            case .folder(let folder):
+                let filteredChildren = filterTree(node.children ?? [], searchText: searchText)
                 if !filteredChildren.isEmpty ||
                     folder.name.localizedCaseInsensitiveContains(searchText) {
                     return .folder(folder, children: filteredChildren)

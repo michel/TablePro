@@ -19,16 +19,20 @@ internal struct FavoriteEditDialog: View {
     let favorite: SQLFavorite?
     let initialQuery: String?
     let folderId: UUID?
-    let forceGlobal: Bool
+    let folders: [SQLFavoriteFolder]
 
     @State private var name: String = ""
     @State private var query: String = ""
     @State private var keyword: String = ""
-    @State private var isGlobal: Bool = true
+    @State private var isGlobal: Bool = false
+    @State private var selectedFolderId: UUID?
     @State private var keywordError: String?
     @State private var isKeywordWarning = false
     @State private var isSaving = false
     @State private var validationId = 0
+
+    enum FocusField { case name, keyword }
+    @FocusState private var focusedField: FocusField?
 
     private var isEditing: Bool { favorite != nil }
     private var isValid: Bool {
@@ -44,33 +48,35 @@ internal struct FavoriteEditDialog: View {
         favorite: SQLFavorite? = nil,
         initialQuery: String? = nil,
         folderId: UUID? = nil,
-        forceGlobal: Bool = false
+        folders: [SQLFavoriteFolder] = []
     ) {
         self.connectionId = connectionId
         self.favorite = favorite
         self.initialQuery = initialQuery
         self.folderId = folderId
-        self.forceGlobal = forceGlobal
+        self.folders = folders
     }
 
     var body: some View {
         VStack(spacing: 16) {
-            Form {
-                TextField("Name:", text: $name)
-                TextField("Keyword:", text: $keyword)
-                    .onChange(of: keyword) { _, newValue in
-                        validateKeyword(newValue)
-                    }
+            Text(isEditing ? String(localized: "Edit Favorite") : String(localized: "New Favorite"))
+                .font(.headline)
+                .frame(maxWidth: .infinity, alignment: .leading)
 
-                if let error = keywordError {
-                    LabeledContent {} label: {
-                        Text(error)
-                            .foregroundStyle(isKeywordWarning ? .orange : .red)
-                            .font(.callout)
+            Form {
+                TextField("Name", text: $name)
+                    .focused($focusedField, equals: .name)
+
+                if !folders.isEmpty {
+                    Picker("Folder", selection: $selectedFolderId) {
+                        Text("None").tag(nil as UUID?)
+                        ForEach(folders) { folder in
+                            Text(folder.name).tag(folder.id as UUID?)
+                        }
                     }
                 }
 
-                LabeledContent("Query:") {
+                LabeledContent("Query") {
                     TextEditor(text: $query)
                         .font(.system(.body, design: .monospaced))
                         .frame(height: 160)
@@ -84,13 +90,25 @@ internal struct FavoriteEditDialog: View {
                         )
                 }
 
-                if !forceGlobal {
-                    Toggle("Global:", isOn: $isGlobal)
-                        .help(String(localized: "When enabled, this favorite is visible in all connections"))
-                        .onChange(of: isGlobal) {
-                            validateKeyword(keyword)
-                        }
+                TextField("Keyword", text: $keyword)
+                    .focused($focusedField, equals: .keyword)
+                    .onChange(of: keyword) { _, newValue in
+                        validateKeyword(newValue)
+                    }
+
+                if let error = keywordError {
+                    LabeledContent {} label: {
+                        Text(error)
+                            .foregroundStyle(isKeywordWarning ? .orange : .red)
+                            .font(.callout)
+                    }
                 }
+
+                Toggle("Global", isOn: $isGlobal)
+                    .help(String(localized: "When enabled, this favorite is visible in all connections"))
+                    .onChange(of: isGlobal) {
+                        validateKeyword(keyword)
+                    }
             }
             .formStyle(.columns)
 
@@ -115,13 +133,18 @@ internal struct FavoriteEditDialog: View {
                 name = fav.name
                 query = fav.query
                 keyword = fav.keyword ?? ""
-                isGlobal = forceGlobal || fav.connectionId == nil
+                isGlobal = fav.connectionId == nil
+                selectedFolderId = fav.folderId
             } else {
-                isGlobal = forceGlobal
+                selectedFolderId = folderId
                 if let q = initialQuery {
                     query = q
                 }
+                if name.isEmpty && !query.isEmpty {
+                    name = SQLFavorite.autoName(from: query)
+                }
             }
+            focusedField = .name
         }
     }
 
@@ -162,7 +185,8 @@ internal struct FavoriteEditDialog: View {
                 if sqlKeywords.contains(trimmed.lowercased()) {
                     isKeywordWarning = true
                     keywordError = String(
-                        localized: "Shadows the SQL keyword '\(trimmed.uppercased())'"
+                        format: String(localized: "Shadows the SQL keyword '%@'"),
+                        trimmed.uppercased()
                     )
                 } else {
                     isKeywordWarning = false
@@ -195,6 +219,7 @@ internal struct FavoriteEditDialog: View {
                 updated.name = trimmedName
                 updated.query = trimmedQuery
                 updated.keyword = keywordValue
+                updated.folderId = selectedFolderId
                 updated.connectionId = scopeConnectionId
                 updated.updatedAt = Date()
                 success = await SQLFavoriteManager.shared.updateFavorite(updated)
@@ -203,7 +228,7 @@ internal struct FavoriteEditDialog: View {
                     name: trimmedName,
                     query: trimmedQuery,
                     keyword: keywordValue,
-                    folderId: folderId,
+                    folderId: selectedFolderId,
                     connectionId: scopeConnectionId
                 )
                 success = await SQLFavoriteManager.shared.addFavorite(newFavorite)

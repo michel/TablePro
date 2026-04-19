@@ -10,8 +10,7 @@ import SwiftUI
 /// Full-tab favorites view with folder hierarchy and bottom toolbar
 internal struct FavoritesTabView: View {
     @State private var viewModel: FavoritesSidebarViewModel
-    @State private var selectedFavoriteIds: Set<String> = []
-    @State private var lastInsertedFavoriteId: String?
+    @State private var selectedNodeId: String?
     @State private var folderToDelete: SQLFavoriteFolder?
     @State private var showDeleteFolderAlert = false
     @FocusState private var isRenameFocused: Bool
@@ -28,9 +27,12 @@ internal struct FavoritesTabView: View {
 
     var body: some View {
         Group {
-            let items = viewModel.filteredItems(searchText: searchText)
+            let items = viewModel.filteredNodes(searchText: searchText)
 
-            if viewModel.treeItems.isEmpty && searchText.isEmpty && !viewModel.isLoading {
+            if viewModel.isLoading && viewModel.nodes.isEmpty {
+                ProgressView()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if viewModel.nodes.isEmpty && searchText.isEmpty {
                 emptyState
             } else if items.isEmpty {
                 noMatchState
@@ -52,7 +54,8 @@ internal struct FavoritesTabView: View {
                 connectionId: connectionId,
                 favorite: item.favorite,
                 initialQuery: item.query,
-                folderId: item.folderId
+                folderId: item.folderId,
+                folders: viewModel.nodes.collectFolders()
             )
         }
         .alert(
@@ -67,61 +70,58 @@ internal struct FavoritesTabView: View {
         } message: { folder in
             Text("The folder \"\(folder.name)\" will be deleted. Items inside will be moved to the parent level.")
         }
+        .alert(String(localized: "Delete Favorite?"), isPresented: $viewModel.showDeleteConfirmation) {
+            Button(String(localized: "Cancel"), role: .cancel) {
+                viewModel.favoritesToDelete = []
+            }
+            Button(String(localized: "Delete"), role: .destructive) {
+                viewModel.confirmDeleteFavorites()
+            }
+        } message: {
+            let count = viewModel.favoritesToDelete.count
+            if count == 1 {
+                Text("\"\(viewModel.favoritesToDelete.first?.name ?? "")\" will be permanently deleted.")
+            } else {
+                Text("\(count) favorites will be permanently deleted.")
+            }
+        }
+        .onChange(of: coordinator?.pendingSaveAsFavoriteQuery) { _, newQuery in
+            guard let query = newQuery else { return }
+            coordinator?.pendingSaveAsFavoriteQuery = nil
+            viewModel.createFavorite(query: query)
+        }
     }
 
     // MARK: - List
 
-    private func favoritesList(_ items: [FavoriteTreeItem]) -> some View {
-        List(selection: $selectedFavoriteIds) {
-            flattenedRows(items)
+    private func favoritesList(_ items: [FavoriteNode]) -> some View {
+        List(selection: $selectedNodeId) {
+            nodeRows(items)
         }
         .listStyle(.sidebar)
         .scrollContentBackground(.hidden)
         .onDeleteCommand {
-            deleteSelectedFavorites()
+            deleteSelectedFavorite()
         }
-        .onChange(of: selectedFavoriteIds) { oldIds, newIds in
-            if newIds.isEmpty {
-                lastInsertedFavoriteId = nil
-                return
-            }
-
-            let added = newIds.subtracting(oldIds)
-            guard added.count == 1,
-                  newIds.count == 1,
-                  let selectedId = added.first,
-                  selectedId != lastInsertedFavoriteId else { return }
-
-            let allFavorites = collectFavorites(from: viewModel.filteredItems(searchText: searchText))
-            if let favorite = allFavorites.first(where: { "fav-\($0.id)" == selectedId }) {
-                coordinator?.insertFavorite(favorite)
-                lastInsertedFavoriteId = selectedId
-            }
+        .onKeyPress(.return) {
+            guard let nodeId = selectedNodeId,
+                  let fav = viewModel.favoriteForNodeId(nodeId) else { return .ignored }
+            coordinator?.insertFavorite(fav)
+            return .handled
         }
     }
 
-    /// Renders tree items with DisclosureGroup for folders.
-    /// Each favorite row gets `.tag()` so List selection works across all nesting levels.
-    private func flattenedRows(_ items: [FavoriteTreeItem]) -> AnyView {
+    private func nodeRows(_ items: [FavoriteNode]) -> AnyView {
         AnyView(
-            ForEach(items) { item in
-                switch item {
+            ForEach(items) { node in
+                switch node.content {
                 case .favorite(let favorite):
                     FavoriteRowView(favorite: favorite)
-                        .tag("fav-\(favorite.id)")
-                        .overlay {
-                            DoubleClickDetector {
-                                coordinator?.insertFavorite(favorite)
-                            }
-                        }
+                        .tag(node.id)
                         .contextMenu {
-                            FavoriteItemContextMenu(
-                                favorite: favorite,
-                                viewModel: viewModel,
-                                coordinator: coordinator
-                            )
+                            favoriteContextMenu(favorite)
                         }
-                case .folder(let folder, let children):
+                case .folder(let folder):
                     DisclosureGroup(isExpanded: Binding(
                         get: { viewModel.expandedFolderIds.contains(folder.id) },
                         set: { expanded in
@@ -132,7 +132,9 @@ internal struct FavoritesTabView: View {
                             }
                         }
                     )) {
-                        flattenedRows(children)
+                        if let children = node.children {
+                            nodeRows(children)
+                        }
                     } label: {
                         folderLabel(folder)
                     }
@@ -169,126 +171,30 @@ internal struct FavoritesTabView: View {
         } else {
             Label(folder.name, systemImage: "folder")
                 .contextMenu {
-                    FolderContextMenu(
-                        folder: folder,
-                        viewModel: viewModel,
-                        onDelete: { f in
-                            folderToDelete = f
-                            showDeleteFolderAlert = true
-                        }
-                    )
+                    folderContextMenu(folder)
                 }
         }
     }
 
-    private func deleteSelectedFavorites() {
-        let allFavorites = collectFavorites(from: viewModel.treeItems)
-        let toDelete = allFavorites.filter { selectedFavoriteIds.contains("fav-\($0.id)") }
-        guard !toDelete.isEmpty else { return }
-        viewModel.deleteFavorites(toDelete)
-        selectedFavoriteIds.removeAll()
+    private func deleteSelectedFavorite() {
+        guard let nodeId = selectedNodeId,
+              let fav = viewModel.favoriteForNodeId(nodeId) else { return }
+        viewModel.deleteFavorite(fav)
     }
 
-    private func collectFavorites(from items: [FavoriteTreeItem]) -> [SQLFavorite] {
-        var result: [SQLFavorite] = []
-        for item in items {
-            switch item {
-            case .favorite(let fav):
-                result.append(fav)
-            case .folder(_, let children):
-                result.append(contentsOf: collectFavorites(from: children))
-            }
+    // MARK: - Context Menus
+
+    @ViewBuilder
+    private func favoriteContextMenu(_ favorite: SQLFavorite) -> some View {
+        Button(String(localized: "Insert in Editor")) {
+            coordinator?.insertFavorite(favorite)
         }
-        return result
-    }
 
-    // MARK: - Empty States
-
-    private var emptyState: some View {
-        VStack(spacing: 6) {
-            Image(systemName: "star")
-                .font(.title.weight(.thin))
-                .foregroundStyle(Color(nsColor: .tertiaryLabelColor))
-
-            Text("No Favorites")
-                .font(.system(size: ThemeEngine.shared.activeTheme.typography.body, weight: .medium))
-                .foregroundStyle(Color(nsColor: .secondaryLabelColor))
-
-            Text("Save frequently used queries\nfor quick access.")
-                .font(.system(size: ThemeEngine.shared.activeTheme.typography.small))
-                .foregroundStyle(Color(nsColor: .tertiaryLabelColor))
-                .multilineTextAlignment(.center)
-
-            Button {
-                viewModel.createFavorite()
-            } label: {
-                Label(String(localized: "New Favorite"), systemImage: "plus")
-            }
-            .buttonStyle(.borderless)
-            .controlSize(.small)
-            .padding(.top, 4)
+        Button(String(localized: "Run in New Tab")) {
+            coordinator?.runFavoriteInNewTab(favorite)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
 
-    private var noMatchState: some View {
-        VStack(spacing: 6) {
-            Image(systemName: "magnifyingglass")
-                .font(.title.weight(.thin))
-                .foregroundStyle(Color(nsColor: .tertiaryLabelColor))
-
-            Text("No Matching Favorites")
-                .font(.system(size: ThemeEngine.shared.activeTheme.typography.body, weight: .medium))
-                .foregroundStyle(Color(nsColor: .secondaryLabelColor))
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-
-    // MARK: - Bottom Toolbar
-
-    private var bottomToolbar: some View {
-        HStack(spacing: 8) {
-            Button {
-                viewModel.createFavorite()
-            } label: {
-                Label(String(localized: "New Favorite"), systemImage: "plus")
-            }
-            .buttonStyle(.borderless)
-            .controlSize(.small)
-            .foregroundStyle(Color(nsColor: .secondaryLabelColor))
-
-            Spacer()
-
-            Button {
-                viewModel.createFolder()
-            } label: {
-                Image(systemName: "folder.badge.plus")
-                    .frame(width: 24, height: 24)
-            }
-            .buttonStyle(.borderless)
-            .foregroundStyle(Color(nsColor: .secondaryLabelColor))
-            .accessibilityLabel(String(localized: "New Folder"))
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 6)
-    }
-}
-
-// MARK: - Context Menus
-
-private struct FavoriteItemContextMenu: View {
-    let favorite: SQLFavorite
-    let viewModel: FavoritesSidebarViewModel
-    var coordinator: MainContentCoordinator?
-
-    private var folders: [SQLFavoriteFolder] {
-        collectFolders(from: viewModel.treeItems)
-    }
-
-    var body: some View {
-        Button(String(localized: "Edit...")) {
-            viewModel.editFavorite(favorite)
-        }
+        Divider()
 
         Button {
             NSPasteboard.general.clearContents()
@@ -297,21 +203,12 @@ private struct FavoriteItemContextMenu: View {
             Label(String(localized: "Copy Query"), systemImage: "doc.on.doc")
         }
 
-        Button {
-            coordinator?.insertFavorite(favorite)
-        } label: {
-            Label(String(localized: "Insert in Editor"), systemImage: "square.and.pencil")
+        Button(String(localized: "Edit...")) {
+            viewModel.editFavorite(favorite)
         }
 
-        Button {
-            coordinator?.runFavoriteInNewTab(favorite)
-        } label: {
-            Label(String(localized: "Run in New Tab"), systemImage: "play")
-        }
-
-        if !folders.isEmpty {
-            Divider()
-
+        let allFolders = viewModel.nodes.collectFolders()
+        if !allFolders.isEmpty {
             Menu(String(localized: "Move to")) {
                 if favorite.folderId != nil {
                     Button(String(localized: "Root Level")) {
@@ -321,7 +218,7 @@ private struct FavoriteItemContextMenu: View {
                     Divider()
                 }
 
-                ForEach(folders) { folder in
+                ForEach(allFolders) { folder in
                     if folder.id != favorite.folderId {
                         Button(folder.name) {
                             viewModel.moveFavorite(id: favorite.id, toFolder: folder.id)
@@ -337,28 +234,12 @@ private struct FavoriteItemContextMenu: View {
         Button(role: .destructive) {
             viewModel.deleteFavorite(favorite)
         } label: {
-            Label(String(localized: "Delete"), systemImage: "trash")
+            Text("Delete")
         }
     }
 
-    private func collectFolders(from items: [FavoriteTreeItem]) -> [SQLFavoriteFolder] {
-        var result: [SQLFavoriteFolder] = []
-        for item in items {
-            if case .folder(let folder, let children) = item {
-                result.append(folder)
-                result.append(contentsOf: collectFolders(from: children))
-            }
-        }
-        return result
-    }
-}
-
-private struct FolderContextMenu: View {
-    let folder: SQLFavoriteFolder
-    let viewModel: FavoritesSidebarViewModel
-    var onDelete: (SQLFavoriteFolder) -> Void
-
-    var body: some View {
+    @ViewBuilder
+    private func folderContextMenu(_ folder: SQLFavoriteFolder) -> some View {
         Button(String(localized: "Rename")) {
             viewModel.startRenameFolder(folder)
         }
@@ -374,9 +255,53 @@ private struct FolderContextMenu: View {
         Divider()
 
         Button(role: .destructive) {
-            onDelete(folder)
+            folderToDelete = folder
+            showDeleteFolderAlert = true
         } label: {
-            Label(String(localized: "Delete Folder"), systemImage: "trash")
+            Text("Delete Folder")
         }
+    }
+
+    // MARK: - Empty States
+
+    private var emptyState: some View {
+        ContentUnavailableView(
+            String(localized: "No Favorites"),
+            systemImage: "star",
+            description: Text("Save frequently used queries for quick access.")
+        )
+    }
+
+    private var noMatchState: some View {
+        ContentUnavailableView(
+            String(localized: "No Matching Favorites"),
+            systemImage: "magnifyingglass"
+        )
+    }
+
+    // MARK: - Bottom Toolbar
+
+    private var bottomToolbar: some View {
+        HStack(spacing: 8) {
+            Button {
+                viewModel.createFavorite()
+            } label: {
+                Image(systemName: "plus")
+            }
+            .buttonStyle(.borderless)
+            .help(String(localized: "New Favorite"))
+
+            Spacer()
+
+            Button {
+                viewModel.createFolder()
+            } label: {
+                Image(systemName: "folder.badge.plus")
+            }
+            .buttonStyle(.borderless)
+            .help(String(localized: "New Folder"))
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 6)
     }
 }
