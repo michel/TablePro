@@ -479,7 +479,7 @@ struct MainEditorContentView: View {
         let showEmptySpaceMenu = isEditable && tab.tableName != nil
 
         // Update delegate state for current render
-        _ = {
+        let _ = { // swiftlint:disable:this redundant_discardable_let
             dataTabDelegate.coordinator = coordinator
             dataTabDelegate.columnVisibilityManager = columnVisibilityManager
             dataTabDelegate.selectedRowIndices = $selectedRowIndices
