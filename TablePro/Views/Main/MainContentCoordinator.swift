@@ -961,23 +961,7 @@ final class MainContentCoordinator {
         let (useProgressiveLoading, progressiveLimit) = resolveProgressiveLoading(sql: sql, tabType: tab.tabType)
         let effectiveSQL = sql
 
-        let tableName: String?
-        let isEditable: Bool
-        let usesNoSQLBrowsing = PluginManager.shared.editorLanguage(for: connection.type) != .sql
-            || (DatabaseManager.shared.driver(for: connectionId) as? PluginDriverAdapter)?
-                .queryBuildingPluginDriver != nil
-        if usesNoSQLBrowsing {
-            tableName = tabManager.selectedTab?.tableName
-            isEditable = tableName != nil
-        } else if tab.tabType == .table, let existingName = tab.tableName {
-            // Table tabs already know their table name — don't re-extract from SQL
-            // which can fail for schema-qualified or quoted identifiers
-            tableName = existingName
-            isEditable = true
-        } else {
-            tableName = extractTableName(from: effectiveSQL)
-            isEditable = tableName != nil
-        }
+        let (tableName, isEditable) = resolveTableEditability(tab: tab, sql: effectiveSQL)
 
         currentQueryTask = Task { [weak self] in
             guard let self else { return }
@@ -1143,6 +1127,21 @@ final class MainContentCoordinator {
         currentQueryTask = nil
         toolbarState.setExecuting(false)
         toolbarState.lastQueryDuration = executionTime
+    }
+
+    private func resolveTableEditability(tab: QueryTab, sql: String) -> (tableName: String?, isEditable: Bool) {
+        let usesNoSQLBrowsing = PluginManager.shared.editorLanguage(for: connection.type) != .sql
+            || (DatabaseManager.shared.driver(for: connectionId) as? PluginDriverAdapter)?
+                .queryBuildingPluginDriver != nil
+        if usesNoSQLBrowsing {
+            let name = tabManager.selectedTab?.tableName
+            return (name, name != nil)
+        } else if tab.tabType == .table, let existingName = tab.tableName {
+            return (existingName, true)
+        } else {
+            let name = extractTableName(from: sql)
+            return (name, name != nil)
+        }
     }
 
     /// Fetch enum/set values for columns from database-specific sources

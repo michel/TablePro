@@ -425,7 +425,7 @@ struct SSHProfileEditorView: View {
         dismiss()
     }
 
-    private func testSSHConnection() {
+    func testSSHConnection() {
         isTesting = true
         testSucceeded = false
         let window = NSApp.keyWindow

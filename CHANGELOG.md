@@ -7,61 +7,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.33.0] - 2026-04-19
+
 ### Added
 
-- Execute All Statements shortcut (Cmd+Shift+Enter) to run all statements in the editor (#770)
+- Cancel running query from toolbar or `Cmd+.`
+- Execute All Statements shortcut (Cmd+Shift+Enter) (#770)
 - Drop database from the database switcher (context menu, toolbar button, Delete key)
-- Structure tab: search, sort, count badges, PK column, Copy As (CSV/JSON/SQL), destructive change confirmation
-- Structure tab: DDL view with tree-sitter highlighting, line numbers, and "Open in Editor"
-- Structure tab: charset/collation (MySQL), index prefix length, partial indexes (PostgreSQL), cross-schema FK
-- Structure tab: dropdown pickers for FK actions and index types, schema changes in query history
+- Query result limit setting in Data Grid preferences
+- Structure tab: search, sort, count badges, PK column, DDL view with highlighting, Copy As (CSV/JSON/SQL), dropdown pickers, destructive change confirmation
+- Structure tab: charset/collation (MySQL), index prefix length, partial indexes (PostgreSQL), cross-schema FK, schema changes in query history
 - ClickHouse: parts tab actions (optimize table, drop/detach partition)
+- Streaming export for query results with partial loading (no memory limit)
+- Import error handling modes: Stop and Rollback, Stop and Commit, Skip and Continue
+- Handoff via NSUserActivity
 
 ### Changed
 
 - Query tabs load rows progressively (default 10,000) with Load More and Fetch All in status bar
 - Main editor window rewritten on AppKit (`NSWindowController` + `NSToolbar`) for faster tab opens and correct lifecycle
 - Toolbar layout follows Apple HIG (sidebar left, connection center, view actions right)
-- Export engine rewritten to use streaming row fetch instead of offset/limit pagination
-- Export progress integrates with macOS system progress
-- All export file writes use atomic operations for crash safety
+- Export engine rewritten: streaming row fetch, macOS system progress, atomic file writes
+- SQL import parser rewritten: DELIMITER support, MySQL conditional/hash comments, chunk boundary handling, single-pass async decompression, error surfacing
 
 ### Fixed
 
 - Selection highlight not covering the last line on Cmd+A (#770)
-- AI chat freeze when large queries or results are included in the system prompt (#774)
-- AI chat panel not updating when switching database connections
-- Schema restored on reconnect for PostgreSQL, Redshift, and BigQuery (#777)
-- Database restored after auto-reconnect (was lost when connection dropped)
-- Redis database selection persisted across sessions
-- Database switch no longer closes windows before confirming success
-- SSH jumphost lost after disconnect or app restart (#790)
-- Password appears missing when Keychain is locked after reboot (#780)
-- SQL import parser rewritten: fixes chunk boundary quote escapes, adds DELIMITER support, MySQL conditional comments, and hash comments
-- Import parser now surfaces file read and encoding errors instead of silently succeeding
-- Compressed (.gz) files are only decompressed once instead of twice
-- Import progress estimate uses decompressed file size for accurate progress
-- Transaction rollback error is now correctly reported
-- Foreign key checks are properly restored after failed import
-- File decompression no longer blocks Swift concurrency thread pool
 - Cmd+W closing the connection window instead of clearing to empty state
 - ER Diagram and Server Dashboard replacing the current tab instead of opening a new one
 - Welcome window stealing focus on connect, disabling Cmd+T until manual click
 - Toolbar empty on second tab, menu shortcuts disabled after toolbar click
+- AI chat freeze when large queries or results are in the system prompt (#774)
+- AI chat panel not updating when switching database connections
+- Schema restored on reconnect for PostgreSQL, Redshift, and BigQuery (#777)
+- Database restored after auto-reconnect (was lost when connection dropped)
+- Database switch no longer closes windows before confirming success
+- Redis database selection persisted across sessions
+- SSH jumphost lost after disconnect or app restart (#790)
+- Password appears missing when Keychain is locked after reboot (#780)
+- Import: correct rollback reporting, FK checks restored after failure, decompressed-size progress
 - JSON export no longer coerces leading-zero strings to integers
 - XLSX export auto-splits tables exceeding 1,048,576 rows into multiple sheets
 - CSV formula injection guard corrected to OWASP-standard prefixes only
 - MQL export validates JSON values before passthrough
 - SQL export gzip compression is now async and cancellable
 - Export progress bar reliably reaches 100%
-
-### Added
-
-- Cancel running query from toolbar or `Cmd+.`
-- Query result limit setting in Data Grid preferences
-- Streaming export for query results with partial loading (exports directly from database, no memory limit)
-- Import error handling modes: Stop and Rollback, Stop and Commit, Skip and Continue
-- Handoff via NSUserActivity
 
 ## [0.32.1] - 2026-04-17
 
@@ -1404,7 +1394,8 @@ TablePro is a native macOS database client built with SwiftUI and AppKit, design
     - Custom SQL query templates
     - Performance optimized for large datasets
 
-[Unreleased]: https://github.com/TableProApp/TablePro/compare/v0.32.1...HEAD
+[Unreleased]: https://github.com/TableProApp/TablePro/compare/v0.33.0...HEAD
+[0.33.0]: https://github.com/TableProApp/TablePro/compare/v0.32.1...v0.33.0
 [0.32.1]: https://github.com/TableProApp/TablePro/compare/v0.32.0...v0.32.1
 [0.32.0]: https://github.com/TableProApp/TablePro/compare/v0.31.5...v0.32.0
 [0.31.5]: https://github.com/TableProApp/TablePro/compare/v0.31.4...v0.31.5

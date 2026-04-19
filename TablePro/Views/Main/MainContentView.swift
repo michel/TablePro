@@ -190,7 +190,8 @@ struct MainContentView: View {
                 set: { if !$0 {
                     coordinator.activeSheet = nil
                     coordinator.importFileURL = nil
-                }}
+                }
+                }
             )
             ImportDialog(
                 isPresented: importDismiss,

@@ -524,5 +524,4 @@ final class StructureGridDelegate: DataGridViewDelegate {
         let fk = structureChangeManager.workingForeignKeys[row]
         coordinator?.openTableTab(fk.referencedTable, showStructure: false, isView: false)
     }
-
 }

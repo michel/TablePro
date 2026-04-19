@@ -123,5 +123,4 @@ final class CreateTableGridDelegate: DataGridViewDelegate {
             break
         }
     }
-
 }

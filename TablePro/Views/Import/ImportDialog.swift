@@ -458,4 +458,3 @@ struct ImportDialog: View {
         try await FileDecompressor.decompressIfNeeded(url, fileSystemPath: fileSystemPath)
     }
 }
-
