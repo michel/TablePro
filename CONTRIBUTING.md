@@ -87,7 +87,7 @@ scripts/               Build and release scripts
 
 Drivers are `.tableplugin` bundles loaded at runtime. Create a new bundle under `Plugins/`, implement `DriverPlugin` + `PluginDatabaseDriver` from `TableProPluginKit`, and add the target to the Xcode project.
 
-Full guide: [docs/development/plugin-registry](https://tablepro.app/development/plugin-registry)
+Full guide: [docs/development/plugin-registry](https://docs.tablepro.app/development/plugin-registry)
 
 ## Reporting Bugs
 
