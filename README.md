@@ -35,23 +35,6 @@
 
 TablePro is a native macOS database client built with SwiftUI and AppKit. It connects to 18+ databases using native drivers (no JDBC, no Electron). Starts in under 1 second, uses about 80 MB of RAM.
 
-## Supported Databases
-
-MySQL, MariaDB, PostgreSQL, SQLite, MongoDB, Redis, SQL Server, Oracle, ClickHouse, DuckDB, Redshift, Cassandra, ScyllaDB, Etcd, Cloudflare D1, DynamoDB, and BigQuery.
-
-## Features
-
-- **SQL Editor** with tree-sitter highlighting, autocomplete, Vim mode, and query history
-- **Data Grid** with inline editing, sorting, filtering, and progressive loading
-- **AI Assistant** for writing, explaining, and optimizing SQL (Claude, OpenAI, Ollama)
-- **SSH Tunneling** with password, key, or agent auth
-- **Table Structure Editor** for columns, indexes, foreign keys, and triggers
-- **EXPLAIN Visualization** as tree diagrams for query plan analysis
-- **ER Diagrams** auto-generated from foreign key relationships
-- **Import/Export** to CSV, JSON, SQL, and XLSX
-- **iCloud Sync** for connections between Mac and iPhone
-- **9 Themes** with dark mode support
-
 ## Install
 
 ```bash
