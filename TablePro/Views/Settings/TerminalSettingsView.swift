@@ -32,7 +32,6 @@ struct TerminalSettingsView: View {
             displaySection
             themeSection
             cliPathsSection
-            notificationsSection
         }
         .formStyle(.grouped)
         .scrollContentBackground(.hidden)
@@ -70,6 +69,7 @@ struct TerminalSettingsView: View {
             }
 
             Toggle("Option as Meta key", isOn: $settings.optionAsMeta)
+            Toggle("Terminal bell", isOn: $settings.bellEnabled)
         }
     }
 
@@ -117,17 +117,18 @@ struct TerminalSettingsView: View {
     // MARK: - CLI Paths
 
     @State private var resolvedPaths: [String: String] = [:]
+    @State private var cliPathsExpanded: Bool = false
 
     @ViewBuilder
     private var cliPathsSection: some View {
         Section {
-            ForEach(Self.terminalDatabaseTypes, id: \.rawValue) { dbType in
-                cliPathRow(for: dbType)
+            DisclosureGroup("CLI Paths", isExpanded: $cliPathsExpanded) {
+                ForEach(Self.terminalDatabaseTypes, id: \.rawValue) { dbType in
+                    cliPathRow(for: dbType)
+                }
             }
-        } header: {
-            Text("CLI Paths")
         } footer: {
-            Text("Leave empty to auto-detect from system PATH.")
+            Text("Override auto-detected CLI paths per database type.")
         }
         .task {
             await resolveAllCliPaths()
@@ -141,13 +142,9 @@ struct TerminalSettingsView: View {
             set: { settings.cliPaths[dbType.rawValue] = $0.isEmpty ? nil : $0 }
         )
         let binaryName = CLICommandResolver.binaryName(for: dbType)
-        let placeholder = resolvedPaths[dbType.rawValue] ?? binaryName
+        let resolved = resolvedPaths[dbType.rawValue] ?? binaryName
 
-        LabeledContent(dbType.displayName) {
-            TextField(placeholder, text: binding)
-                .textFieldStyle(.roundedBorder)
-                .frame(maxWidth: 300)
-        }
+        TextField(dbType.displayName, text: binding, prompt: Text(resolved))
     }
 
     private func resolveAllCliPaths() async {
@@ -171,15 +168,6 @@ struct TerminalSettingsView: View {
         resolvedPaths = results
     }
 
-    // MARK: - Notifications
-
-    @ViewBuilder
-    private var notificationsSection: some View {
-        Section("Notifications") {
-            Toggle("Terminal bell", isOn: $settings.bellEnabled)
-        }
-    }
-
     // MARK: - Helpers
 
     private static var availableFonts: [String] {
@@ -190,8 +178,7 @@ struct TerminalSettingsView: View {
     }
 }
 
-
 #Preview {
     TerminalSettingsView(settings: .constant(.default))
-        .frame(width: 600, height: 500)
+        .frame(width: 450, height: 400)
 }
