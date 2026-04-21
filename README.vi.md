@@ -5,13 +5,15 @@
 <h1 align="center">TablePro</h1>
 
 <p align="center">
-  Ứng dụng quản lý cơ sở dữ liệu native cho macOS với trợ lý AI.
+  Ứng dụng quản lý database native cho Mac và iPhone. MySQL, PostgreSQL, SQLite, MongoDB, Redis, và 15+ database khác.<br>
+  Miễn phí và mã nguồn mở.
 </p>
 
 <p align="center">
+  <a href="https://tablepro.app">Website</a> ·
   <a href="https://docs.tablepro.app">Tài liệu</a> ·
   <a href="https://github.com/TableProApp/TablePro/releases">Tải xuống</a> ·
-  <a href="https://github.com/TableProApp/TablePro/issues">Báo lỗi</a>
+  <a href="https://discord.gg/hCNmUUbnD4">Discord</a>
 </p>
 
 <p align="center">
@@ -22,15 +24,16 @@
   <a href="README.md">English</a>
   <a href="README.zh.md">简体中文</a>
 </p>
+
 ---
 
 <p align="center">
-  <img src=".github/assets/hero-dark.png" alt="TablePro Screenshot" width="800">
+  <img src=".github/assets/hero-dark.png" alt="TablePro ứng dụng quản lý database native cho macOS" width="800">
 </p>
 
 ## Giới thiệu
 
-TablePro là ứng dụng quản lý database native cho macOS. Kết nối MySQL, MariaDB, PostgreSQL, SQLite, MongoDB, Redis, SQL Server và Redshift. Có trình soạn SQL với autocomplete, chỉnh sửa trực tiếp và hỗ trợ AI.
+TablePro là ứng dụng quản lý database native cho macOS, được xây dựng bằng SwiftUI và AppKit. Kết nối 18+ database bằng native driver (không JDBC, không Electron). Khởi động dưới 1 giây, sử dụng khoảng 80 MB RAM.
 
 ## Cài đặt
 
@@ -39,6 +42,11 @@ brew install --cask tablepro
 ```
 
 Hoặc tải DMG từ [GitHub Releases](https://github.com/TableProApp/TablePro/releases).
+
+## Yêu cầu hệ thống
+
+- macOS 14 Sonoma trở lên
+- Apple Silicon (arm64) hoặc Intel (x86_64)
 
 ## Tài liệu
 

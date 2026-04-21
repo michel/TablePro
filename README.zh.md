@@ -5,11 +5,15 @@
 <h1 align="center">TablePro</h1>
 
 <p align="center">
-  一款快速、原生的 macOS 数据库客户端，内置 AI 助手。
+  Mac 和 iPhone 原生数据库客户端。MySQL、PostgreSQL、SQLite、MongoDB、Redis 等 15+ 数据库。<br>
+  免费开源。
 </p>
 
 <p align="center">
-  <a href="https://docs.tablepro.app">文档</a> · <a href="https://github.com/TableProApp/TablePro/releases">下载</a> · <a href="https://github.com/TableProApp/TablePro/issues">报告 Bug</a>
+  <a href="https://tablepro.app">官网</a> ·
+  <a href="https://docs.tablepro.app">文档</a> ·
+  <a href="https://github.com/TableProApp/TablePro/releases">下载</a> ·
+  <a href="https://discord.gg/hCNmUUbnD4">Discord</a>
 </p>
 
 <p align="center">
@@ -17,19 +21,19 @@
 </p>
 
 <p align="center">
-  <a href="README.vi.md">Tiếng Việt</a>
   <a href="README.md">English</a>
+  <a href="README.vi.md">Tiếng Việt</a>
 </p>
 
 ---
 
 <p align="center">
-  <img src=".github/assets/hero-dark.png" alt="TablePro Screenshot" width="800">
+  <img src=".github/assets/hero-dark.png" alt="TablePro macOS 原生数据库客户端" width="800">
 </p>
 
 ## 关于
 
-TablePro 是一款原生 macOS 数据库客户端。支持连接 MySQL、MariaDB、PostgreSQL、SQLite、MongoDB、Redis、SQL Server 和 Redshift。包含支持自动补全、行内编辑和 AI 辅助的 SQL 编辑器。
+TablePro 是一款原生 macOS 数据库客户端，基于 SwiftUI 和 AppKit 构建。使用原生驱动连接 18+ 种数据库（非 JDBC，非 Electron）。启动不到 1 秒，内存占用约 80 MB。
 
 ## 安装
 
@@ -38,6 +42,11 @@ brew install --cask tablepro
 ```
 
 或者从 [GitHub Releases](https://github.com/TableProApp/TablePro/releases) 下载 DMG 文件。
+
+## 系统要求
+
+- macOS 14 Sonoma 或更高版本
+- Apple Silicon (arm64) 或 Intel (x86_64)
 
 ## 文档
 
