@@ -253,7 +253,7 @@ struct SequelAceImporter: ForeignAppImporter {
         if connectionType == 2 {
             let sshUser = entry["sshUser"] as? String ?? ""
             let sshHost = entry["sshHost"] as? String ?? ""
-            let sshService = "Sequel Ace SSH : \(name) (\(connId))"
+            let sshService = "Sequel Ace SSHTunnel : \(name) (\(connId))"
             let sshAccount = "\(sshUser)@\(sshHost)"
             sshPassword = ForeignKeychainReader.readPassword(service: sshService, account: sshAccount)
         }

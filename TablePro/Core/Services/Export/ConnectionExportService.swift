@@ -360,6 +360,7 @@ enum ConnectionExportService {
     static func restoreCredentials(from envelope: ConnectionExportEnvelope, connectionIdMap: [Int: UUID]) {
         guard let credentials = envelope.credentials else { return }
 
+        var restoredCount = 0
         for (indexString, creds) in credentials {
             guard let index = Int(indexString),
                   let connectionId = connectionIdMap[index] else { continue }
@@ -381,9 +382,10 @@ enum ConnectionExportService {
                     ConnectionStorage.shared.savePluginSecureField(value, fieldId: fieldId, for: connectionId)
                 }
             }
+            restoredCount += 1
         }
 
-        logger.info("Restored credentials for \(credentials.count) connections")
+        logger.info("Restored credentials for \(restoredCount) of \(credentials.count) connections")
     }
 
     /// Decode an envelope from raw JSON data. Can be called from any thread.
@@ -656,10 +658,13 @@ enum ConnectionExportService {
 
         let parsedSSHProfileId = exportable.sshProfileId.flatMap { UUID(uuidString: $0) }
 
+        let finalHost = exportable.host.trimmingCharacters(in: .whitespaces).isEmpty
+            ? "localhost" : exportable.host
+
         return DatabaseConnection(
             id: id,
             name: name,
-            host: exportable.host,
+            host: finalHost,
             port: exportable.port,
             database: exportable.database,
             username: exportable.username,

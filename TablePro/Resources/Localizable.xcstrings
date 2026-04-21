@@ -1213,6 +1213,9 @@
         }
       }
     },
+    "%d connections found" : {
+
+    },
     "%d connections were imported." : {
       "localizations" : {
         "tr" : {
@@ -2327,6 +2330,9 @@
           }
         }
       }
+    },
+    "1 connection found" : {
+
     },
     "1 connection was imported." : {
       "localizations" : {
@@ -5712,6 +5718,9 @@
         }
       }
     },
+    "Back" : {
+
+    },
     "Background" : {
       "localizations" : {
         "tr" : {
@@ -5777,6 +5786,9 @@
           }
         }
       }
+    },
+    "Bar" : {
+
     },
     "Base32-encoded secret from your authenticator setup" : {
       "localizations" : {
@@ -5871,6 +5883,9 @@
           }
         }
       }
+    },
+    "Block" : {
+
     },
     "Block Size" : {
 
@@ -7112,6 +7127,12 @@
         }
       }
     },
+    "CLI Paths" : {
+
+    },
+    "CLI tool \"%@\" not found in PATH" : {
+
+    },
     "Click + to add a relationship between this table and another" : {
       "localizations" : {
         "tr" : {
@@ -7423,6 +7444,9 @@
           }
         }
       }
+    },
+    "Close result tab" : {
+
     },
     "Close Result Tab" : {
       "localizations" : {
@@ -9422,6 +9446,9 @@
         }
       }
     },
+    "Could not find %@ data files" : {
+
+    },
     "Could not reach the license server. Check your internet connection and try again." : {
       "localizations" : {
         "tr" : {
@@ -10137,6 +10164,9 @@
         }
       }
     },
+    "Cursor blink" : {
+
+    },
     "Cursor position %d exceeds SQL length (%d)" : {
       "localizations" : {
         "en" : {
@@ -10193,6 +10223,9 @@
           }
         }
       }
+    },
+    "Cursor style:" : {
+
     },
     "CURTIME()" : {
       "extractionState" : "stale",
@@ -15100,6 +15133,9 @@
         }
       }
     },
+    "Failed to create terminal process (errno: %d)" : {
+
+    },
     "Failed to decompress .gz file" : {
       "localizations" : {
         "tr" : {
@@ -15646,6 +15682,9 @@
           }
         }
       }
+    },
+    "Failed to parse connections: %@" : {
+
     },
     "Failed to parse plugin registry" : {
       "localizations" : {
@@ -16632,8 +16671,10 @@
         }
       }
     },
+    "Font size:" : {
+
+    },
     "Font:" : {
-      "extractionState" : "stale",
       "localizations" : {
         "tr" : {
           "stringUnit" : {
@@ -18120,6 +18161,9 @@
         }
       }
     },
+    "Import from %@" : {
+
+    },
     "Import from DDL" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -18142,6 +18186,12 @@
           }
         }
       }
+    },
+    "Import from Other App" : {
+
+    },
+    "Import from Other App..." : {
+
     },
     "Import from URL" : {
       "localizations" : {
@@ -18409,6 +18459,9 @@
           }
         }
       }
+    },
+    "Include passwords" : {
+
     },
     "Include query results" : {
       "localizations" : {
@@ -18905,6 +18958,9 @@
           }
         }
       }
+    },
+    "Install the CLI client for %@" : {
+
     },
     "Install Theme" : {
       "localizations" : {
@@ -22811,6 +22867,9 @@
         }
       }
     },
+    "No connections found to import" : {
+
+    },
     "No Connections Imported" : {
       "localizations" : {
         "tr" : {
@@ -23121,6 +23180,7 @@
       }
     },
     "No matching %@" : {
+      "extractionState" : "stale",
       "localizations" : {
         "tr" : {
           "stringUnit" : {
@@ -23210,6 +23270,7 @@
       }
     },
     "No Matching Favorites" : {
+      "extractionState" : "stale",
       "localizations" : {
         "tr" : {
           "stringUnit" : {
@@ -24142,6 +24203,9 @@
         }
       }
     },
+    "Not installed" : {
+
+    },
     "Not Installed" : {
       "localizations" : {
         "tr" : {
@@ -25043,6 +25107,9 @@
         }
       }
     },
+    "Open Terminal" : {
+
+    },
     "Operation cancelled by user" : {
       "localizations" : {
         "tr" : {
@@ -25159,6 +25226,9 @@
           }
         }
       }
+    },
+    "Option as Meta key" : {
+
     },
     "Optional description" : {
       "extractionState" : "stale",
@@ -25315,6 +25385,9 @@
           }
         }
       }
+    },
+    "Override auto-detected CLI paths per database type." : {
+
     },
     "Page Count" : {
 
@@ -27330,6 +27403,9 @@
         }
       }
     },
+    "Process exited with code %d" : {
+
+    },
     "Profile" : {
       "localizations" : {
         "en" : {
@@ -28116,6 +28192,9 @@
         }
       }
     },
+    "Read saved passwords from Keychain (requires permission)" : {
+
+    },
     "Read-only" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -28187,6 +28266,9 @@
     "Read-Only Connection" : {
 
     },
+    "Reading connections..." : {
+
+    },
     "Reassign" : {
       "localizations" : {
         "tr" : {
@@ -28255,7 +28337,6 @@
       }
     },
     "Reconnect" : {
-      "extractionState" : "stale",
       "localizations" : {
         "tr" : {
           "stringUnit" : {
@@ -30699,6 +30780,9 @@
         }
       }
     },
+    "Scrollback lines:" : {
+
+    },
     "Search columns..." : {
       "localizations" : {
         "tr" : {
@@ -30766,7 +30850,6 @@
       }
     },
     "Search for field..." : {
-      "extractionState" : "stale",
       "localizations" : {
         "tr" : {
           "stringUnit" : {
@@ -33169,6 +33252,9 @@
         }
       }
     },
+    "SQL Query" : {
+
+    },
     "SQL Server" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -33213,6 +33299,9 @@
           }
         }
       }
+    },
+    "sqlite3 is included with macOS" : {
+
     },
     "SSH Agent" : {
       "localizations" : {
@@ -35234,6 +35323,15 @@
         }
       }
     },
+    "Terminal" : {
+
+    },
+    "Terminal bell" : {
+
+    },
+    "Terminal Unavailable" : {
+
+    },
     "Terminate" : {
 
     },
@@ -35590,6 +35688,12 @@
           }
         }
       }
+    },
+    "Theme" : {
+
+    },
+    "Theme:" : {
+
     },
     "Themes" : {
       "localizations" : {
@@ -37442,6 +37546,9 @@
         }
       }
     },
+    "Underline" : {
+
+    },
     "Undo" : {
       "localizations" : {
         "tr" : {
@@ -37906,6 +38013,9 @@
           }
         }
       }
+    },
+    "Unsupported file format: %@" : {
+
     },
     "Unsupported MongoDB method: %@" : {
       "extractionState" : "stale",

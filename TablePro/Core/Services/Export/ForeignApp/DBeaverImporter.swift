@@ -67,7 +67,7 @@ struct DBeaverImporter: ForeignAppImporter {
 
                 if includePasswords, let connCreds = credentialsMap[connId] {
                     let creds = extractCredentials(from: connCreds)
-                    if creds.password != nil {
+                    if creds.password != nil || creds.sshPassword != nil {
                         credentials[String(index)] = creds
                     }
                 }
@@ -298,9 +298,12 @@ struct DBeaverImporter: ForeignAppImporter {
         let connectionBlock = connCreds["#connection"] as? [String: Any] ?? [:]
         let password = connectionBlock["password"] as? String
 
+        let sshBlock = connCreds["ssh_tunnel"] as? [String: Any] ?? [:]
+        let sshPassword = sshBlock["password"] as? String
+
         return ExportableCredentials(
             password: password,
-            sshPassword: nil,
+            sshPassword: sshPassword,
             keyPassphrase: nil,
             totpSecret: nil,
             pluginSecureFields: nil
