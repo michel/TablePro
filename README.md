@@ -5,13 +5,15 @@
 <h1 align="center">TablePro</h1>
 
 <p align="center">
-  A fast, native macOS database client with built-in AI assistant.
+  Native database client for Mac and iPhone. MySQL, PostgreSQL, SQLite, MongoDB, Redis, and 15+ more.<br>
+  Free and open-source.
 </p>
 
 <p align="center">
-  <a href="https://docs.tablepro.app">Documentation</a> ·
+  <a href="https://tablepro.app">Website</a> ·
+  <a href="https://docs.tablepro.app">Docs</a> ·
   <a href="https://github.com/TableProApp/TablePro/releases">Download</a> ·
-  <a href="https://github.com/TableProApp/TablePro/issues">Report Bug</a>
+  <a href="https://discord.gg/hCNmUUbnD4">Discord</a>
 </p>
 
 <p align="center">
@@ -26,12 +28,29 @@
 ---
 
 <p align="center">
-  <img src=".github/assets/hero-dark.png" alt="TablePro Screenshot" width="800">
+  <img src=".github/assets/hero-dark.png" alt="TablePro macOS database client with SQL editor and data grid" width="800">
 </p>
 
 ## About
 
-TablePro is a native macOS database client. Connects to MySQL, MariaDB, PostgreSQL, SQLite, MongoDB, Redis, SQL Server, and Redshift. Includes a SQL editor with autocomplete, inline editing, and AI assistance.
+TablePro is a native macOS database client built with SwiftUI and AppKit. It connects to 18+ databases using native drivers (no JDBC, no Electron). Starts in under 1 second, uses about 80 MB of RAM.
+
+## Supported Databases
+
+MySQL, MariaDB, PostgreSQL, SQLite, MongoDB, Redis, SQL Server, Oracle, ClickHouse, DuckDB, Redshift, Cassandra, ScyllaDB, Etcd, Cloudflare D1, DynamoDB, and BigQuery.
+
+## Features
+
+- **SQL Editor** with tree-sitter highlighting, autocomplete, Vim mode, and query history
+- **Data Grid** with inline editing, sorting, filtering, and progressive loading
+- **AI Assistant** for writing, explaining, and optimizing SQL (Claude, OpenAI, Ollama)
+- **SSH Tunneling** with password, key, or agent auth
+- **Table Structure Editor** for columns, indexes, foreign keys, and triggers
+- **EXPLAIN Visualization** as tree diagrams for query plan analysis
+- **ER Diagrams** auto-generated from foreign key relationships
+- **Import/Export** to CSV, JSON, SQL, and XLSX
+- **iCloud Sync** for connections between Mac and iPhone
+- **9 Themes** with dark mode support
 
 ## Install
 
@@ -41,9 +60,14 @@ brew install --cask tablepro
 
 Or download the DMG from [GitHub Releases](https://github.com/TableProApp/TablePro/releases).
 
+## System Requirements
+
+- macOS 14 Sonoma or later
+- Apple Silicon (arm64) or Intel (x86_64)
+
 ## Documentation
 
-Full documentation is available at [docs.tablepro.app](https://docs.tablepro.app).
+Full docs at [docs.tablepro.app](https://docs.tablepro.app).
 
 ## Support Development
 
