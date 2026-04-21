@@ -124,8 +124,14 @@ struct TablePlusImporter: ForeignAppImporter {
         let dbType = mapDriver(driverString)
 
         let host = entry["DatabaseHost"] as? String ?? "localhost"
-        let portString = entry["DatabasePort"] as? String ?? ""
-        let port = Int(portString) ?? defaultPort(for: dbType)
+        let port: Int
+        if let intPort = entry["DatabasePort"] as? Int {
+            port = intPort
+        } else if let strPort = entry["DatabasePort"] as? String, let parsed = Int(strPort) {
+            port = parsed
+        } else {
+            port = defaultPort(for: dbType)
+        }
         let username = entry["DatabaseUser"] as? String ?? ""
         let database: String
         if dbType == "SQLite" {
@@ -173,7 +179,8 @@ struct TablePlusImporter: ForeignAppImporter {
         let port = Int(portString) ?? 22
         let username = entry["ServerUser"] as? String ?? ""
         let useKey = entry["isUsePrivateKey"] as? Bool ?? false
-        let keyPath = entry["ServerPrivateKeyName"] as? String ?? ""
+        let rawKeyPath = entry["ServerPrivateKeyName"] as? String ?? ""
+        let keyPath = ForeignAppPathHelper.resolveKeyPath(rawKeyPath)
 
         return ExportableSSHConfig(
             enabled: true,
@@ -198,7 +205,7 @@ struct TablePlusImporter: ForeignAppImporter {
 
         let paths = entry["TlsKeyPaths"] as? [String] ?? []
         return ExportableSSLConfig(
-            mode: "required",
+            mode: "Required",
             caCertificatePath: paths.count > 0 ? paths[0] : nil,
             clientCertificatePath: paths.count > 1 ? paths[1] : nil,
             clientKeyPath: paths.count > 2 ? paths[2] : nil
@@ -251,10 +258,10 @@ struct TablePlusImporter: ForeignAppImporter {
 
     private func mapEnvironmentColor(_ environment: String?) -> String? {
         switch environment {
-        case "staging": return "yellow"
-        case "production": return "red"
-        case "testing": return "blue"
-        case "development": return "green"
+        case "staging": return "Yellow"
+        case "production": return "Red"
+        case "testing": return "Blue"
+        case "development": return "Green"
         default: return nil
         }
     }
