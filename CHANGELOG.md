@@ -9,24 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- libSQL / Turso database support via downloadable plugin
-- JSON viewer with Text/Tree toggle for query results — tree view with expand/collapse, search, copy key path
-- MCP server: built-in Model Context Protocol server lets AI tools (Claude Desktop, Claude Code, Cursor) browse schemas, run queries, and export data through TablePro's connections
-- MCP server: connected clients list in Settings and status menu item showing server state
-- Import connections from TablePlus, Sequel Ace, and DBeaver with one-click migration
-- Embedded database CLI terminal (View > Open Terminal or Ctrl+Cmd+`) auto-launches mysql, psql, redis-cli, etc. for the active connection
-- Structure tab: modify existing tables (add, modify, drop columns, indexes, foreign keys, primary keys)
+- libSQL / Turso plugin
+- JSON viewer with text/tree toggle
+- MCP server with client list and status menu
+- Import connections from TablePlus, Sequel Ace, DBeaver
+- Database CLI terminal (`Ctrl+Cmd+\``)
+- Structure tab: alter columns, indexes, foreign keys, primary keys
 
 ### Fixed
 
-- SQL formatter: preserve original case for functions and data types, fix spacing around UNION and parentheses
+- SQL formatter preserving original case, UNION and parentheses spacing
 
 ### Changed
 
-- Sidebar toggle: Xcode-style navigator buttons next to traffic lights replace the segmented picker
-- Sidebar and inspector panels now use native macOS split view controls with standard resize dividers
-- Theme system: UI colors now adapt to system appearance, accent color, and high contrast settings by default. Custom themes can still override with hex values.
-- Theme system: removed Layout tab from theme editor. Font sizes now follow system text styles for better accessibility support.
+- Sidebar toggle uses Xcode-style navigator buttons
+- Sidebar and inspector use native split view controls
+- Theme colors follow system appearance and accent color. Removed Layout tab, font sizes use system text styles.
 
 ## [0.33.0] - 2026-04-19
 

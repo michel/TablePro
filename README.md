@@ -28,7 +28,11 @@
 ---
 
 <p align="center">
-  <img src=".github/assets/app-dark.png" alt="TablePro macOS database client with SQL editor and data grid" width="800">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset=".github/assets/app-dark.png">
+    <source media="(prefers-color-scheme: light)" srcset=".github/assets/app-light.png">
+    <img alt="TablePro macOS database client with SQL editor and data grid" src=".github/assets/app-light.png" width="800">
+  </picture>
 </p>
 
 ## About
