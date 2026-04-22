@@ -402,8 +402,8 @@ final class AIChatViewModel {
                 }
 
                 // Pre-send size check
-                let totalSize = (systemPrompt?.count ?? 0)
-                    + chatMessages.reduce(0) { $0 + $1.content.count }
+                let totalSize = ((systemPrompt ?? "") as NSString).length
+                    + chatMessages.reduce(0) { $0 + ($1.content as NSString).length }
                 if totalSize > 100_000 {
                     await MainActor.run { [weak self] in
                         guard let self else { return }

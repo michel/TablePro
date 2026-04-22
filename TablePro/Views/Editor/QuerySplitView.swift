@@ -58,21 +58,19 @@ struct QuerySplitView<TopContent: View, BottomContent: View>: NSViewRepresentabl
             context.coordinator.lastCollapsedState = isBottomCollapsed
             let collapse = isBottomCollapsed
             let coordinator = context.coordinator
-            DispatchQueue.main.async {
+            DispatchQueue.main.async { [weak coordinator] in
+                guard let coordinator else { return }
                 guard splitView.bounds.height > 0 else { return }
                 if collapse {
-                    // Save divider position before collapsing
                     if splitView.subviews.count >= 2 {
                         coordinator.savedDividerPosition = splitView.subviews[0].frame.height
                     }
-                    // Move divider to bottom edge to collapse
                     splitView.setPosition(splitView.bounds.height, ofDividerAt: 0)
                     bottomView.isHidden = true
                     splitView.display()
                 } else {
                     bottomView.isHidden = false
                     splitView.adjustSubviews()
-                    // Restore divider position
                     if let saved = coordinator.savedDividerPosition {
                         splitView.setPosition(saved, ofDividerAt: 0)
                     }
