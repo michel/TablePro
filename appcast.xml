@@ -3,6 +3,63 @@
     <channel>
         <title>TablePro</title>
         <item>
+            <title>0.34.0</title>
+            <pubDate>Wed, 22 Apr 2026 13:10:28 +0000</pubDate>
+            <sparkle:version>73</sparkle:version>
+            <sparkle:shortVersionString>0.34.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+            <description><![CDATA[<h3>Added</h3>
+<ul>
+<li>libSQL / Turso plugin</li>
+<li>JSON viewer with text/tree toggle</li>
+<li>MCP server with client list and status menu</li>
+<li>Import connections from TablePlus, Sequel Ace, DBeaver</li>
+<li>Database CLI terminal (`Ctrl+Cmd+\``)</li>
+<li>Structure tab: alter columns, indexes, foreign keys, primary keys</li>
+</ul>
+<h3>Fixed</h3>
+<ul>
+<li>SQL formatter preserving original case, UNION and parentheses spacing</li>
+</ul>
+<h3>Changed</h3>
+<ul>
+<li>Sidebar toggle uses Xcode-style navigator buttons</li>
+<li>Sidebar and inspector use native split view controls</li>
+<li>Theme colors follow system appearance and accent color. Removed Layout tab, font sizes use system text styles.</li>
+</ul>
+]]></description>
+            <enclosure url="https://github.com/TableProApp/TablePro/releases/download/v0.34.0/TablePro-0.34.0-arm64.zip" length="26774339" type="application/octet-stream" sparkle:edSignature="nm5Li9gow5/zeYcpG2RW8RZ7Tp/h0RqxAzk8ZxOlJwetJFmTILJ7Mpu233N2yN+BOVxF4ksbD63q8WLQznj0Aw=="/>
+        </item>
+        <item>
+            <title>0.34.0</title>
+            <pubDate>Wed, 22 Apr 2026 13:10:29 +0000</pubDate>
+            <sparkle:version>73</sparkle:version>
+            <sparkle:shortVersionString>0.34.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <description><![CDATA[<h3>Added</h3>
+<ul>
+<li>libSQL / Turso plugin</li>
+<li>JSON viewer with text/tree toggle</li>
+<li>MCP server with client list and status menu</li>
+<li>Import connections from TablePlus, Sequel Ace, DBeaver</li>
+<li>Database CLI terminal (`Ctrl+Cmd+\``)</li>
+<li>Structure tab: alter columns, indexes, foreign keys, primary keys</li>
+</ul>
+<h3>Fixed</h3>
+<ul>
+<li>SQL formatter preserving original case, UNION and parentheses spacing</li>
+</ul>
+<h3>Changed</h3>
+<ul>
+<li>Sidebar toggle uses Xcode-style navigator buttons</li>
+<li>Sidebar and inspector use native split view controls</li>
+<li>Theme colors follow system appearance and accent color. Removed Layout tab, font sizes use system text styles.</li>
+</ul>
+]]></description>
+            <enclosure url="https://github.com/TableProApp/TablePro/releases/download/v0.34.0/TablePro-0.34.0-x86_64.zip" length="26708578" type="application/octet-stream" sparkle:edSignature="hH8SJAVuC4alprt0WnRemP55g+/QigHuCATLVFyGKAgL7pPcVms0+9YPhRWhPmV/pwI+hpHkLt/ZXKzLHSzpCg=="/>
+        </item>
+        <item>
             <title>0.33.0</title>
             <pubDate>Sun, 19 Apr 2026 17:38:33 +0000</pubDate>
             <sparkle:version>72</sparkle:version>
