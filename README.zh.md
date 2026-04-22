@@ -28,7 +28,7 @@
 ---
 
 <p align="center">
-  <img src=".github/assets/hero-dark.png" alt="TablePro macOS 原生数据库客户端" width="800">
+  <img src=".github/assets/app-dark.png" alt="TablePro macOS 原生数据库客户端" width="800">
 </p>
 
 ## 关于

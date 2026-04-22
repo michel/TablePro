@@ -28,7 +28,7 @@
 ---
 
 <p align="center">
-  <img src=".github/assets/hero-dark.png" alt="TablePro macOS database client with SQL editor and data grid" width="800">
+  <img src=".github/assets/app-dark.png" alt="TablePro macOS database client with SQL editor and data grid" width="800">
 </p>
 
 ## About

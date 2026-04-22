@@ -28,7 +28,7 @@
 ---
 
 <p align="center">
-  <img src=".github/assets/hero-dark.png" alt="TablePro ứng dụng quản lý database native cho macOS" width="800">
+  <img src=".github/assets/app-dark.png" alt="TablePro ứng dụng quản lý database native cho macOS" width="800">
 </p>
 
 ## Giới thiệu

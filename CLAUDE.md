@@ -94,6 +94,7 @@ Plugin bundles under `Plugins/`:
 | CloudflareD1Plugin     | Cloudflare D1        | (URLSession HTTP)    | Registry     |
 | DynamoDBDriverPlugin   | DynamoDB             | (AWS SDK)            | Registry     |
 | BigQueryDriverPlugin   | BigQuery             | (URLSession REST)    | Registry     |
+| LibSQLDriverPlugin     | libSQL, Turso        | (Hrana HTTP)         | Registry     |
 
 When adding a new driver: create a new plugin bundle under `Plugins/`, implement `DriverPlugin` + `PluginDatabaseDriver`, add target to pbxproj, add `DatabaseType` static constant, add case to `resolve_plugin_info()` in `.github/workflows/build-plugin.yml`, add row to `docs/index.mdx` supported databases table, and add CHANGELOG entry. See `docs/development/plugin-system/` for details.
 
