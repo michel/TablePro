@@ -1798,7 +1798,7 @@
 				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
 				CODE_SIGN_ENTITLEMENTS = TableProWidgetExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 8;
+				CURRENT_PROJECT_VERSION = 9;
 				DEVELOPMENT_TEAM = D7HJ5TFYCU;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = TableProWidget/Info.plist;
@@ -1830,7 +1830,7 @@
 				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
 				CODE_SIGN_ENTITLEMENTS = TableProWidgetExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 8;
+				CURRENT_PROJECT_VERSION = 9;
 				DEVELOPMENT_TEAM = D7HJ5TFYCU;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = TableProWidget/Info.plist;
@@ -1987,7 +1987,7 @@
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
 				CODE_SIGN_ENTITLEMENTS = TableProMobile/TableProMobileRelease.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 8;
+				CURRENT_PROJECT_VERSION = 9;
 				DEVELOPMENT_TEAM = D7HJ5TFYCU;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -2031,7 +2031,7 @@
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
 				CODE_SIGN_ENTITLEMENTS = TableProMobile/TableProMobileRelease.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 8;
+				CURRENT_PROJECT_VERSION = 9;
 				DEVELOPMENT_TEAM = D7HJ5TFYCU;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -2113,22 +2113,27 @@
 		};
 		5A87EEED2F7F893000D028D1 /* TableProAnalytics */ = {
 			isa = XCSwiftPackageProductDependency;
+			package = 5AB9F3E72F7C1D03001F3337 /* XCLocalSwiftPackageReference "../Packages/TableProCore" */;
 			productName = TableProAnalytics;
 		};
 		5AB9F3E82F7C1D03001F3337 /* TableProDatabase */ = {
 			isa = XCSwiftPackageProductDependency;
+			package = 5AB9F3E72F7C1D03001F3337 /* XCLocalSwiftPackageReference "../Packages/TableProCore" */;
 			productName = TableProDatabase;
 		};
 		5AB9F3EA2F7C1D03001F3337 /* TableProModels */ = {
 			isa = XCSwiftPackageProductDependency;
+			package = 5AB9F3E72F7C1D03001F3337 /* XCLocalSwiftPackageReference "../Packages/TableProCore" */;
 			productName = TableProModels;
 		};
 		5AB9F3EC2F7C1D03001F3337 /* TableProPluginKit */ = {
 			isa = XCSwiftPackageProductDependency;
+			package = 5AB9F3E72F7C1D03001F3337 /* XCLocalSwiftPackageReference "../Packages/TableProCore" */;
 			productName = TableProPluginKit;
 		};
 		5AB9F3EE2F7C1D03001F3337 /* TableProQuery */ = {
 			isa = XCSwiftPackageProductDependency;
+			package = 5AB9F3E72F7C1D03001F3337 /* XCLocalSwiftPackageReference "../Packages/TableProCore" */;
 			productName = TableProQuery;
 		};
 /* End XCSwiftPackageProductDependency section */
