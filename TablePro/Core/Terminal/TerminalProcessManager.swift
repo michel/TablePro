@@ -12,7 +12,7 @@ final class TerminalProcessManager {
     private static let logger = Logger(subsystem: "com.TablePro", category: "TerminalProcessManager")
 
     private let fdLock = NSLock()
-    private nonisolated(unsafe) var _ptyFD: Int32 = -1
+    nonisolated(unsafe) private var _ptyFD: Int32 = -1
 
     private var ptyFD: Int32 {
         get { fdLock.withLock { _ptyFD } }
@@ -20,9 +20,9 @@ final class TerminalProcessManager {
     }
 
     private let stateLock = NSLock()
-    private nonisolated(unsafe) var _childPID: pid_t = 0
-    private nonisolated(unsafe) var _readSource: DispatchSourceRead?
-    private nonisolated(unsafe) var _processMonitor: DispatchSourceProcess?
+    nonisolated(unsafe) private var _childPID: pid_t = 0
+    nonisolated(unsafe) private var _readSource: DispatchSourceRead?
+    nonisolated(unsafe) private var _processMonitor: DispatchSourceProcess?
 
     var onData: ((Data) -> Void)?
     var onExit: ((Int32) -> Void)?
@@ -66,7 +66,7 @@ final class TerminalProcessManager {
 
         if pid == 0 {
             // Child process: ONLY async-signal-safe POSIX calls, no Swift
-            execve(cArgs[0]!, cArgs, cEnv)
+            execve(cArgs[0]!, cArgs, cEnv) // swiftlint:disable:this force_unwrapping
             _exit(127)
         }
 
@@ -105,8 +105,8 @@ final class TerminalProcessManager {
 
     // MARK: - Resize (called from libghostty threads)
 
-    private nonisolated(unsafe) var lastCols: Int = 0
-    private nonisolated(unsafe) var lastRows: Int = 0
+    nonisolated(unsafe) private var lastCols: Int = 0
+    nonisolated(unsafe) private var lastRows: Int = 0
     private let resizeLock = NSLock()
 
     nonisolated func resize(cols: Int, rows: Int) {
@@ -154,7 +154,7 @@ final class TerminalProcessManager {
         }
     }
 
-    private nonisolated func killAndReap() {
+    nonisolated private func killAndReap() {
         let pid = stateLock.withLock {
             let p = _childPID
             _childPID = 0
@@ -169,7 +169,7 @@ final class TerminalProcessManager {
         }
     }
 
-    private nonisolated func cancelSources() {
+    nonisolated private func cancelSources() {
         stateLock.withLock {
             _readSource?.cancel()
             _readSource = nil

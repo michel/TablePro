@@ -149,8 +149,7 @@ private struct JSONTreeContentView: View {
                     isExpanded: Binding(
                         get: { expandedNodeIDs.contains(node.id) },
                         set: { expanded in
-                            if expanded { expandedNodeIDs.insert(node.id) }
-                            else { expandedNodeIDs.remove(node.id) }
+                            if expanded { expandedNodeIDs.insert(node.id) } else { expandedNodeIDs.remove(node.id) }
                         }
                     )
                 ) {

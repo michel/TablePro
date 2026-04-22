@@ -423,4 +423,3 @@ struct MCPResourceContent: Codable, Sendable {
 struct MCPResourceReadResult: Codable, Sendable {
     let contents: [MCPResourceContent]
 }
-
