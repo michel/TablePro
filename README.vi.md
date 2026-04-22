@@ -64,7 +64,7 @@ TablePro miễn phí và mã nguồn mở. Nếu bạn thấy hữu ích, hãy c
 
 Cảm ơn những người tuyệt vời đã hỗ trợ TablePro:
 
-**[Dwarves Foundation](https://dwarves.foundation/?ref=tablepro)** · **[Nimbus](https://getnimbus.io?ref=tablepro)** · **[Visnalize](https://visnalize.com?ref=tablepro)** · **[Huy TQ](https://github.com/imhuytq)** · **[Unikorn](https://unikorn.vn?ref=tablepro)**
+**[SimpleLocalize](https://simplelocalize.io?ref=tablepro)** · **[Nimbus](https://getnimbus.io?ref=tablepro)** · **[Visnalize](https://visnalize.com?ref=tablepro)** · **[Dwarves Foundation](https://dwarves.foundation/?ref=tablepro)** · **[Huy TQ](https://github.com/imhuytq)** · **[Unikorn](https://unikorn.vn?ref=tablepro)**
 
 ## Lịch sử Star
 

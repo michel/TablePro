@@ -64,7 +64,7 @@ TablePro is free and open source. If you find it useful, consider [purchasing a 
 
 Thanks to these amazing people for supporting TablePro:
 
-**[Dwarves Foundation](https://dwarves.foundation/?ref=tablepro)** · **[Nimbus](https://getnimbus.io?ref=tablepro)** · **[Visnalize](https://visnalize.com?ref=tablepro)** · **[Huy TQ](https://github.com/imhuytq)** · **[Unikorn](https://unikorn.vn?ref=tablepro)**
+**[SimpleLocalize](https://simplelocalize.io?ref=tablepro)** · **[Nimbus](https://getnimbus.io?ref=tablepro)** · **[Visnalize](https://visnalize.com?ref=tablepro)** · **[Dwarves Foundation](https://dwarves.foundation/?ref=tablepro)** · **[Huy TQ](https://github.com/imhuytq)** · **[Unikorn](https://unikorn.vn?ref=tablepro)**
 
 ## Star History
 
