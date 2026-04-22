@@ -195,7 +195,7 @@ struct TableProToolbar: ViewModifier {
                     Button {
                         actions?.showServerDashboard()
                     } label: {
-                        Label(String(localized: "Dashboard"), systemImage: "gauge.with.dots.needle.33percent")
+                        Label(String(localized: "Dashboard"), systemImage: "gauge.with.dots.needle.50percent")
                     }
                     .help(String(localized: "Server Dashboard"))
                     .disabled(state.connectionState != .connected || !(actions?.supportsServerDashboard ?? false))

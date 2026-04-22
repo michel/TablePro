@@ -101,11 +101,11 @@ internal struct RedisKeyTreeView: View {
     private func keyTypeIcon(_ type: String) -> String {
         switch type.lowercased() {
         case "string": return "textformat"
-        case "hash": return "number"
+        case "hash": return "square.grid.2x2"
         case "list": return "list.bullet"
         case "set": return "circle.grid.3x3"
         case "zset": return "chart.bar"
-        case "stream": return "arrow.right.circle"
+        case "stream": return "waveform"
         default: return "key"
         }
     }

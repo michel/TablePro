@@ -71,7 +71,7 @@ internal struct JSONViewerView: View {
                         text = formatted
                     }
                 } label: {
-                    Image(systemName: "text.alignleft")
+                    Image(systemName: "curlybraces")
                 }
                 .buttonStyle(.borderless)
                 .help(String(localized: "Format JSON"))

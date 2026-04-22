@@ -24,7 +24,7 @@ extension ConnectionFormView {
                             Image(systemName: "checkmark.circle.fill")
                                 .foregroundStyle(Color(nsColor: .systemGreen))
                         } else {
-                            Image(systemName: "bolt.horizontal")
+                            Image(systemName: "antenna.radiowaves.left.and.right")
                                 .foregroundStyle(.secondary)
                         }
                         Text(testSucceeded ? String(localized: "Connected") : String(localized: "Test Connection"))

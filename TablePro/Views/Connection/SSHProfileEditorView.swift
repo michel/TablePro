@@ -328,7 +328,7 @@ struct SSHProfileEditorView: View {
                         ProgressView()
                             .controlSize(.small)
                     } else {
-                        Image(systemName: testSucceeded ? "checkmark.circle.fill" : "bolt.horizontal")
+                        Image(systemName: testSucceeded ? "checkmark.circle.fill" : "antenna.radiowaves.left.and.right")
                             .foregroundStyle(testSucceeded ? Color(nsColor: .systemGreen) : .secondary)
                     }
                     Text("Test Connection")

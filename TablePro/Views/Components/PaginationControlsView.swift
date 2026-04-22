@@ -31,7 +31,7 @@ struct PaginationControlsView: View {
 
             // Settings button (gear icon) - opens popover
             Button(action: { showSettings.toggle() }) {
-                Image(systemName: "slider.horizontal.3")
+                Image(systemName: "gearshape")
                     .frame(width: 24, height: 24)
             }
             .buttonStyle(.borderless)
