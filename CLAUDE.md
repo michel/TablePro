@@ -100,7 +100,7 @@ When adding a new driver: create a new plugin bundle under `Plugins/`, implement
 
 When adding a new method to the driver protocol: add to `PluginDatabaseDriver` (with default implementation), then update `PluginDriverAdapter` to bridge it to `DatabaseDriver`.
 
-**PluginKit ABI versioning**: When `DriverPlugin` or `PluginDatabaseDriver` protocol changes (new methods, changed signatures), bump `currentPluginKitVersion` in `PluginManager.swift` AND `TableProPluginKitVersion` in every plugin's `Info.plist`. Stale user-installed plugins with mismatched versions crash on load with `EXC_BAD_INSTRUCTION` (not catchable in Swift). Removing protocol methods that have default `nil` implementations does NOT require a version bump — old plugins have dead code, new plugins fall back to defaults.
+**PluginKit ABI versioning**: When `DriverPlugin` or `PluginDatabaseDriver` protocol changes (new methods, changed signatures), bump `currentPluginKitVersion` in `PluginManager.swift` AND `TableProPluginKitVersion` in every plugin's `Info.plist`. Stale user-installed plugins with mismatched versions crash on load with `EXC_BAD_INSTRUCTION` (not catchable in Swift). Removing protocol methods that have default `nil` implementations does NOT require a version bump — old plugins have dead code, new plugins fall back to defaults. **Important**: Adding new `static var` or `func` requirements to `DriverPlugin` DOES require a version bump even if default implementations are provided via protocol extension — Swift protocol witness tables are compiled statically, so old plugin binaries crash when the runtime calls missing witness entries.
 
 ### DatabaseType (String-Based Struct)
 
@@ -124,6 +124,14 @@ When adding a new method to the driver protocol: add to `PluginDatabaseDriver` (
 2. User clicks Save → `SQLStatementGenerator` produces INSERT/UPDATE/DELETE
 3. `DataChangeUndoManager` provides undo/redo
 4. `AnyChangeManager` abstracts over concrete manager for protocol-based usage
+
+### Sync Delete Ordering
+
+In `ConnectionStorage` (and all storage classes), `SyncChangeTracker.markDeleted()` must be called BEFORE `saveConnections()`. The `markDeleted` call fires `postChangeNotification` which can trigger a sync — if `saveConnections` hasn't run yet, the file still has the deleted item and sync may re-add it. GroupStorage and TagStorage already follow this pattern.
+
+### WelcomeViewModel Tree Rebuild
+
+The welcome screen renders `treeItems` (grouped/filtered), not `connections` directly. Every mutation to `connections` must call `rebuildTree()` afterward, or the UI won't update. All paths (`loadConnections`, `deleteSelectedConnections`, group operations) must include this call.
 
 ### Main Coordinator Pattern
 
