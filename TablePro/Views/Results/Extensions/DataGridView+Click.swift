@@ -19,14 +19,7 @@ extension TableViewCoordinator {
         let columnIndex = column - 1
         guard !changeManager.isRowDeleted(row) else { return }
 
-        // Structure view dropdown columns (no chevron button — use full-cell click)
-        if let dropdownCols = dropdownColumns, dropdownCols.contains(columnIndex) {
-            showDropdownMenu(tableView: sender, row: row, column: column, columnIndex: columnIndex)
-            return
-        }
-
-        // All other special editor columns are handled by their chevron button action.
-        // Single click on cell text area does nothing.
+        // Single click only selects the row. Chevron buttons handle dropdown/picker actions.
     }
 
     @objc func handleDoubleClick(_ sender: NSTableView) {

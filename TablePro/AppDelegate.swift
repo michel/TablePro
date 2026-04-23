@@ -204,10 +204,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         alert.messageText = String(localized: "You have unsaved changes")
         alert.informativeText = String(localized: "Some tabs have unsaved edits. Quitting will discard these changes.")
         alert.alertStyle = .warning
-        alert.addButton(withTitle: String(localized: "Quit Anyway"))
         alert.addButton(withTitle: String(localized: "Cancel"))
+        alert.addButton(withTitle: String(localized: "Quit Anyway"))
         let response = alert.runModal()
-        return response == .alertFirstButtonReturn ? .terminateNow : .terminateCancel
+        return response == .alertSecondButtonReturn ? .terminateNow : .terminateCancel
     }
 
     func applicationWillTerminate(_ notification: Notification) {

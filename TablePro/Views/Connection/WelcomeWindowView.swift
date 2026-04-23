@@ -39,7 +39,7 @@ struct WelcomeWindowView: View {
             vm.setUp(openWindow: openWindow)
             focus = .search
         }
-        .confirmationDialog(
+        .alert(
             vm.connectionsToDelete.count == 1
                 ? String(localized: "Delete Connection")
                 : String(format: String(localized: "Delete %d Connections"), vm.connectionsToDelete.count),
@@ -157,63 +157,53 @@ struct WelcomeWindowView: View {
                 .buttonStyle(.plain)
                 .help(String(localized: "New Group"))
 
-                HStack(spacing: 6) {
-                    Image(systemName: "magnifyingglass")
-                        .font(.callout)
-                        .foregroundStyle(.tertiary)
-
-                    TextField("Search for connection...", text: $vm.searchText)
-                        .textFieldStyle(.plain)
-                        .font(.body)
-                        .focused($focus, equals: .search)
-                        .onKeyPress(.return) {
-                            vm.connectSelectedConnections()
-                            return .handled
-                        }
-                        .onKeyPress(.escape) {
-                            if !vm.searchText.isEmpty {
-                                vm.searchText = ""
-                            }
-                            focus = .connectionList
-                            return .handled
-                        }
-                        .onKeyPress(characters: .init(charactersIn: "\u{7F}\u{08}"), phases: .down) { keyPress in
-                            guard keyPress.modifiers.contains(.command) else { return .ignored }
-                            let toDelete = vm.selectedConnections
-                            guard !toDelete.isEmpty else { return .ignored }
-                            vm.connectionsToDelete = toDelete
-                            vm.showDeleteConfirmation = true
-                            return .handled
-                        }
-                        .onKeyPress(characters: .init(charactersIn: "jn"), phases: [.down, .repeat]) { keyPress in
-                            guard keyPress.modifiers.contains(.control) else { return .ignored }
-                            vm.moveToNextConnection()
-                            focus = .connectionList
-                            return .handled
-                        }
-                        .onKeyPress(characters: .init(charactersIn: "kp"), phases: [.down, .repeat]) { keyPress in
-                            guard keyPress.modifiers.contains(.control) else { return .ignored }
-                            vm.moveToPreviousConnection()
-                            focus = .connectionList
-                            return .handled
-                        }
-                        .onKeyPress(.downArrow) {
-                            vm.moveToNextConnection()
-                            focus = .connectionList
-                            return .handled
-                        }
-                        .onKeyPress(.upArrow) {
-                            vm.moveToPreviousConnection()
-                            focus = .connectionList
-                            return .handled
-                        }
-                }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 6)
-                .background(
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(Color(nsColor: .quaternaryLabelColor))
+                NativeSearchField(
+                    text: $vm.searchText,
+                    placeholder: String(localized: "Search for connection..."),
+                    controlSize: .regular
                 )
+                .focused($focus, equals: .search)
+                .onKeyPress(.return) {
+                    vm.connectSelectedConnections()
+                    return .handled
+                }
+                .onKeyPress(.escape) {
+                    if !vm.searchText.isEmpty {
+                        vm.searchText = ""
+                    }
+                    focus = .connectionList
+                    return .handled
+                }
+                .onKeyPress(characters: .init(charactersIn: "\u{7F}\u{08}"), phases: .down) { keyPress in
+                    guard keyPress.modifiers.contains(.command) else { return .ignored }
+                    let toDelete = vm.selectedConnections
+                    guard !toDelete.isEmpty else { return .ignored }
+                    vm.connectionsToDelete = toDelete
+                    vm.showDeleteConfirmation = true
+                    return .handled
+                }
+                .onKeyPress(characters: .init(charactersIn: "jn"), phases: [.down, .repeat]) { keyPress in
+                    guard keyPress.modifiers.contains(.control) else { return .ignored }
+                    vm.moveToNextConnection()
+                    focus = .connectionList
+                    return .handled
+                }
+                .onKeyPress(characters: .init(charactersIn: "kp"), phases: [.down, .repeat]) { keyPress in
+                    guard keyPress.modifiers.contains(.control) else { return .ignored }
+                    vm.moveToPreviousConnection()
+                    focus = .connectionList
+                    return .handled
+                }
+                .onKeyPress(.downArrow) {
+                    vm.moveToNextConnection()
+                    focus = .connectionList
+                    return .handled
+                }
+                .onKeyPress(.upArrow) {
+                    vm.moveToPreviousConnection()
+                    focus = .connectionList
+                    return .handled
+                }
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 12)

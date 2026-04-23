@@ -307,12 +307,12 @@ struct SSHProfileEditorView: View {
                 } label: {
                     Text("Delete Profile")
                 }
-                .confirmationDialog(
+                .alert(
                     "Delete SSH Profile?",
-                    isPresented: $showingDeleteConfirmation,
-                    titleVisibility: .visible
+                    isPresented: $showingDeleteConfirmation
                 ) {
                     Button("Delete", role: .destructive) { deleteProfile() }
+                    Button("Cancel", role: .cancel) {}
                 } message: {
                     if connectionsUsingProfile > 0 {
                         Text("\(connectionsUsingProfile) connection(s) use this profile. They will fall back to no SSH tunnel.")

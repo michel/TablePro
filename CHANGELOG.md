@@ -16,6 +16,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Eager column cache warming after schema load for faster autocomplete
 - MCP query safety: three-tier classification with server-side confirmation for write and destructive queries
 
+### Changed
+
+- Replace custom dropdown fields with native Picker(.menu) for boolean and enum cell editors
+- Replace confirmation dialogs with native alerts for delete actions (welcome screen, SSH profile)
+- Quit dialog defaults to Cancel on Return key instead of Quit Anyway
+- Table drop/truncate confirmation button now shows the operation name instead of generic "OK"
+- Database switcher uses native List selection highlighting instead of manual colors
+- Database switcher and drop database sheets use .navigationTitle instead of manual header text
+- Welcome screen uses native NSSearchField instead of hand-rolled search bar
+- Sidebar search field uses regular size instead of large
+- Single-clicking a dropdown column cell no longer triggers the dropdown menu
+
 ### Fixed
 
 - Schema-qualified table names (e.g. `public.users`) now correctly resolve in autocomplete

@@ -9,13 +9,18 @@ internal struct BooleanPickerView: View {
     let context: FieldEditorContext
 
     var body: some View {
-        dropdownField(
-            label: normalizeBooleanValue(context.value.wrappedValue) == "1" ? "true" : "false",
-            isDisabled: context.isReadOnly
-        ) {
-            Button("true") { context.value.wrappedValue = "1" }
-            Button("false") { context.value.wrappedValue = "0" }
+        Picker(selection: Binding(
+            get: { normalizeBooleanValue(context.value.wrappedValue) },
+            set: { context.value.wrappedValue = $0 }
+        )) {
+            Text("true").tag("1")
+            Text("false").tag("0")
+        } label: {
+            EmptyView()
         }
+        .pickerStyle(.menu)
+        .labelsHidden()
+        .disabled(context.isReadOnly)
     }
 
     private func normalizeBooleanValue(_ val: String) -> String {

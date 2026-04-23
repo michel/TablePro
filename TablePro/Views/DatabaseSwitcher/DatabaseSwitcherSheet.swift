@@ -64,13 +64,6 @@ struct DatabaseSwitcherSheet: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // Header
-            Text(isSchemaMode
-                ? String(localized: "Open Schema")
-                : String(localized: "Open Database"))
-                .font(.body.weight(.semibold))
-                .padding(.vertical, 12)
-
             // Databases / Schemas toggle (PostgreSQL only)
             if PluginManager.shared.supportsSchemaSwitching(for: databaseType) {
                 Picker("", selection: $viewModel.mode) {
@@ -114,6 +107,9 @@ struct DatabaseSwitcherSheet: View {
             footer
         }
         .frame(width: 420, height: 480)
+        .navigationTitle(isSchemaMode
+            ? String(localized: "Open Schema")
+            : String(localized: "Open Database"))
         .background(Color(nsColor: .windowBackgroundColor))
         .defaultFocus($focus, .search)
         .task { await viewModel.fetchDatabases() }
@@ -219,7 +215,7 @@ struct DatabaseSwitcherSheet: View {
                     databaseRow(db)
                 }
             }
-            .listStyle(.sidebar)
+            .listStyle(.inset)
             .scrollContentBackground(.hidden)
             .focused($focus, equals: .databaseList)
             .onChange(of: viewModel.selectedDatabase) { _, newValue in
@@ -233,46 +229,32 @@ struct DatabaseSwitcherSheet: View {
     }
 
     private func databaseRow(_ database: DatabaseMetadata) -> some View {
-        let isSelected = database.name == viewModel.selectedDatabase
         let isCurrent = database.name == activeName
 
         return HStack(spacing: 10) {
-            // Icon
             Image(systemName: database.icon)
                 .font(.system(size: 14))
-                .foregroundStyle(
-                    isSelected ? Color(nsColor: .alternateSelectedControlTextColor) : (database.isSystemDatabase ? Color(nsColor: .systemOrange) : Color(nsColor: .systemBlue)))
+                .foregroundStyle(database.isSystemDatabase ? Color(nsColor: .systemOrange) : Color(nsColor: .systemBlue))
 
-            // Name
             Text(database.name)
                 .font(.system(size: 13))
-                .foregroundStyle(isSelected ? Color(nsColor: .alternateSelectedControlTextColor) : .primary)
 
             Spacer()
 
-            // Current badge
             if isCurrent {
                 Text("current")
                     .font(.system(size: 10, weight: .medium))
-                    .foregroundStyle(isSelected ? Color(nsColor: .alternateSelectedControlTextColor).opacity(0.7) : .secondary)
+                    .foregroundStyle(.secondary)
                     .padding(.horizontal, 6)
                     .padding(.vertical, 2)
                     .background(
                         RoundedRectangle(cornerRadius: 4)
-                            .fill(
-                                isSelected
-                                    ? Color(nsColor: .alternateSelectedControlTextColor).opacity(0.15)
-                                    : Color(nsColor: .quaternaryLabelColor))
+                            .fill(Color(nsColor: .quaternaryLabelColor))
                     )
             }
         }
         .padding(.vertical, 4)
         .contentShape(Rectangle())
-        .listRowBackground(
-            RoundedRectangle(cornerRadius: 4)
-                .fill(isSelected ? Color(nsColor: .selectedContentBackgroundColor) : Color.clear)
-                .padding(.horizontal, 4)
-        )
         .listRowInsets(EdgeInsets(top: 4, leading: 8, bottom: 4, trailing: 8))
         .listRowSeparator(.hidden)
         .id(database.name)

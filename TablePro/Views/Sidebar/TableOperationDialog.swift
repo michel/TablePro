@@ -151,7 +151,10 @@ struct TableOperationDialog: View {
 
                 Spacer()
 
-                Button("OK") {
+                Button(operationType == .drop
+                    ? String(localized: "Drop")
+                    : String(localized: "Truncate")
+                ) {
                     confirmAndDismiss()
                 }
                 .buttonStyle(.borderedProminent)

@@ -19,40 +19,37 @@ struct DropDatabaseSheet: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // Header
-            Text("Drop Database")
-                .font(.body.weight(.semibold))
-                .padding(.vertical, 12)
+            Form {
+                Section {
+                    VStack(spacing: 12) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .font(.system(size: 36))
+                            .foregroundStyle(.red)
 
-            Divider()
+                        Text(String(format: String(localized: "Drop database '%@'?"), databaseName))
+                            .font(.body.weight(.medium))
+                            .multilineTextAlignment(.center)
 
-            // Content
-            VStack(spacing: 16) {
-                Image(systemName: "exclamationmark.triangle.fill")
-                    .font(.system(size: 36))
-                    .foregroundStyle(.red)
+                        Text(String(localized: "All tables and data will be permanently deleted."))
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
 
-                Text(String(format: String(localized: "Drop database '%@'?"), databaseName))
-                    .font(.body.weight(.medium))
-                    .multilineTextAlignment(.center)
-
-                Text(String(localized: "All tables and data will be permanently deleted."))
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-
-                if let error = errorMessage {
-                    Text(error)
-                        .font(.subheadline)
-                        .foregroundStyle(Color(nsColor: .systemRed))
-                        .multilineTextAlignment(.center)
+                        if let error = errorMessage {
+                            Text(error)
+                                .font(.subheadline)
+                                .foregroundStyle(Color(nsColor: .systemRed))
+                                .multilineTextAlignment(.center)
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
                 }
             }
-            .padding(20)
+            .formStyle(.grouped)
+            .scrollContentBackground(.hidden)
 
             Divider()
 
-            // Footer
             HStack {
                 Button("Cancel") {
                     dismiss()
@@ -61,8 +58,10 @@ struct DropDatabaseSheet: View {
 
                 Spacer()
 
-                Button(isDropping ? String(localized: "Dropping...") : String(localized: "Drop")) {
+                Button(role: .destructive) {
                     dropDatabase()
+                } label: {
+                    Text(isDropping ? String(localized: "Dropping...") : String(localized: "Drop"))
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(.red)
@@ -70,6 +69,7 @@ struct DropDatabaseSheet: View {
             }
             .padding(12)
         }
+        .navigationTitle(String(localized: "Drop Database"))
         .frame(width: 340)
         .onExitCommand {
             if !isDropping {
