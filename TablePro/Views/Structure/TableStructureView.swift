@@ -178,8 +178,6 @@ struct TableStructureView: View {
     private var contentArea: some View {
         if let error = errorMessage {
             errorView(error)
-        } else if isInitialLoading {
-            DataGridSkeletonView()
         } else {
             tabContent
         }

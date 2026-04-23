@@ -415,30 +415,26 @@ struct MainEditorContentView: View {
                         )
                     }
                 } else {
-                    if tab.isExecuting && tab.resultColumns.isEmpty && tab.lastExecutedAt == nil {
-                        DataGridSkeletonView()
-                    } else {
-                        // Filter panel (collapsible, above data grid)
-                        if filterStateManager.isVisible && tab.tabType == .table {
-                            FilterPanelView(
-                                filterState: filterStateManager,
-                                columns: tab.resultColumns,
-                                primaryKeyColumn: changeManager.primaryKeyColumn,
-                                databaseType: connection.type,
-                                onApply: onApplyFilters,
-                                onUnset: onClearFilters
-                            )
-                            Divider()
-                        }
+                    // Filter panel (collapsible, above data grid)
+                    if filterStateManager.isVisible && tab.tabType == .table {
+                        FilterPanelView(
+                            filterState: filterStateManager,
+                            columns: tab.resultColumns,
+                            primaryKeyColumn: changeManager.primaryKeyColumn,
+                            databaseType: connection.type,
+                            onApply: onApplyFilters,
+                            onUnset: onClearFilters
+                        )
+                        Divider()
+                    }
 
-                        if tab.tabType == .query && !tab.resultColumns.isEmpty
-                            && tab.resultRows.isEmpty && tab.lastExecutedAt != nil
-                            && !tab.isExecuting && !filterStateManager.hasAppliedFilters
-                        {
-                            emptyResultView(executionTime: tab.activeResultSet?.executionTime ?? tab.executionTime)
-                        } else {
-                            dataGridView(tab: tab)
-                        }
+                    if tab.tabType == .query && !tab.resultColumns.isEmpty
+                        && tab.resultRows.isEmpty && tab.lastExecutedAt != nil
+                        && !tab.isExecuting && !filterStateManager.hasAppliedFilters
+                    {
+                        emptyResultView(executionTime: tab.activeResultSet?.executionTime ?? tab.executionTime)
+                    } else {
+                        dataGridView(tab: tab)
                     }
                 }
             }
