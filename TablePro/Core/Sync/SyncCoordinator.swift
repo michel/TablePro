@@ -91,6 +91,7 @@ final class SyncCoordinator {
             lastSyncDate = Date()
             metadataStorage.lastSyncDate = lastSyncDate
             syncStatus = .idle
+            metadataStorage.pruneTombstones(olderThan: 30)
 
             Self.logger.info("Sync completed successfully")
         } catch {
@@ -135,7 +136,7 @@ final class SyncCoordinator {
     /// Called when sync is first enabled to upload existing connections/groups/tags/settings.
     private func markAllLocalDataDirty() {
         let connections = ConnectionStorage.shared.loadConnections()
-        for connection in connections {
+        for connection in connections where !connection.localOnly {
             changeTracker.markDirty(.connection, id: connection.id.uuidString)
         }
 
@@ -231,8 +232,6 @@ final class SyncCoordinator {
         var recordsToSave: [CKRecord] = []
         var recordIDsToDelete: [CKRecord.ID] = []
         let zoneID = await engine.zoneID
-        let dirtyConnectionCount = changeTracker.dirtyRecords(for: .connection).count
-        Self.logger.info("performPush: syncConnections=\(settings.syncConnections), dirty connections=\(dirtyConnectionCount)")
 
         // Collect dirty connections
         if settings.syncConnections {
@@ -240,7 +239,8 @@ final class SyncCoordinator {
             if !dirtyConnectionIds.isEmpty {
                 let connections = ConnectionStorage.shared.loadConnections()
                 for id in dirtyConnectionIds {
-                    if let connection = connections.first(where: { $0.id.uuidString == id }) {
+                    if let connection = connections.first(where: { $0.id.uuidString == id }),
+                       !connection.localOnly {
                         recordsToSave.append(
                             SyncRecordMapper.toCKRecord(connection, in: zoneID)
                         )
@@ -248,8 +248,8 @@ final class SyncCoordinator {
                 }
             }
 
-            // Collect deletion tombstones
-            for tombstone in metadataStorage.tombstones(for: .connection) {
+            let connectionTombstones = metadataStorage.tombstones(for: .connection)
+            for tombstone in connectionTombstones {
                 recordIDsToDelete.append(
                     SyncRecordMapper.recordID(type: .connection, id: tombstone.id, in: zoneID)
                 )
@@ -287,7 +287,6 @@ final class SyncCoordinator {
         do {
             try await engine.push(records: recordsToSave, deletions: uniqueDeletions)
 
-            // Clear dirty flags only for types that were actually pushed
             if settings.syncConnections {
                 changeTracker.clearAllDirty(.connection)
             }
@@ -361,12 +360,6 @@ final class SyncCoordinator {
     }
 
     private func applyPullResult(_ result: PullResult) {
-        Self.logger.info("Pull fetched: \(result.changedRecords.count) changed, \(result.deletedRecordIDs.count) deleted")
-
-        for record in result.changedRecords {
-            Self.logger.info("Pulled record: \(record.recordType)/\(record.recordID.recordName)")
-        }
-
         if let newToken = result.newToken {
             metadataStorage.saveSyncToken(newToken)
         }
@@ -384,31 +377,37 @@ final class SyncCoordinator {
     private func applyRemoteChanges(_ result: PullResult) {
         let settings = AppSettingsStorage.shared.loadSync()
 
-        // Invalidate caches before applying remote data to ensure fresh reads
         ConnectionStorage.shared.invalidateCache()
 
-        // Suppress change tracking during remote apply to avoid sync loops
         changeTracker.isSuppressed = true
         defer {
             changeTracker.isSuppressed = false
         }
 
-        var connectionsChanged = false
+        var actualConnectionChanges = false
         var groupsOrTagsChanged = false
+
+        let connectionTombstoneIds = Set(metadataStorage.tombstones(for: .connection).map(\.id))
+        let groupTombstoneIds = Set(metadataStorage.tombstones(for: .group).map(\.id))
+        let tagTombstoneIds = Set(metadataStorage.tombstones(for: .tag).map(\.id))
+        let sshTombstoneIds = Set(metadataStorage.tombstones(for: .sshProfile).map(\.id))
 
         for record in result.changedRecords {
             switch record.recordType {
             case SyncRecordType.connection.rawValue where settings.syncConnections:
-                applyRemoteConnection(record)
-                connectionsChanged = true
+                if applyRemoteConnection(record, tombstoneIds: connectionTombstoneIds) {
+                    actualConnectionChanges = true
+                }
             case SyncRecordType.group.rawValue where settings.syncGroupsAndTags:
-                applyRemoteGroup(record)
-                groupsOrTagsChanged = true
+                if applyRemoteGroup(record, tombstoneIds: groupTombstoneIds) {
+                    groupsOrTagsChanged = true
+                }
             case SyncRecordType.tag.rawValue where settings.syncGroupsAndTags:
-                applyRemoteTag(record)
-                groupsOrTagsChanged = true
+                if applyRemoteTag(record, tombstoneIds: tagTombstoneIds) {
+                    groupsOrTagsChanged = true
+                }
             case SyncRecordType.sshProfile.rawValue where settings.syncSSHProfiles:
-                applyRemoteSSHProfile(record)
+                applyRemoteSSHProfile(record, tombstoneIds: sshTombstoneIds)
             case SyncRecordType.settings.rawValue where settings.syncSettings:
                 applyRemoteSettings(record)
             default:
@@ -416,25 +415,67 @@ final class SyncCoordinator {
             }
         }
 
+        var connectionIdsToDelete: Set<UUID> = []
+        var groupIdsToDelete: Set<UUID> = []
+        var tagIdsToDelete: Set<UUID> = []
+        var sshProfileIdsToDelete: Set<UUID> = []
+
         for recordID in result.deletedRecordIDs {
-            let recordName = recordID.recordName
-            if recordName.hasPrefix("Connection_") { connectionsChanged = true }
-            if recordName.hasPrefix("Group_") || recordName.hasPrefix("Tag_") { groupsOrTagsChanged = true }
-            applyRemoteDeletion(recordID)
+            let name = recordID.recordName
+            if name.hasPrefix("Connection_"),
+               let uuid = UUID(uuidString: String(name.dropFirst("Connection_".count))) {
+                connectionIdsToDelete.insert(uuid)
+                actualConnectionChanges = true
+            } else if name.hasPrefix("Group_"),
+                      let uuid = UUID(uuidString: String(name.dropFirst("Group_".count))) {
+                groupIdsToDelete.insert(uuid)
+                groupsOrTagsChanged = true
+            } else if name.hasPrefix("Tag_"),
+                      let uuid = UUID(uuidString: String(name.dropFirst("Tag_".count))) {
+                tagIdsToDelete.insert(uuid)
+                groupsOrTagsChanged = true
+            } else if name.hasPrefix("SSHProfile_"),
+                      let uuid = UUID(uuidString: String(name.dropFirst("SSHProfile_".count))) {
+                sshProfileIdsToDelete.insert(uuid)
+            }
         }
 
-        // Notify UI so views refresh with pulled data
-        if connectionsChanged || groupsOrTagsChanged {
+        if !connectionIdsToDelete.isEmpty {
+            var connections = ConnectionStorage.shared.loadConnections()
+            connections.removeAll { connectionIdsToDelete.contains($0.id) }
+            ConnectionStorage.shared.saveConnections(connections)
+        }
+        if !groupIdsToDelete.isEmpty {
+            var groups = GroupStorage.shared.loadGroups()
+            groups.removeAll { groupIdsToDelete.contains($0.id) }
+            GroupStorage.shared.saveGroups(groups)
+        }
+        if !tagIdsToDelete.isEmpty {
+            var tags = TagStorage.shared.loadTags()
+            tags.removeAll { tagIdsToDelete.contains($0.id) }
+            TagStorage.shared.saveTags(tags)
+        }
+        if !sshProfileIdsToDelete.isEmpty {
+            var profiles = SSHProfileStorage.shared.loadProfiles()
+            profiles.removeAll { sshProfileIdsToDelete.contains($0.id) }
+            SSHProfileStorage.shared.saveProfilesWithoutSync(profiles)
+        }
+
+        if actualConnectionChanges || groupsOrTagsChanged {
             NotificationCenter.default.post(name: .connectionUpdated, object: nil)
         }
     }
 
-    private func applyRemoteConnection(_ record: CKRecord) {
-        guard let remoteConnection = SyncRecordMapper.toConnection(record) else { return }
+    @discardableResult
+    private func applyRemoteConnection(_ record: CKRecord, tombstoneIds: Set<String>) -> Bool {
+        guard let remoteConnection = SyncRecordMapper.toConnection(record) else { return false }
+
+        if tombstoneIds.contains(remoteConnection.id.uuidString) {
+            return false
+        }
 
         var connections = ConnectionStorage.shared.loadConnections()
         if let index = connections.firstIndex(where: { $0.id == remoteConnection.id }) {
-            // Check for conflict: if local is also dirty, queue conflict
             if changeTracker.dirtyRecords(for: .connection).contains(remoteConnection.id.uuidString) {
                 let localRecord = SyncRecordMapper.toCKRecord(
                     connections[index],
@@ -452,17 +493,22 @@ final class SyncCoordinator {
                     serverModifiedAt: (record["modifiedAtLocal"] as? Date) ?? Date()
                 )
                 conflictResolver.addConflict(conflict)
-                return
+                return false
             }
-            connections[index] = remoteConnection
+            var merged = remoteConnection
+            merged.localOnly = connections[index].localOnly
+            connections[index] = merged
         } else {
             connections.append(remoteConnection)
         }
         ConnectionStorage.shared.saveConnections(connections)
+        return true
     }
 
-    private func applyRemoteGroup(_ record: CKRecord) {
-        guard let remoteGroup = SyncRecordMapper.toGroup(record) else { return }
+    @discardableResult
+    private func applyRemoteGroup(_ record: CKRecord, tombstoneIds: Set<String>) -> Bool {
+        guard let remoteGroup = SyncRecordMapper.toGroup(record) else { return false }
+        if tombstoneIds.contains(remoteGroup.id.uuidString) { return false }
 
         var groups = GroupStorage.shared.loadGroups()
         if let index = groups.firstIndex(where: { $0.id == remoteGroup.id }) {
@@ -471,10 +517,13 @@ final class SyncCoordinator {
             groups.append(remoteGroup)
         }
         GroupStorage.shared.saveGroups(groups)
+        return true
     }
 
-    private func applyRemoteTag(_ record: CKRecord) {
-        guard let remoteTag = SyncRecordMapper.toTag(record) else { return }
+    @discardableResult
+    private func applyRemoteTag(_ record: CKRecord, tombstoneIds: Set<String>) -> Bool {
+        guard let remoteTag = SyncRecordMapper.toTag(record) else { return false }
+        if tombstoneIds.contains(remoteTag.id.uuidString) { return false }
 
         var tags = TagStorage.shared.loadTags()
         if let index = tags.firstIndex(where: { $0.id == remoteTag.id }) {
@@ -483,10 +532,12 @@ final class SyncCoordinator {
             tags.append(remoteTag)
         }
         TagStorage.shared.saveTags(tags)
+        return true
     }
 
-    private func applyRemoteSSHProfile(_ record: CKRecord) {
+    private func applyRemoteSSHProfile(_ record: CKRecord, tombstoneIds: Set<String>) {
         guard let remoteProfile = SyncRecordMapper.toSSHProfile(record) else { return }
+        if tombstoneIds.contains(remoteProfile.id.uuidString) { return }
 
         var profiles = SSHProfileStorage.shared.loadProfiles()
         if let index = profiles.firstIndex(where: { $0.id == remoteProfile.id }) {
@@ -502,45 +553,6 @@ final class SyncCoordinator {
               let data = SyncRecordMapper.settingsData(from: record)
         else { return }
         applySettingsData(data, for: category)
-    }
-
-    private func applyRemoteDeletion(_ recordID: CKRecord.ID) {
-        let recordName = recordID.recordName
-
-        if recordName.hasPrefix("Connection_") {
-            let uuidString = String(recordName.dropFirst("Connection_".count))
-            if let uuid = UUID(uuidString: uuidString) {
-                var connections = ConnectionStorage.shared.loadConnections()
-                connections.removeAll { $0.id == uuid }
-                ConnectionStorage.shared.saveConnections(connections)
-            }
-        }
-        if recordName.hasPrefix("Group_") {
-            let uuidString = String(recordName.dropFirst("Group_".count))
-            if let uuid = UUID(uuidString: uuidString) {
-                var groups = GroupStorage.shared.loadGroups()
-                groups.removeAll { $0.id == uuid }
-                GroupStorage.shared.saveGroups(groups)
-            }
-        }
-
-        if recordName.hasPrefix("Tag_") {
-            let uuidString = String(recordName.dropFirst("Tag_".count))
-            if let uuid = UUID(uuidString: uuidString) {
-                var tags = TagStorage.shared.loadTags()
-                tags.removeAll { $0.id == uuid }
-                TagStorage.shared.saveTags(tags)
-            }
-        }
-
-        if recordName.hasPrefix("SSHProfile_") {
-            let uuidString = String(recordName.dropFirst("SSHProfile_".count))
-            if let uuid = UUID(uuidString: uuidString) {
-                var profiles = SSHProfileStorage.shared.loadProfiles()
-                profiles.removeAll { $0.id == uuid }
-                SSHProfileStorage.shared.saveProfilesWithoutSync(profiles)
-            }
-        }
     }
 
     // MARK: - Observers

@@ -119,6 +119,7 @@ extension ConnectionFormView {
             selectedGroupId = existing.groupId
             safeModeLevel = existing.safeModeLevel
             aiPolicy = existing.aiPolicy
+            localOnly = existing.localOnly
 
             // Load additional fields from connection
             additionalFieldValues = existing.additionalFields
@@ -219,6 +220,7 @@ extension ConnectionFormView {
             redisDatabase: additionalFieldValues["redisDatabase"].map { Int($0) ?? 0 },
             startupCommands: startupCommands.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
                 ? nil : startupCommands,
+            localOnly: localOnly,
             additionalFields: finalAdditionalFields.isEmpty ? nil : finalAdditionalFields
         )
 
@@ -254,7 +256,9 @@ extension ConnectionFormView {
         if isNew {
             savedConnections.append(connectionToSave)
             storage.saveConnections(savedConnections)
-            SyncChangeTracker.shared.markDirty(.connection, id: connectionToSave.id.uuidString)
+            if !connectionToSave.localOnly {
+                SyncChangeTracker.shared.markDirty(.connection, id: connectionToSave.id.uuidString)
+            }
             NSApplication.shared.closeWindows(withId: "connection-form")
             NotificationCenter.default.post(name: .connectionUpdated, object: nil)
             connectToDatabase(connectionToSave)
@@ -262,7 +266,9 @@ extension ConnectionFormView {
             if let index = savedConnections.firstIndex(where: { $0.id == connectionToSave.id }) {
                 savedConnections[index] = connectionToSave
                 storage.saveConnections(savedConnections)
-                SyncChangeTracker.shared.markDirty(.connection, id: connectionToSave.id.uuidString)
+                if !connectionToSave.localOnly {
+                    SyncChangeTracker.shared.markDirty(.connection, id: connectionToSave.id.uuidString)
+                }
             }
             NSApplication.shared.closeWindows(withId: "connection-form")
             NotificationCenter.default.post(name: .connectionUpdated, object: nil)
