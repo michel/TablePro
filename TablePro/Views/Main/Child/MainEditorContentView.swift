@@ -415,7 +415,7 @@ struct MainEditorContentView: View {
                         )
                     }
                 } else {
-                    if tab.isExecuting && tab.resultColumns.isEmpty {
+                    if tab.isExecuting && tab.resultColumns.isEmpty && tab.lastExecutedAt == nil {
                         DataGridSkeletonView()
                     } else {
                         // Filter panel (collapsible, above data grid)
