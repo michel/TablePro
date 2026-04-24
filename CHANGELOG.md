@@ -17,19 +17,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Replace custom dropdown fields with native Picker(.menu) for boolean and enum cell editors
-- Replace confirmation dialogs with native alerts for delete actions (welcome screen, SSH profile)
-- Quit dialog defaults to Cancel on Return key instead of Quit Anyway
-- Table drop/truncate confirmation button now shows the operation name instead of generic "OK"
-- Database switcher uses native List selection highlighting instead of manual colors
-- Database switcher and drop database sheets use .navigationTitle instead of manual header text
-- Welcome screen uses native NSSearchField instead of hand-rolled search bar
-- Sidebar search field uses regular size instead of large
-- Single-clicking a dropdown column cell no longer triggers the dropdown menu
+- Native macOS UI patterns: Picker(.menu) for cell editors, native alerts, native List selection, .navigationTitle for sheets, NSSearchField for welcome search, borderless toolbar buttons, chevron indicator on SET picker
+- Quit dialog defaults to Cancel on Return key
+- Connection form delete button moved to far left
+- SSH/SSL browse panels show descriptive message text
 
 ### Fixed
 
 - Schema-qualified table names (e.g. `public.users`) now correctly resolve in autocomplete
+- Alert dialogs use sheet attachment instead of bare modal
+- Terminal copy uses responder chain instead of synthetic NSEvent
+- Unlocalized metadata strings in query history panel
 
 ## [0.34.0] - 2026-04-22
 
