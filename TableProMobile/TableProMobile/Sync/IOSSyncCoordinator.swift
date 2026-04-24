@@ -30,6 +30,7 @@ final class IOSSyncCoordinator {
         return newEngine
     }
     private var debounceTask: Task<Void, Never>?
+    private var needsResync = false
 
     var onConnectionsChanged: (([DatabaseConnection]) -> Void)?
     var onGroupsChanged: (([ConnectionGroup]) -> Void)?
@@ -44,8 +45,12 @@ final class IOSSyncCoordinator {
         localTags: [ConnectionTag] = [],
         isRetry: Bool = false
     ) async {
-        guard isRetry || status != .syncing else { return }
+        guard isRetry || status != .syncing else {
+            needsResync = true
+            return
+        }
         status = .syncing
+        defer { drainResyncIfNeeded() }
 
         do {
             let accountStatus = try await getEngine().accountStatus()
@@ -119,6 +124,15 @@ final class IOSSyncCoordinator {
 
     func markDeletedTag(_ tagId: UUID) {
         metadata.addTombstone(tagId.uuidString, type: .tag)
+    }
+
+    private func drainResyncIfNeeded() {
+        guard needsResync, status == .idle else {
+            needsResync = false
+            return
+        }
+        needsResync = false
+        scheduleSyncAfterChange()
     }
 
     func scheduleSyncAfterChange() {
