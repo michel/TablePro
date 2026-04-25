@@ -72,14 +72,6 @@ internal struct QuickSwitcherSheet: View {
             openSelectedItem()
             return .handled
         }
-        .onKeyPress(.upArrow) {
-            viewModel.moveUp()
-            return .handled
-        }
-        .onKeyPress(.downArrow) {
-            viewModel.moveDown()
-            return .handled
-        }
         .onKeyPress(characters: .init(charactersIn: "jn"), phases: [.down, .repeat]) { keyPress in
             guard keyPress.modifiers.contains(.control) else { return .ignored }
             viewModel.moveDown()
@@ -100,6 +92,14 @@ internal struct QuickSwitcherSheet: View {
             text: $viewModel.searchText
         )
         .focused($focus, equals: .search)
+        .onKeyPress(.upArrow) {
+            viewModel.moveUp()
+            return .handled
+        }
+        .onKeyPress(.downArrow) {
+            viewModel.moveDown()
+            return .handled
+        }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
     }
@@ -141,23 +141,20 @@ internal struct QuickSwitcherSheet: View {
     }
 
     private func itemRow(_ item: QuickSwitcherItem) -> some View {
-        let isSelected = item.id == viewModel.selectedItemId
-
-        return HStack(spacing: 10) {
+        HStack(spacing: 10) {
             Image(systemName: item.iconName)
                 .font(.system(size: 14))
-                .foregroundStyle(isSelected ? Color(nsColor: .alternateSelectedControlTextColor) : .secondary)
+                .foregroundStyle(.secondary)
 
             Text(item.name)
                 .font(.body)
-                .foregroundStyle(isSelected ? Color(nsColor: .alternateSelectedControlTextColor) : .primary)
                 .lineLimit(1)
                 .truncationMode(.tail)
 
             if !item.subtitle.isEmpty {
                 Text(item.subtitle)
                     .font(.subheadline)
-                    .foregroundStyle(isSelected ? Color(nsColor: .alternateSelectedControlTextColor).opacity(0.7) : Color.secondary)
+                    .foregroundStyle(.secondary)
                     .lineLimit(1)
             }
 
@@ -165,27 +162,21 @@ internal struct QuickSwitcherSheet: View {
 
             Text(item.kindLabel)
                 .font(.caption.weight(.medium))
-                .foregroundStyle(isSelected ? Color(nsColor: .alternateSelectedControlTextColor).opacity(0.7) : .secondary)
+                .foregroundStyle(.secondary)
                 .padding(.horizontal, 6)
                 .padding(.vertical, 2)
                 .background(
                     RoundedRectangle(cornerRadius: 4)
-                        .fill(isSelected ? Color(nsColor: .alternateSelectedControlTextColor).opacity(0.15) : Color(nsColor: .quaternaryLabelColor))
+                        .fill(Color(nsColor: .quaternaryLabelColor))
                 )
         }
         .padding(.vertical, 4)
         .contentShape(Rectangle())
-        .listRowBackground(
-            RoundedRectangle(cornerRadius: 4)
-                .fill(isSelected ? Color(nsColor: .selectedContentBackgroundColor) : Color.clear)
-                .padding(.horizontal, 4)
-        )
-        .listRowInsets(EdgeInsets(top: 4, leading: 8, bottom: 4, trailing: 8))
         .listRowSeparator(.hidden)
         .id(item.id)
         .tag(item.id)
         .overlay(
-            DoubleClickOverlay {
+            DoubleClickDetector {
                 viewModel.selectedItemId = item.id
                 openSelectedItem()
             }
@@ -262,33 +253,5 @@ internal struct QuickSwitcherSheet: View {
         guard let item = viewModel.selectedItem else { return }
         onSelect(item)
         dismiss()
-    }
-}
-
-// MARK: - DoubleClickOverlay
-
-/// NSViewRepresentable that detects double-clicks without interfering with native List selection
-private struct DoubleClickOverlay: NSViewRepresentable {
-    let onDoubleClick: () -> Void
-
-    func makeNSView(context: Context) -> NSView {
-        let view = PassThroughDoubleClickView()
-        view.onDoubleClick = onDoubleClick
-        return view
-    }
-
-    func updateNSView(_ nsView: NSView, context: Context) {
-        (nsView as? PassThroughDoubleClickView)?.onDoubleClick = onDoubleClick
-    }
-}
-
-private class PassThroughDoubleClickView: NSView {
-    var onDoubleClick: (() -> Void)?
-
-    override func mouseDown(with event: NSEvent) {
-        if event.clickCount == 2 {
-            onDoubleClick?()
-        }
-        super.mouseDown(with: event)
     }
 }

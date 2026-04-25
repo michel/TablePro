@@ -76,7 +76,7 @@ struct ExportDialog: View {
                 if !isQueryResultsMode {
                     // Left: Table tree view
                     tableSelectionView
-                        .frame(width: leftPanelWidth)
+                        .frame(minWidth: leftPanelWidth)
 
                     Divider()
                 }
@@ -141,6 +141,7 @@ struct ExportDialog: View {
                 exportService?.cancelExport()
             }
             .interactiveDismissDisabled()
+            .onExitCommand { }
         }
         .sheet(isPresented: $showSuccessDialog) {
             ExportSuccessView(
@@ -237,6 +238,18 @@ struct ExportDialog: View {
                         .padding(.top, 8)
                     Spacer()
                 }
+            } else if databaseItems.isEmpty {
+                VStack(spacing: 8) {
+                    Spacer()
+                    Image(systemName: "tray")
+                        .font(.largeTitle)
+                        .foregroundStyle(.tertiary)
+                    Text("No tables found")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                }
+                .frame(minHeight: 300, maxHeight: .infinity)
             } else {
                 ExportTableTreeView(
                     databaseItems: $databaseItems,
@@ -276,9 +289,7 @@ struct ExportDialog: View {
                                 }
                             }
                         }
-                        .pickerStyle(.segmented)
                         .labelsHidden()
-                        .frame(width: 180)
 
                         Spacer()
                     }
@@ -811,7 +822,6 @@ struct ExportDialog: View {
         )
         exportService = service
 
-        // Show progress dialog
         showProgressDialog = true
 
         do {

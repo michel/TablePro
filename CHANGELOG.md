@@ -7,9 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Edit > Find menu item (Cmd+F)
+
+### Fixed
+
+- Export "Don't show again" preference lost when clicking "Open Folder"
+- Connection failure error not shown on welcome screen
+- Window position not restored between launches
+- Export multi-table race condition on PostgreSQL
+- List selection requiring two clicks in Quick Switcher and Database Switcher
+- AI provider and connection test states not clearing on field changes
+- Export stop button missing confirmation dialog
+- SSH profile test showing modal alert instead of inline error
+- DDL results showing misleading "0 row(s) affected"
+- Export dialog missing empty state when no tables found
+
 ### Changed
 
-- iOS: TabView navigation with ConnectionCoordinator extraction and coordinator caching
+- About window uses standard macOS panel
+- Consolidated double-click detection into single shared component
+- Accessibility improvements: VoiceOver labels, semantic fonts, larger tap targets
+- iOS: TabView navigation with ConnectionCoordinator extraction
 
 ## [0.35.0] - 2026-04-25
 

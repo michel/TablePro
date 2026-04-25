@@ -39,17 +39,6 @@ struct OnboardingContentView: View {
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .gesture(
-                DragGesture(minimumDistance: 30)
-                    .onEnded { value in
-                        let horizontal = value.translation.width
-                        if horizontal < -30, currentPage < 2 {
-                            goToPage(currentPage + 1)
-                        } else if horizontal > 30, currentPage > 0 {
-                            goToPage(currentPage - 1)
-                        }
-                    }
-            )
 
             // Bottom navigation bar
             navigationBar
@@ -92,7 +81,7 @@ struct OnboardingContentView: View {
                 .frame(width: 80, height: 80)
 
             Text("Welcome to TablePro")
-                .font(.system(size: 24, weight: .bold, design: .rounded))
+                .font(.title.weight(.bold))
 
             Text("A fast, lightweight native macOS database client")
                 .font(.body)
@@ -142,7 +131,7 @@ struct OnboardingContentView: View {
     private func featureRow(icon: String, title: String, description: String) -> some View {
         HStack(spacing: 16) {
             Image(systemName: icon)
-                .font(.system(size: 24))
+                .font(.title)
                 .foregroundStyle(.tint)
                 .frame(width: 40)
 
@@ -165,7 +154,7 @@ struct OnboardingContentView: View {
                 .foregroundStyle(Color(nsColor: .systemGreen))
 
             Text("You're all set!")
-                .font(.system(size: 22, weight: .bold, design: .rounded))
+                .font(.title2.weight(.bold))
 
             Text("Create a connection to get started with\nyour databases.")
                 .font(.body)
@@ -190,13 +179,15 @@ struct OnboardingContentView: View {
 
             HStack(spacing: 8) {
                 ForEach(0..<3, id: \.self) { i in
-                    Circle()
-                        .fill(i == currentPage ? Color.accentColor : Color(nsColor: .tertiaryLabelColor))
-                        .frame(width: 8, height: 8)
-                        .scaleEffect(i == currentPage ? 1.2 : 1.0)
-                        .frame(width: 24, height: 24)
-                        .contentShape(Circle())
-                        .onTapGesture { goToPage(i) }
+                    Button { goToPage(i) } label: {
+                        Circle()
+                            .fill(i == currentPage ? Color.accentColor : Color(nsColor: .tertiaryLabelColor))
+                            .frame(width: 8, height: 8)
+                            .scaleEffect(i == currentPage ? 1.2 : 1.0)
+                            .frame(width: 32, height: 32)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(String(format: String(localized: "Page %d"), i + 1))
                 }
             }
             .animation(.spring(response: 0.3), value: currentPage)

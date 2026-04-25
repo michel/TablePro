@@ -74,7 +74,8 @@ struct DatabaseSwitcherSheet: View {
                 }
                 .pickerStyle(.segmented)
                 .labelsHidden()
-                .padding(.horizontal, 12)
+                .frame(width: 220)
+                .padding(.top, 12)
                 .padding(.bottom, 8)
                 .onChange(of: viewModel.mode) {
                     Task { await viewModel.fetchDatabases() }
@@ -131,14 +132,6 @@ struct DatabaseSwitcherSheet: View {
             openSelectedDatabase()
             return .handled
         }
-        .onKeyPress(.upArrow) {
-            viewModel.moveUp()
-            return .handled
-        }
-        .onKeyPress(.downArrow) {
-            viewModel.moveDown()
-            return .handled
-        }
         .onKeyPress(characters: .init(charactersIn: "jn"), phases: [.down, .repeat]) { keyPress in
             guard keyPress.modifiers.contains(.control) else { return .ignored }
             viewModel.moveDown()
@@ -168,6 +161,14 @@ struct DatabaseSwitcherSheet: View {
                 text: $viewModel.searchText
             )
             .focused($focus, equals: .search)
+            .onKeyPress(.upArrow) {
+                viewModel.moveUp()
+                return .handled
+            }
+            .onKeyPress(.downArrow) {
+                viewModel.moveDown()
+                return .handled
+            }
 
             // Refresh
             Button(action: {
@@ -260,7 +261,7 @@ struct DatabaseSwitcherSheet: View {
         .id(database.name)
         .tag(database.name)
         .overlay(
-            DoubleClickView {
+            DoubleClickDetector {
                 viewModel.selectedDatabase = database.name
                 openSelectedDatabase()
             }
@@ -425,35 +426,6 @@ struct DatabaseSwitcherSheet: View {
             onSelect(database)
         }
         dismiss()
-    }
-}
-
-// MARK: - DoubleClickView
-
-/// NSViewRepresentable that detects double-clicks without interfering with native List selection
-private struct DoubleClickView: NSViewRepresentable {
-    let onDoubleClick: () -> Void
-
-    func makeNSView(context: Context) -> NSView {
-        let view = PassThroughDoubleClickView()
-        view.onDoubleClick = onDoubleClick
-        return view
-    }
-
-    func updateNSView(_ nsView: NSView, context: Context) {
-        (nsView as? PassThroughDoubleClickView)?.onDoubleClick = onDoubleClick
-    }
-}
-
-private class PassThroughDoubleClickView: NSView {
-    var onDoubleClick: (() -> Void)?
-
-    override func mouseDown(with event: NSEvent) {
-        if event.clickCount == 2 {
-            onDoubleClick?()
-        }
-        // Always forward to next responder for List selection
-        super.mouseDown(with: event)
     }
 }
 

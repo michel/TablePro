@@ -204,7 +204,7 @@ struct ConnectionSSHTunnelView: View {
                     LabeledContent(String(localized: "Key File")) {
                         HStack {
                             TextField("", text: $sshState.privateKeyPath, prompt: Text("~/.ssh/id_rsa"))
-                            Button(String(localized: "Browse")) { browseForPrivateKey() }
+                            Button(String(localized: "Browse")) { browseForKeyFile { sshState.privateKeyPath = $0 } }
                                 .controlSize(.small)
                         }
                     }
@@ -284,7 +284,7 @@ struct ConnectionSSHTunnelView: View {
                                             prompt: Text("~/.ssh/id_rsa")
                                         )
                                         Button(String(localized: "Browse")) {
-                                            browseForJumpHostKey(jumpHost: jumpHostBinding)
+                                            browseForKeyFile { jumpHostBinding.wrappedValue.privateKeyPath = $0 }
                                         }
                                         .controlSize(.small)
                                     }
@@ -334,36 +334,16 @@ struct ConnectionSSHTunnelView: View {
 
     // MARK: - Helper Methods
 
-    private func browseForPrivateKey() {
-        guard let window = NSApp.keyWindow else { return }
+    private func browseForKeyFile(onSelect: @escaping (String) -> Void) {
         let panel = NSOpenPanel()
         panel.allowsMultipleSelection = false
         panel.canChooseDirectories = false
-        panel.directoryURL = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(
-            ".ssh")
+        panel.directoryURL = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".ssh")
         panel.showsHiddenFiles = true
         panel.message = String(localized: "Choose a private key file")
-
-        panel.beginSheetModal(for: window) { response in
+        panel.begin { response in
             if response == .OK, let url = panel.url {
-                sshState.privateKeyPath = url.path(percentEncoded: false)
-            }
-        }
-    }
-
-    private func browseForJumpHostKey(jumpHost: Binding<SSHJumpHost>) {
-        guard let window = NSApp.keyWindow else { return }
-        let panel = NSOpenPanel()
-        panel.allowsMultipleSelection = false
-        panel.canChooseDirectories = false
-        panel.directoryURL = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(
-            ".ssh")
-        panel.showsHiddenFiles = true
-        panel.message = String(localized: "Choose a private key file for the jump host")
-
-        panel.beginSheetModal(for: window) { response in
-            if response == .OK, let url = panel.url {
-                jumpHost.wrappedValue.privateKeyPath = url.path(percentEncoded: false)
+                onSelect(url.path(percentEncoded: false))
             }
         }
     }

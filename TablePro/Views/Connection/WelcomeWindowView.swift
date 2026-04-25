@@ -34,7 +34,7 @@ struct WelcomeWindowView: View {
         }
         .background(.background)
         .ignoresSafeArea()
-        .frame(width: 700, height: 450)
+        .frame(minWidth: 600, idealWidth: 700, minHeight: 400, idealHeight: 450)
         .onAppear {
             vm.setUp(openWindow: openWindow)
             focus = .search
@@ -119,6 +119,18 @@ struct WelcomeWindowView: View {
         } message: {
             Text("Enter a new name for the group.")
         }
+        .alert(
+            String(localized: "Connection Failed"),
+            isPresented: $vm.showConnectionError
+        ) {
+            Button(String(localized: "OK"), role: .cancel) {
+                vm.connectionError = nil
+            }
+        } message: {
+            if let error = vm.connectionError {
+                Text(error)
+            }
+        }
     }
 
     // MARK: - Layout
@@ -151,6 +163,7 @@ struct WelcomeWindowView: View {
                 }
                 .buttonStyle(.borderless)
                 .help(String(localized: "New Connection (⌘N)"))
+                .accessibilityLabel(String(localized: "New Connection"))
 
                 Button(action: { vm.pendingMoveToNewGroup = []; vm.activeSheet = .newGroup(parentId: nil) }) {
                     Image(systemName: "folder.badge.plus")
@@ -163,6 +176,7 @@ struct WelcomeWindowView: View {
                 }
                 .buttonStyle(.borderless)
                 .help(String(localized: "New Group"))
+                .accessibilityLabel(String(localized: "New Group"))
 
                 NativeSearchField(
                     text: $vm.searchText,
@@ -233,7 +247,9 @@ struct WelcomeWindowView: View {
     private var connectionList: some View {
         ScrollViewReader { proxy in
             List(selection: $vm.selectedConnectionIds) {
-                treeRows(vm.treeItems)
+                TreeRowsView(items: vm.treeItems, parentGroupId: nil, vm: vm) { conn in
+                    connectionRow(for: conn)
+                }
 
                 if !vm.linkedConnections.isEmpty, LicenseManager.shared.isFeatureAvailable(.linkedFolders) {
                     Section {
@@ -303,50 +319,9 @@ struct WelcomeWindowView: View {
         }
     }
 
-    // MARK: - Tree Rendering
-
-    private func treeRows(_ items: [ConnectionGroupTreeNode], parentGroupId: UUID? = nil) -> AnyView {
-        let allConnections = !items.contains { if case .group = $0 { return true } else { return false } }
-        return AnyView(
-            ForEach(items) { item in
-                switch item {
-                case .connection(let conn):
-                    connectionRow(for: conn)
-                case .group(let group, let children):
-                    DisclosureGroup(isExpanded: expandedBinding(for: group.id)) {
-                        treeRows(children, parentGroupId: group.id)
-                    } label: {
-                        groupLabel(for: group)
-                    }
-                }
-            }
-            .onMove(perform: allConnections ? { from, to in
-                guard vm.searchText.isEmpty else { return }
-                if let parentGroupId, let group = vm.groups.first(where: { $0.id == parentGroupId }) {
-                    vm.moveGroupedConnections(in: group, from: from, to: to)
-                } else {
-                    vm.moveUngroupedConnections(from: from, to: to)
-                }
-            } : nil)
-        )
-    }
-
-    private func expandedBinding(for groupId: UUID) -> Binding<Bool> {
-        Binding(
-            get: { vm.expandedGroupIds.contains(groupId) },
-            set: { expanded in
-                if expanded {
-                    vm.expandedGroupIds.insert(groupId)
-                } else {
-                    vm.expandedGroupIds.remove(groupId)
-                }
-            }
-        )
-    }
-
     // MARK: - Rows
 
-    private func connectionRow(for connection: DatabaseConnection) -> some View {
+    func connectionRow(for connection: DatabaseConnection) -> some View {
         let sshProfile = connection.sshProfileId.flatMap { SSHProfileStorage.shared.profile(for: $0) }
         return WelcomeConnectionRow(
             connection: connection,
@@ -378,6 +353,7 @@ struct WelcomeWindowView: View {
                     .lineLimit(1)
             }
         }
+        .tag(linked.id)
         .padding(.vertical, 4)
         .listRowInsets(EdgeInsets(top: 4, leading: 8, bottom: 4, trailing: 8))
         .contentShape(Rectangle())
@@ -391,126 +367,6 @@ struct WelcomeWindowView: View {
             } label: {
                 Label(String(localized: "Connect"), systemImage: "play.fill")
             }
-        }
-    }
-
-    // MARK: - Group Label
-
-    private func groupLabel(for group: ConnectionGroup) -> some View {
-        HStack(spacing: 6) {
-            if !group.color.isDefault {
-                Circle()
-                    .fill(group.color.color)
-                    .frame(width: 8, height: 8)
-            }
-
-            Text(group.name)
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(.secondary)
-
-            Text("\(connectionCount(in: group.id, connections: vm.connections, groups: vm.groups))")
-                .font(.system(size: 9))
-                .foregroundStyle(.tertiary)
-
-            Spacer()
-        }
-        .contentShape(Rectangle())
-        .contextMenu {
-            groupContextMenu(for: group)
-        }
-    }
-
-    // MARK: - Group Context Menu
-
-    @ViewBuilder
-    private func groupContextMenu(for group: ConnectionGroup) -> some View {
-        Button {
-            vm.beginRenameGroup(group)
-        } label: {
-            Label(String(localized: "Rename"), systemImage: "pencil")
-        }
-
-        let currentGroupDepth = depthOf(groupId: group.id, groups: vm.groups)
-        Button {
-            vm.createSubgroup(under: group.id)
-        } label: {
-            Label(String(localized: "New Subgroup"), systemImage: "folder.badge.plus")
-        }
-        .disabled(currentGroupDepth >= 3)
-
-        Menu(String(localized: "Change Color")) {
-            ForEach(ConnectionColor.allCases) { color in
-                Button {
-                    vm.updateGroupColor(group, color: color)
-                } label: {
-                    HStack {
-                        if color != .none {
-                            Image(systemName: "circle.fill")
-                                .foregroundStyle(color.color)
-                        }
-                        Text(color.displayName)
-                        if group.color == color {
-                            Spacer()
-                            Image(systemName: "checkmark")
-                        }
-                    }
-                }
-            }
-        }
-
-        if vm.groups.count > 1 {
-            Menu(String(localized: "Move Group to...")) {
-                Button {
-                    vm.moveGroup(group, toParent: nil)
-                } label: {
-                    HStack {
-                        Text("Top Level")
-                        if group.parentId == nil {
-                            Spacer()
-                            Image(systemName: "checkmark")
-                        }
-                    }
-                }
-                .disabled(group.parentId == nil)
-
-                Divider()
-
-                ForEach(vm.groups.filter({ $0.id != group.id })) { targetGroup in
-                    let wouldCircle = wouldCreateCircle(
-                        movingGroupId: group.id,
-                        toParentId: targetGroup.id,
-                        groups: vm.groups
-                    )
-                    let targetDepth = depthOf(groupId: targetGroup.id, groups: vm.groups)
-                    let subtreeDepth = maxDescendantDepth(groupId: group.id, groups: vm.groups)
-                    let wouldExceedDepth = targetDepth + 1 + subtreeDepth > 3
-
-                    Button {
-                        vm.moveGroup(group, toParent: targetGroup.id)
-                    } label: {
-                        HStack {
-                            if !targetGroup.color.isDefault {
-                                Image(systemName: "circle.fill")
-                                    .foregroundStyle(targetGroup.color.color)
-                            }
-                            Text(targetGroup.name)
-                            if group.parentId == targetGroup.id {
-                                Spacer()
-                                Image(systemName: "checkmark")
-                            }
-                        }
-                    }
-                    .disabled(wouldCircle || wouldExceedDepth || group.parentId == targetGroup.id)
-                }
-            }
-        }
-
-        Divider()
-
-        Button(role: .destructive) {
-            vm.requestDeleteGroup(group)
-        } label: {
-            Label(String(localized: "Delete Group"), systemImage: "trash")
         }
     }
 
@@ -563,6 +419,173 @@ struct WelcomeWindowView: View {
     private func scrollToSelection(_ proxy: ScrollViewProxy) {
         if let id = vm.selectedConnectionIds.first {
             proxy.scrollTo(id, anchor: .center)
+        }
+    }
+}
+
+// MARK: - Tree Rendering
+
+private struct TreeRowsView<ConnectionContent: View>: View {
+    let items: [ConnectionGroupTreeNode]
+    let parentGroupId: UUID?
+    var vm: WelcomeViewModel
+    let connectionRowBuilder: (DatabaseConnection) -> ConnectionContent
+
+    var body: some View {
+        let allConnections = !items.contains { if case .group = $0 { return true } else { return false } }
+        ForEach(items) { item in
+            switch item {
+            case .connection(let conn):
+                connectionRowBuilder(conn)
+            case .group(let group, let children):
+                DisclosureGroup(isExpanded: expandedBinding(for: group.id)) {
+                    TreeRowsView(
+                        items: children,
+                        parentGroupId: group.id,
+                        vm: vm,
+                        connectionRowBuilder: connectionRowBuilder
+                    )
+                } label: {
+                    groupLabel(for: group)
+                }
+            }
+        }
+        .onMove(perform: allConnections ? { from, to in
+            guard vm.searchText.isEmpty else { return }
+            if let parentGroupId, let group = vm.groups.first(where: { $0.id == parentGroupId }) {
+                vm.moveGroupedConnections(in: group, from: from, to: to)
+            } else {
+                vm.moveUngroupedConnections(from: from, to: to)
+            }
+        } : nil)
+    }
+
+    private func expandedBinding(for groupId: UUID) -> Binding<Bool> {
+        Binding(
+            get: { vm.expandedGroupIds.contains(groupId) },
+            set: { expanded in
+                if expanded {
+                    vm.expandedGroupIds.insert(groupId)
+                } else {
+                    vm.expandedGroupIds.remove(groupId)
+                }
+            }
+        )
+    }
+
+    private func groupLabel(for group: ConnectionGroup) -> some View {
+        HStack(spacing: 6) {
+            if !group.color.isDefault {
+                Circle()
+                    .fill(group.color.color)
+                    .frame(width: 8, height: 8)
+            }
+
+            Text(group.name)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.secondary)
+
+            Text("\(vm.connectionCountByGroup[group.id] ?? 0)")
+                .font(.system(size: 9))
+                .foregroundStyle(.tertiary)
+
+            Spacer()
+        }
+        .contentShape(Rectangle())
+        .contextMenu {
+            groupContextMenu(for: group)
+        }
+    }
+
+    @ViewBuilder
+    private func groupContextMenu(for group: ConnectionGroup) -> some View {
+        Button {
+            vm.beginRenameGroup(group)
+        } label: {
+            Label(String(localized: "Rename"), systemImage: "pencil")
+        }
+
+        let currentGroupDepth = vm.depthByGroup[group.id] ?? 0
+        Button {
+            vm.createSubgroup(under: group.id)
+        } label: {
+            Label(String(localized: "New Subgroup"), systemImage: "folder.badge.plus")
+        }
+        .disabled(currentGroupDepth >= 3)
+
+        Menu(String(localized: "Change Color")) {
+            ForEach(ConnectionColor.allCases) { color in
+                Button {
+                    vm.updateGroupColor(group, color: color)
+                } label: {
+                    HStack {
+                        if color != .none {
+                            Image(systemName: "circle.fill")
+                                .foregroundStyle(color.color)
+                        }
+                        Text(color.displayName)
+                        if group.color == color {
+                            Spacer()
+                            Image(systemName: "checkmark")
+                        }
+                    }
+                }
+            }
+        }
+
+        if vm.groups.count > 1 {
+            Menu(String(localized: "Move Group to...")) {
+                Button {
+                    vm.moveGroup(group, toParent: nil)
+                } label: {
+                    HStack {
+                        Text("Top Level")
+                        if group.parentId == nil {
+                            Spacer()
+                            Image(systemName: "checkmark")
+                        }
+                    }
+                }
+                .disabled(group.parentId == nil)
+
+                Divider()
+
+                ForEach(vm.groups.filter({ $0.id != group.id })) { targetGroup in
+                    let wouldCircle = wouldCreateCircle(
+                        movingGroupId: group.id,
+                        toParentId: targetGroup.id,
+                        groups: vm.groups
+                    )
+                    let targetDepth = vm.depthByGroup[targetGroup.id] ?? 0
+                    let subtreeDepth = vm.maxDescendantDepthByGroup[group.id] ?? 0
+                    let wouldExceedDepth = targetDepth + 1 + subtreeDepth > 3
+
+                    Button {
+                        vm.moveGroup(group, toParent: targetGroup.id)
+                    } label: {
+                        HStack {
+                            if !targetGroup.color.isDefault {
+                                Image(systemName: "circle.fill")
+                                    .foregroundStyle(targetGroup.color.color)
+                            }
+                            Text(targetGroup.name)
+                            if group.parentId == targetGroup.id {
+                                Spacer()
+                                Image(systemName: "checkmark")
+                            }
+                        }
+                    }
+                    .disabled(wouldCircle || wouldExceedDepth || group.parentId == targetGroup.id)
+                }
+            }
+        }
+
+        Divider()
+
+        Button(role: .destructive) {
+            vm.requestDeleteGroup(group)
+        } label: {
+            Label(String(localized: "Delete Group"), systemImage: "trash")
         }
     }
 }

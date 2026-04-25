@@ -144,7 +144,33 @@ struct AppMenuCommands: Commands {
         // Custom About window + Check for Updates + MCP status
         CommandGroup(replacing: .appInfo) {
             Button(String(localized: "About TablePro")) {
-                AboutWindowController.shared.showAboutPanel()
+                let linkStyle: [NSAttributedString.Key: Any] = [
+                    .font: NSFont.systemFont(ofSize: 11),
+                    .foregroundColor: NSColor.secondaryLabelColor
+                ]
+                let credits = NSMutableAttributedString()
+                let links: [(String, String)] = [
+                    ("Website", "https://tablepro.app"),
+                    ("GitHub", "https://github.com/TableProApp/TablePro"),
+                    (String(localized: "Documentation"), "https://docs.tablepro.app"),
+                    (String(localized: "Sponsor"), "https://github.com/sponsors/datlechin")
+                ]
+                for (index, link) in links.enumerated() {
+                    if index > 0 {
+                        credits.append(NSAttributedString(string: "  |  ", attributes: linkStyle))
+                    }
+                    let linkAttr = NSMutableAttributedString(string: link.0, attributes: linkStyle)
+                    if let url = URL(string: link.1) {
+                        linkAttr.addAttribute(.link, value: url, range: NSRange(location: 0, length: linkAttr.length))
+                    }
+                    credits.append(linkAttr)
+                }
+                let centered = NSMutableParagraphStyle()
+                centered.alignment = .center
+                credits.addAttribute(.paragraphStyle, value: centered, range: NSRange(location: 0, length: credits.length))
+                NSApplication.shared.orderFrontStandardAboutPanel(options: [
+                    .credits: credits
+                ])
             }
             CheckForUpdatesView(updaterBridge: updaterBridge)
             Divider()
@@ -397,8 +423,15 @@ struct AppMenuCommands: Commands {
         // Edit menu - pasteboard commands with FocusedValue support
         PasteboardCommands(settingsManager: settingsManager)
 
-        // Edit menu - row operations (after pasteboard)
+        // Edit menu - Find + row operations (after pasteboard)
         CommandGroup(after: .pasteboard) {
+            Divider()
+
+            Button(String(localized: "Find...")) {
+                EditorEventRouter.shared.showFindPanelForKeyWindow()
+            }
+            .keyboardShortcut("f", modifiers: .command)
+
             Divider()
 
             Button("Add Row") {
@@ -646,9 +679,6 @@ extension Notification.Name {
     static let duplicateRow = Notification.Name("duplicateRow")
     static let copySelectedRows = Notification.Name("copySelectedRows")
     static let pasteRows = Notification.Name("pasteRows")
-
-    // Sidebar operations (still posted by SidebarView / ConnectionStatusView)
-    static let openDatabaseSwitcher = Notification.Name("openDatabaseSwitcher")
 
     // File opening notifications
     static let openSQLFiles = Notification.Name("openSQLFiles")
