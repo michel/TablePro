@@ -28,6 +28,7 @@ libadwaita = { version = "0.9", features = ["v1_5", "gtk_v4_6"] }
 glib = "0.22"
 uuid = { version = "1", features = ["v4", "serde"] }
 tempfile = "3"
+oo7 = { version = "0.6", default-features = false, features = ["tokio", "native_crypto"] }
 
 [profile.release]
 lto = "fat"
