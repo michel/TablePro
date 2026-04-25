@@ -384,7 +384,6 @@ struct MainEditorContentView: View {
                     rows: tab.resultRows,
                     selectedRowIndices: selectedRowIndices
                 )
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
             case .data:
                 if let explainText = tab.explainText {
                     ExplainResultView(text: explainText, executionTime: tab.explainExecutionTime, plan: tab.explainPlan)
