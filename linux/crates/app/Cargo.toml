@@ -12,11 +12,14 @@ path = "src/main.rs"
 [dependencies]
 tablepro-core = { path = "../core" }
 tablepro-driver-postgres = { path = "../drivers/postgres" }
+tablepro-storage = { path = "../storage" }
 gtk4.workspace = true
 libadwaita.workspace = true
 glib.workspace = true
+relm4.workspace = true
 tokio.workspace = true
 async-channel.workspace = true
 anyhow.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
+uuid.workspace = true

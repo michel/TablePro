@@ -30,7 +30,7 @@ jobs:
             libadwaita-1-dev \
             libssl-dev \
             libsecret-1-dev
-      - uses: dtolnay/rust-toolchain@1.92
+      - uses: dtolnay/rust-toolchain@1.93
         with:
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
