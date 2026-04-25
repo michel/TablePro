@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - MongoDB multi-host connections for replica sets
 - JSON results view mode with Data/Structure/JSON toggle in status bar
 - Import URL: dynamic placeholder, parsed preview, clipboard auto-paste, libSQL/D1 support, URL schemes for Oracle/ClickHouse/etcd/D1/libSQL
+- JSON viewer: "Open in Window" action to pop out JSON into a resizable, fullscreen-capable window
 - In-app feedback form for bug reports and feature requests via Help > Report an Issue
 - Per-connection "Local only" option to exclude individual connections from iCloud sync
 - Filter operator picker shows SQL symbols alongside names for quick visual recognition
