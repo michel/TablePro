@@ -44,17 +44,15 @@ struct QueryHistoryView: View {
 
             if !coordinator.queryHistory.isEmpty {
                 Section {
-                    Button("Clear All History", role: .destructive) {
+                    Button(String(localized: "Clear All History"), role: .destructive) {
                         showClearConfirmation = true
                     }
                 }
             }
         }
         .listStyle(.insetGrouped)
-        .navigationTitle("History")
-        .navigationBarTitleDisplayMode(.inline)
-        .confirmationDialog("Clear History", isPresented: $showClearConfirmation) {
-            Button("Clear All", role: .destructive) {
+        .confirmationDialog(String(localized: "Clear History"), isPresented: $showClearConfirmation) {
+            Button(String(localized: "Clear All"), role: .destructive) {
                 coordinator.clearHistory()
             }
         }

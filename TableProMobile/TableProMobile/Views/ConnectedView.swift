@@ -36,8 +36,10 @@ struct ConnectedView: View {
                 connectingView
             }
         }
+        .navigationTitle(connection.name.isEmpty ? connection.host : connection.name)
+        .navigationBarTitleDisplayMode(.inline)
         .task {
-            if let cached = cachedCoordinator, cached.session != nil {
+            if let cached = cachedCoordinator {
                 coordinator = cached
                 if case .connected = cached.phase { return }
                 await cached.connect()
@@ -86,7 +88,7 @@ struct ConnectedView: View {
 
     private func connectedContent(_ coordinator: ConnectionCoordinator) -> some View {
         @Bindable var coordinator = coordinator
-        return NavigationStack(path: $coordinator.tablesPath) {
+        return NavigationStack(path: $coordinator.navigationPath) {
             TabView(selection: $coordinator.selectedTab) {
                 Tab("Tables", systemImage: "tablecells", value: .tables) {
                     TableListView()
@@ -102,9 +104,10 @@ struct ConnectedView: View {
                 }
                 Tab("Settings", systemImage: "gear", value: .settings) {
                     SettingsView()
+                        .environment(coordinator)
                 }
             }
-            .navigationTitle(coordinator.displayName)
+            .navigationTitle(tabTitle(coordinator))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { connectionToolbar(coordinator) }
             .navigationDestination(for: TableInfo.self) { table in
@@ -115,15 +118,19 @@ struct ConnectedView: View {
         .background {
             Button("") { coordinator.selectedTab = .tables }
                 .keyboardShortcut("1", modifiers: .command)
+                .accessibilityLabel(Text("Tables"))
                 .hidden()
             Button("") { coordinator.selectedTab = .query }
                 .keyboardShortcut("2", modifiers: .command)
+                .accessibilityLabel(Text("Query"))
                 .hidden()
             Button("") { coordinator.selectedTab = .history }
                 .keyboardShortcut("3", modifiers: .command)
+                .accessibilityLabel(Text("History"))
                 .hidden()
             Button("") { coordinator.selectedTab = .settings }
                 .keyboardShortcut("4", modifiers: .command)
+                .accessibilityLabel(Text("Settings"))
                 .hidden()
         }
         .overlay(alignment: .top) {
@@ -165,6 +172,14 @@ struct ConnectedView: View {
             activity.title = connection.name.isEmpty ? connection.host : connection.name
             activity.isEligibleForHandoff = true
             activity.userInfo = ["connectionId": connection.id.uuidString]
+        }
+    }
+
+    private func tabTitle(_ coordinator: ConnectionCoordinator) -> String {
+        switch coordinator.selectedTab {
+        case .tables, .query: coordinator.displayName
+        case .history: String(localized: "History")
+        case .settings: String(localized: "Settings")
         }
     }
 
