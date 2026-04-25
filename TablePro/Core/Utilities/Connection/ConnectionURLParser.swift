@@ -96,38 +96,8 @@ struct ConnectionURLParser {
             scheme = String(scheme[scheme.startIndex..<plusIdx])
         }
 
-        let dbType: DatabaseType
-        switch scheme {
-        case "postgresql", "postgres":
-            dbType = .postgresql
-        case "redshift":
-            dbType = .redshift
-        case "mysql":
-            dbType = .mysql
-        case "mariadb":
-            dbType = .mariadb
-        case "sqlite":
-            dbType = .sqlite
-        case "mongodb", "mongodb+srv":
-            dbType = .mongodb
-        case "redis", "rediss":
-            dbType = .redis
-        case "sqlserver", "mssql", "jdbc:sqlserver":
-            dbType = .mssql
-        case "oracle", "jdbc:oracle:thin":
-            dbType = .oracle
-        case "clickhouse", "ch":
-            dbType = .clickhouse
-        case "cassandra", "cql":
-            dbType = .cassandra
-        case "scylladb", "scylla":
-            dbType = .scylladb
-        default:
-            if let resolvedType = PluginMetadataRegistry.shared.databaseType(forUrlScheme: scheme) {
-                dbType = resolvedType
-            } else {
-                return .failure(.unsupportedScheme(scheme))
-            }
+        guard let dbType = resolveDBType(from: scheme) else {
+            return .failure(.unsupportedScheme(scheme))
         }
 
         let isSrv = scheme == "mongodb+srv"
@@ -270,6 +240,37 @@ struct ConnectionURLParser {
             mongoQueryParams: ext.mongoQueryParams,
             multiHost: nil
         ))
+    }
+
+    private static func resolveDBType(from scheme: String) -> DatabaseType? {
+        switch scheme {
+        case "postgresql", "postgres":
+            return .postgresql
+        case "redshift":
+            return .redshift
+        case "mysql":
+            return .mysql
+        case "mariadb":
+            return .mariadb
+        case "sqlite":
+            return .sqlite
+        case "mongodb", "mongodb+srv":
+            return .mongodb
+        case "redis", "rediss":
+            return .redis
+        case "sqlserver", "mssql", "jdbc:sqlserver":
+            return .mssql
+        case "oracle", "jdbc:oracle:thin":
+            return .oracle
+        case "clickhouse", "ch":
+            return .clickhouse
+        case "cassandra", "cql":
+            return .cassandra
+        case "scylladb", "scylla":
+            return .scylladb
+        default:
+            return PluginMetadataRegistry.shared.databaseType(forUrlScheme: scheme)
+        }
     }
 
     // SSH URL format: scheme+ssh://ssh_user@ssh_host:ssh_port/db_user:db_pass@db_host:db_port/db_name?params

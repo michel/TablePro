@@ -188,7 +188,7 @@ internal struct JSONSyntaxTextView: NSViewRepresentable {
             }
             let nsString = textView.string as NSString
             let length = nsString.length
-            let buffer = 8000
+            let buffer = 8_000
             let rawStart = max(0, visible.location - buffer)
             let rawEnd = min(length, visible.location + visible.length + buffer)
 
