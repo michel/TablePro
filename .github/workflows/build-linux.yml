@@ -2,7 +2,7 @@ name: Build Linux
 
 on:
   push:
-    branches: [main, "linux/**", "docs/linux-**", "feat/linux-**"]
+    branches: [main, linux, "linux/**", "feat/linux-**"]
     paths:
       - "linux/**"
       - ".github/workflows/build-linux.yml"
