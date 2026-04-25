@@ -21,6 +21,7 @@ struct ConnectionListView: View {
     @State private var editMode: EditMode = .inactive
     @State private var connectionToDelete: DatabaseConnection?
     @State private var showingSettings = false
+    @State private var coordinatorCache: [UUID: ConnectionCoordinator] = [:]
 
     private var showDeleteConfirmation: Binding<Bool> {
         Binding(
@@ -122,17 +123,17 @@ struct ConnectionListView: View {
                 navigateToPendingConnection(appState.pendingConnectionId)
             }
         } detail: {
-            NavigationStack {
-                if let connection = selectedConnection {
-                    ConnectedView(connection: connection)
-                        .id(connection.id)
-                } else {
-                    ContentUnavailableView(
-                        "Select a Connection",
-                        systemImage: "server.rack",
-                        description: Text("Choose a connection from the sidebar.")
-                    )
+            if let connection = selectedConnection {
+                ConnectedView(connection: connection, cachedCoordinator: coordinatorCache[connection.id]) { coordinator in
+                    coordinatorCache[connection.id] = coordinator
                 }
+                .id(connection.id)
+            } else {
+                ContentUnavailableView(
+                    "Select a Connection",
+                    systemImage: "server.rack",
+                    description: Text("Choose a connection from the sidebar.")
+                )
             }
         }
         .sheet(isPresented: $showingAddConnection) {
@@ -238,6 +239,7 @@ struct ConnectionListView: View {
                         if selectedConnectionUUID == connection.id {
                             selectedConnectionIdString = nil
                         }
+                        coordinatorCache.removeValue(forKey: connection.id)
                         appState.removeConnection(connection)
                     }
                 }
