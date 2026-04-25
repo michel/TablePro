@@ -11,10 +11,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Connection sharing: Share submenu with Copy Connection String, Copy TablePro Link, Copy as JSON, and rich deep links carrying all connection fields
 - Edit > Find menu item (Cmd+F)
+- MCP server: Bearer token authentication with multi-token management
+- MCP server: three permission tiers (Read Only, Read & Write, Full Access) with per-token connection allowlists
+- MCP server: TLS with auto-generated self-signed certificates for remote access
+- MCP server: optional remote access (bind to all network interfaces)
+- MCP server: rate limiting on failed authentication attempts
+- MCP server: stdio bridge CLI for zero-config local client setup
+- MCP server: one-click auto-setup for Claude Code, Claude Desktop, and Cursor
 
 ### Fixed
 
 - Raw SQL filter accepting destructive statements and comment injection
+- MCP server: schema and history resources now enforce connection access policies
 - Export "Don't show again" preference lost when clicking "Open Folder"
 - Connection failure error not shown on welcome screen
 - Window position not restored between launches
