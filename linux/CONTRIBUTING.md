@@ -1,0 +1,71 @@
+# Contributing to TablePro Linux
+
+This file governs the Linux subproject only. The repository-level [CLAUDE.md](../CLAUDE.md) covers cross-cutting rules (no comments in source, security first, root-cause fixes, etc.) — those apply here too.
+
+## Dev environment
+
+System packages — see [README.md](README.md) for distro-specific commands. After they are installed, work happens entirely from the `linux/` directory.
+
+```bash
+cd linux
+cargo build                    # debug build
+cargo run -p tablepro-app      # run the app
+cargo test                     # all unit and integration tests
+cargo clippy --all -- -D warnings   # lint, treat warnings as errors
+cargo fmt --all                # format
+```
+
+## Code style
+
+| Tool | Config | Notes |
+|---|---|---|
+| `rustfmt` | `rustfmt.toml` at workspace root | Run before commit. Pre-commit hook enforces it. |
+| `clippy` | `clippy.toml` at workspace root | All workspace crates pass with `-D warnings`. New lints are negotiated per PR. |
+| Edition | 2024 | Set per workspace. Do not override per crate. |
+| MSRV | 1.83 | Pinned in `rust-toolchain.toml`. Bumped only with discussion. |
+
+Conventions, beyond what `rustfmt` decides:
+
+- **No comments unless they explain a hidden constraint or invariant.** Code must be self-documenting through naming. Inherited from CLAUDE.md.
+- **No `unwrap()` or `expect()` in production paths.** Tests and `OnceLock::get_or_init` initialisers are the only acceptable callers.
+- **No `panic!`, `todo!`, `unimplemented!` in merged code.** Stub a real `Err` variant instead.
+- **One public type per module file** when the type's surface is non-trivial. Internal helpers stay private.
+- **Errors cross crate boundaries as `thiserror` enums.** Inside a crate, `anyhow::Result` is fine. See [docs/error-handling.md](docs/error-handling.md).
+
+## Adding a database driver
+
+This is the most common substantive change. Follow [docs/adding-drivers.md](docs/adding-drivers.md) end to end. It is short and the steps are mechanical. Skipping a step (most often the registry registration) breaks the app silently.
+
+## Commits
+
+Conventional Commits, single line, no body. Same rule as the macOS app:
+
+```
+feat(drivers): add ClickHouse driver via clickhouse-arrow
+fix(app): debounce sidebar selection to avoid duplicate fetches
+refactor(core): split DatabaseDriver into Driver + Connection traits
+docs(adding-drivers): clarify TLS configuration step
+```
+
+## Pull requests
+
+1. Branch from `main`. Branch name format: `feat/short-slug`, `fix/short-slug`, `refactor/short-slug`.
+2. PR title is the conventional commit message you intend to land.
+3. PR description has two sections: **Summary** (what and why, 2–4 bullets) and **Test plan** (checkbox list).
+4. Run `cargo test`, `cargo clippy --all -- -D warnings`, `cargo fmt --all -- --check` locally before pushing. CI runs the same.
+5. UI changes must include before / after screenshots in the PR description, taken at HiDPI on both light and dark themes.
+
+## What does not belong here
+
+- Documentation for end users (installation, FAQ, screenshots for the marketing site) lives in the repository-level `docs/` Mintlify project.
+- Cross-platform decisions (release cadence, branding, pricing) are not made in this subproject.
+- macOS plugin work — that lives in `apps/macos/Plugins/` (post Phase B restructure) or the current `Plugins/` directory.
+
+## Where to start as a contributor
+
+In rough order of impact:
+
+1. Read [ARCHITECTURE.md](ARCHITECTURE.md) and [docs/decisions/](docs/decisions/). 20 minutes, fixes most "why is it shaped like this" questions.
+2. Pick an issue tagged `good-first-issue` or `driver:<engine>`.
+3. If adding a driver, copy the most recently merged driver crate as a template. Do not copy the spike code.
+4. Open the PR small. We prefer five small PRs over one big one.
