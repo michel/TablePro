@@ -8,8 +8,6 @@ use uuid::Uuid;
 use tablepro_core::{ConnectOptions, DriverRegistry};
 use tablepro_storage::{SavedConnection, save_connections, store_password};
 
-use crate::runtime;
-
 pub struct ConnectDialog {
     registry: Arc<DriverRegistry>,
     host: adw::EntryRow,
@@ -209,9 +207,4 @@ async fn save_one(connection: &SavedConnection) -> Result<(), tablepro_storage::
     existing.retain(|c| c.id != connection.id);
     existing.push(connection.clone());
     save_connections(&existing).await
-}
-
-#[allow(dead_code)]
-fn _runtime_anchor() {
-    let _ = runtime::handle();
 }
