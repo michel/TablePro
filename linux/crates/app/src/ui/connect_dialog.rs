@@ -5,8 +5,10 @@ use relm4::prelude::*;
 use relm4::{adw, gtk};
 use uuid::Uuid;
 
-use tablepro_core::{ConnectOptions, DriverRegistry};
+use tablepro_core::{ConnectOptions, DriverRegistry, TableInfo};
 use tablepro_storage::{SavedConnection, save_connections, store_password};
+
+use crate::services::connection_holder;
 
 pub struct ConnectDialog {
     registry: Arc<DriverRegistry>,
@@ -31,13 +33,13 @@ pub enum ConnectDialogInput {
 
 #[derive(Debug)]
 pub enum ConnectDialogOutput {
-    Connected { table_count: usize, driver_id: String },
+    Connected { tables: Vec<TableInfo>, driver_id: String },
     Closed,
 }
 
 #[derive(Debug)]
 pub enum ConnectDialogCmd {
-    Result(Result<(SavedConnection, usize), String>),
+    Result(Result<(SavedConnection, Vec<TableInfo>), String>),
 }
 
 #[relm4::component(pub)]
@@ -161,9 +163,11 @@ impl Component for ConnectDialog {
                                             use_tls: opts.use_tls,
                                         };
                                         match save_one(&saved).await {
-                                            Ok(()) => match store_password(saved.id, &opts.password, &label).await {
-                                                Ok(()) | Err(_) => Ok((saved, tables.len())),
-                                            },
+                                            Ok(()) => {
+                                                let _ = store_password(saved.id, &opts.password, &label).await;
+                                                connection_holder::set(conn);
+                                                Ok((saved, tables))
+                                            }
                                             Err(e) => Err(format!("save: {e}")),
                                         }
                                     }
@@ -186,10 +190,10 @@ impl Component for ConnectDialog {
         let ConnectDialogCmd::Result(result) = msg;
         self.submit.set_sensitive(true);
         match result {
-            Ok((saved, table_count)) => {
-                tracing::info!(driver = %saved.driver_id, table_count, "connected");
+            Ok((saved, tables)) => {
+                tracing::info!(driver = %saved.driver_id, table_count = tables.len(), "connected");
                 let _ = sender.output(ConnectDialogOutput::Connected {
-                    table_count,
+                    tables,
                     driver_id: saved.driver_id,
                 });
                 root.close();

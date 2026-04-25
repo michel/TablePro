@@ -5,6 +5,7 @@ use relm4::RelmApp;
 use tablepro_core::DriverRegistry;
 
 mod runtime;
+mod services;
 mod ui;
 
 const APP_ID: &str = "com.tablepro.Linux";
