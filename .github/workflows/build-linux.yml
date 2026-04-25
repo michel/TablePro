@@ -1,0 +1,46 @@
+name: Build Linux
+
+on:
+  push:
+    branches: [main, "linux/**", "docs/linux-**", "feat/linux-**"]
+    paths:
+      - "linux/**"
+      - ".github/workflows/build-linux.yml"
+  pull_request:
+    paths:
+      - "linux/**"
+      - ".github/workflows/build-linux.yml"
+
+jobs:
+  fast:
+    name: Fast checks
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: linux
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            pkg-config \
+            libgtk-4-dev \
+            libadwaita-1-dev \
+            libssl-dev \
+            libsecret-1-dev
+      - uses: dtolnay/rust-toolchain@1.92
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: linux
+      - name: Format check
+        run: cargo fmt --all -- --check
+      - name: Clippy
+        run: cargo clippy --all-targets -- -D warnings
+      - name: Build
+        run: cargo build --workspace
+      - name: Unit tests
+        run: cargo test --workspace --lib

@@ -1,0 +1,22 @@
+[package]
+name = "tablepro-app"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+
+[[bin]]
+name = "tablepro-app"
+path = "src/main.rs"
+
+[dependencies]
+tablepro-core = { path = "../core" }
+tablepro-driver-postgres = { path = "../drivers/postgres" }
+gtk4.workspace = true
+libadwaita.workspace = true
+glib.workspace = true
+tokio.workspace = true
+async-channel.workspace = true
+anyhow.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true

@@ -10,7 +10,7 @@ Phase 0 — foundation. The technology stack was validated by a 2-day spike in A
 
 | Layer | Pick |
 |---|---|
-| Language | Rust 1.83+ |
+| Language | Rust 1.92+ |
 | GUI toolkit | GTK4 4.18+ + libadwaita 1.6+ |
 | App architecture | [Relm4](https://relm4.org) — Elm-style components on gtk4-rs |
 | Async | tokio (DB drivers) bridged to glib main loop (UI) |
@@ -46,7 +46,7 @@ Verify the right versions are present:
 
 ```bash
 pkg-config --modversion gtk4 libadwaita-1   # need 4.18+ / 1.6+
-rustc --version                              # need 1.83+
+rustc --version                              # need 1.92+
 ```
 
 Build and run (once `crates/app/` exists):

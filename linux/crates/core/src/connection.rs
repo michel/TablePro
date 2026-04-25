@@ -1,0 +1,38 @@
+use async_trait::async_trait;
+use serde::{Deserialize, Serialize};
+
+use crate::error::DriverError;
+use crate::query::{ColumnInfo, ExecResult, QueryResult, TableInfo};
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ConnectOptions {
+    pub host: String,
+    pub port: u16,
+    pub database: String,
+    pub username: String,
+    pub password: String,
+    pub use_tls: bool,
+}
+
+impl Default for ConnectOptions {
+    fn default() -> Self {
+        Self {
+            host: "localhost".to_string(),
+            port: 0,
+            database: String::new(),
+            username: String::new(),
+            password: String::new(),
+            use_tls: false,
+        }
+    }
+}
+
+#[async_trait]
+pub trait Connection: Send + Sync {
+    async fn list_tables(&self) -> Result<Vec<TableInfo>, DriverError>;
+    async fn fetch_columns(&self, table: &str) -> Result<Vec<ColumnInfo>, DriverError>;
+    async fn fetch_rows(&self, table: &str, offset: u64, limit: u64) -> Result<QueryResult, DriverError>;
+    async fn execute(&self, sql: &str) -> Result<ExecResult, DriverError>;
+    async fn ping(&self) -> Result<(), DriverError>;
+    async fn close(self: Box<Self>) -> Result<(), DriverError>;
+}
