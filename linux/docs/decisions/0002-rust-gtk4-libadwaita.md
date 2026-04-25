@@ -18,7 +18,7 @@ The stack must be picked once and committed to. Switching the GUI framework part
 
 ## Decision
 
-The Linux app is built in **Rust** using **GTK4** (4.18+) with **libadwaita** (1.6+). Bindings are provided by [`gtk4-rs`](https://gtk-rs.org) and [`libadwaita-rs`](https://world.pages.gitlab.gnome.org/Rust/libadwaita-rs/).
+The Linux app is built in **Rust** using **GTK4** (4.14+) with **libadwaita** (1.5+). Bindings are provided by [`gtk4-rs`](https://gtk-rs.org) and [`libadwaita-rs`](https://world.pages.gitlab.gnome.org/Rust/libadwaita-rs/).
 
 ## Rationale
 
