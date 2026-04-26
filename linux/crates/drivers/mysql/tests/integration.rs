@@ -13,6 +13,7 @@ use testcontainers_modules::testcontainers::runners::AsyncRunner;
 
 async fn start_mysql() -> (ContainerAsync<Mysql>, ConnectOptions) {
     let container = Mysql::default()
+        .with_env_var("MYSQL_ROOT_PASSWORD", "tablepro_test")
         .with_cmd(["--default-authentication-plugin=mysql_native_password"])
         .start()
         .await
@@ -24,7 +25,7 @@ async fn start_mysql() -> (ContainerAsync<Mysql>, ConnectOptions) {
         port,
         database: "test".into(),
         username: "root".into(),
-        password: secrecy::SecretString::new(String::new().into()),
+        password: secrecy::SecretString::new("tablepro_test".to_string().into()),
         use_tls: false,
     };
     (container, opts)
