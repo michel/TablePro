@@ -9,6 +9,7 @@ use tablepro_storage::SavedConnection;
 use uuid::Uuid;
 
 use super::connect_dialog::{ConnectDialog, ConnectDialogInit, ConnectDialogOutput};
+use super::edit_dialog::{EditDialog, EditDialogInit, EditDialogOutput};
 use super::editor::SqlEditor;
 use super::grid::build_column_view;
 use super::insert_dialog::{InsertDialog, InsertDialogInit, InsertDialogOutput};
@@ -31,12 +32,14 @@ pub struct App {
     prev_button: gtk::Button,
     next_button: gtk::Button,
     insert_button: gtk::Button,
+    edit_row_button: gtk::Button,
     delete_button: gtk::Button,
     grid_holder: gtk::Box,
     browse_view: gtk::Box,
     dialog: Option<Controller<ConnectDialog>>,
     editor: Option<Controller<SqlEditor>>,
     insert_dialog: Option<Controller<InsertDialog>>,
+    edit_dialog: Option<Controller<EditDialog>>,
     current_table: Option<String>,
     current_offset: u64,
     current_columns: Vec<ColumnInfo>,
@@ -59,6 +62,8 @@ pub enum AppMsg {
     NextPage,
     InsertRow,
     InsertCommitted,
+    EditSelectedRow,
+    EditCommitted,
     DeleteSelectedRow,
     RowOperationCommitted,
     ReloadConnections,
@@ -242,6 +247,11 @@ impl SimpleComponent for App {
             .tooltip_text("Insert row")
             .sensitive(false)
             .build();
+        let edit_row_button = gtk::Button::builder()
+            .icon_name("document-edit-symbolic")
+            .tooltip_text("Edit selected row")
+            .sensitive(false)
+            .build();
         let delete_button = gtk::Button::builder()
             .icon_name("user-trash-symbolic")
             .tooltip_text("Delete selected row")
@@ -250,6 +260,8 @@ impl SimpleComponent for App {
 
         let sender_for_insert = sender.clone();
         insert_button.connect_clicked(move |_| sender_for_insert.input(AppMsg::InsertRow));
+        let sender_for_edit = sender.clone();
+        edit_row_button.connect_clicked(move |_| sender_for_edit.input(AppMsg::EditSelectedRow));
         let sender_for_delete = sender.clone();
         delete_button.connect_clicked(move |_| sender_for_delete.input(AppMsg::DeleteSelectedRow));
 
@@ -268,6 +280,7 @@ impl SimpleComponent for App {
         paginator_bar.append(&paginator_label);
         paginator_bar.append(&spacer);
         paginator_bar.append(&insert_button);
+        paginator_bar.append(&edit_row_button);
         paginator_bar.append(&delete_button);
 
         let grid_holder = gtk::Box::builder()
@@ -294,12 +307,14 @@ impl SimpleComponent for App {
             prev_button,
             next_button,
             insert_button,
+            edit_row_button,
             delete_button,
             grid_holder,
             browse_view,
             dialog: None,
             editor: None,
             insert_dialog: None,
+            edit_dialog: None,
             current_table: None,
             current_offset: 0,
             current_columns: Vec::new(),
@@ -459,6 +474,41 @@ impl SimpleComponent for App {
 
             AppMsg::InsertCommitted => {
                 self.insert_dialog = None;
+                self.fetch_current_page(sender.clone());
+            }
+
+            AppMsg::EditSelectedRow => {
+                let Some(table) = self.current_table.clone() else {
+                    return;
+                };
+                let Some(selection) = self.current_selection.clone() else {
+                    return;
+                };
+                let Some(result) = self.current_result.clone() else {
+                    return;
+                };
+                let position = selection.selected();
+                if position == gtk::INVALID_LIST_POSITION || (position as usize) >= result.rows.len() {
+                    return;
+                }
+                let row = result.rows[position as usize].clone();
+                let driver_id = self.current_driver_id.clone().unwrap_or_else(|| "postgres".to_string());
+                let dialog = EditDialog::builder()
+                    .launch(EditDialogInit {
+                        table,
+                        columns: self.current_columns.clone(),
+                        driver_id,
+                        row,
+                    })
+                    .forward(sender.input_sender(), |out| match out {
+                        EditDialogOutput::Updated => AppMsg::EditCommitted,
+                    });
+                dialog.widget().present(Some(&self.window));
+                self.edit_dialog = Some(dialog);
+            }
+
+            AppMsg::EditCommitted => {
+                self.edit_dialog = None;
                 self.fetch_current_page(sender.clone());
             }
 
@@ -650,9 +700,10 @@ impl App {
 
     fn refresh_crud_buttons(&self) {
         let has_table = self.current_table.is_some() && !self.current_columns.is_empty();
+        let has_row = has_table && self.current_result.is_some();
         self.insert_button.set_sensitive(has_table);
-        self.delete_button
-            .set_sensitive(has_table && self.current_result.is_some());
+        self.edit_row_button.set_sensitive(has_row);
+        self.delete_button.set_sensitive(has_row);
     }
 
     fn show_error_alert(&self, title: &str, message: &str) {
