@@ -75,7 +75,7 @@ impl SimpleComponent for EditDialog {
         let mut rows = Vec::with_capacity(init.columns.len());
         for (col, value) in init.columns.iter().zip(init.row.iter()) {
             let title = if col.primary_key {
-                format!("{} (PK)", col.name)
+                format!("{} (read-only · primary key)", col.name)
             } else if col.nullable {
                 col.name.clone()
             } else {
@@ -85,6 +85,7 @@ impl SimpleComponent for EditDialog {
             row.set_text(&value_to_text(value));
             if col.primary_key {
                 row.set_editable(false);
+                row.add_css_class("dim-label");
             }
             rows.push(row);
         }
@@ -101,6 +102,7 @@ impl SimpleComponent for EditDialog {
 
         let status = gtk::Label::builder().wrap(true).xalign(0.0).margin_top(8).build();
         status.add_css_class("dim-label");
+        status.set_accessible_role(gtk::AccessibleRole::Status);
 
         root.set_title(&format!("Edit row in {}", init.table));
 

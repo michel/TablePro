@@ -138,11 +138,13 @@ fn build_column(
 
         label.connect_editing_notify(move |label| {
             if label.is_editing() {
+                label.add_css_class("accent");
                 let position = POSITION_SLOT.get(label).unwrap_or(0);
                 let original = label.text().to_string();
                 SNAPSHOT_SLOT.set(label, EditSnapshot { position, original });
                 return;
             }
+            label.remove_css_class("accent");
             let Some(snap) = SNAPSHOT_SLOT.take(label) else {
                 return;
             };

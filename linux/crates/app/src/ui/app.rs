@@ -34,6 +34,7 @@ pub struct App {
     disconnect_button: gtk::Button,
     health_pill: gtk::Label,
     health_state: Option<ConnectionHealth>,
+    read_only_badge: gtk::Label,
     table_search: gtk::SearchEntry,
     paginator_label: gtk::Label,
     prev_button: gtk::Button,
@@ -159,10 +160,19 @@ impl SimpleComponent for App {
                         set_popover = &gtk::Popover {},
                     },
 
+                    #[name = "read_only_badge"]
+                    pack_end = &gtk::Label {
+                        set_visible: false,
+                        set_label: "Read-only",
+                        set_margin_end: 6,
+                        add_css_class: "warning",
+                    },
+
                     #[name = "health_pill"]
                     pack_end = &gtk::Label {
                         set_visible: false,
                         set_margin_end: 6,
+                        add_css_class: "caption-heading",
                     },
 
                     #[name = "edit_button"]
@@ -201,10 +211,10 @@ impl SimpleComponent for App {
                             #[name = "table_search"]
                             gtk::SearchEntry {
                                 set_placeholder_text: Some("Filter tables…"),
-                                set_margin_top: 8,
-                                set_margin_bottom: 4,
-                                set_margin_start: 8,
-                                set_margin_end: 8,
+                                set_margin_top: 12,
+                                set_margin_bottom: 6,
+                                set_margin_start: 12,
+                                set_margin_end: 12,
                             },
 
                             gtk::ScrolledWindow {
@@ -311,6 +321,7 @@ impl SimpleComponent for App {
             .build();
         let paginator_label = gtk::Label::builder().build();
         paginator_label.add_css_class("dim-label");
+        paginator_label.set_accessible_role(gtk::AccessibleRole::Status);
 
         let page_size_labels: Vec<String> = PAGE_SIZE_OPTIONS
             .iter()
@@ -439,6 +450,7 @@ impl SimpleComponent for App {
             disconnect_button: widgets.disconnect_button.clone(),
             health_pill: widgets.health_pill.clone(),
             health_state: None,
+            read_only_badge: widgets.read_only_badge.clone(),
             table_search: widgets.table_search.clone(),
             paginator_label,
             prev_button,
@@ -581,6 +593,7 @@ impl App {
         tracing::info!(driver = %driver_id, table_count = tables.len(), "workspace ready");
         rebuild_sidebar(&self.sidebar, &tables, sender.clone());
         self.push_schema_words();
+        self.refresh_window_title();
         self.set_status_page(
             "Select a table",
             &format!("Connected to {driver_id}. Pick a table from the left to load up to 100,000 rows."),
@@ -606,6 +619,7 @@ impl App {
         self.edit_button.set_sensitive(false);
         self.disconnect_button.set_visible(false);
         self.refresh_crud_buttons();
+        self.refresh_window_title();
         self.table_search.set_text("");
         while let Some(child) = self.sidebar.first_child() {
             self.sidebar.remove(&child);
@@ -624,6 +638,7 @@ impl App {
         self.current_columns.clear();
         self.current_sort = None;
         self.current_total_rows = None;
+        self.refresh_window_title();
         self.set_status_page("Loading…", &format!("Fetching rows from {name}"));
         self.fetch_current_page(sender.clone());
         self.fetch_columns(name.clone(), sender.clone());
@@ -1124,14 +1139,15 @@ impl App {
             }
             Some(ConnectionHealth::Reconnecting { attempt }) => {
                 pill.set_visible(true);
-                pill.set_label(&format!("Reconnecting (attempt {attempt})"));
+                pill.set_label(&format!("Reconnecting · attempt {attempt} · retrying"));
                 pill.add_css_class("warning");
             }
         }
         match health {
             Some(ConnectionHealth::Reconnecting { attempt }) => {
-                self.reconnect_banner
-                    .set_title(&format!("Connection lost — reconnecting (attempt {attempt})"));
+                self.reconnect_banner.set_title(&format!(
+                    "Connection lost — reconnecting (attempt {attempt}, will keep retrying)",
+                ));
                 self.reconnect_banner.set_revealed(true);
             }
             _ => self.reconnect_banner.set_revealed(false),
@@ -1140,6 +1156,8 @@ impl App {
 
     fn refresh_crud_buttons(&self) {
         let read_only = database_service::instance().is_active_read_only();
+        let connected = database_service::instance().active().is_some();
+        self.read_only_badge.set_visible(connected && read_only);
         self.insert_button.set_visible(!read_only);
         self.edit_row_button.set_visible(!read_only);
         self.delete_button.set_visible(!read_only);
@@ -1203,6 +1221,15 @@ impl App {
             execute_many_then_refetch(sender_clone.clone(), sql, batches);
         });
         dialog.present(Some(&self.window));
+    }
+
+    fn refresh_window_title(&self) {
+        let title = match (&self.current_driver_id, &self.current_table) {
+            (Some(driver), Some(table)) => format!("{table} · {driver} — TablePro"),
+            (Some(driver), None) => format!("{driver} — TablePro"),
+            _ => "TablePro Linux".to_string(),
+        };
+        self.window.set_title(Some(&title));
     }
 
     fn show_toast(&self, msg: &str) {

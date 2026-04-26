@@ -93,6 +93,7 @@ impl SimpleComponent for InsertDialog {
 
         let status = gtk::Label::builder().wrap(true).xalign(0.0).margin_top(8).build();
         status.add_css_class("dim-label");
+        status.set_accessible_role(gtk::AccessibleRole::Status);
 
         root.set_title(&format!("Insert into {}", init.table));
 

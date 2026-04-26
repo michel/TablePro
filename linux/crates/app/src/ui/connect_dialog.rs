@@ -199,6 +199,7 @@ impl Component for ConnectDialog {
 
         let status = gtk::Label::builder().wrap(true).xalign(0.0).margin_top(8).build();
         status.add_css_class("dim-label");
+        status.set_accessible_role(gtk::AccessibleRole::Status);
 
         let model = ConnectDialog {
             registry: init.registry,

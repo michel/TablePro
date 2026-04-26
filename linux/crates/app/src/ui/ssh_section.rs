@@ -60,7 +60,10 @@ impl SshSection {
             .build();
 
         let password = adw::PasswordEntryRow::builder().title("SSH password").build();
-        let key_path = adw::EntryRow::builder().title("Private key path").build();
+        let key_path = adw::EntryRow::builder()
+            .title("Private key path")
+            .text(default_ssh_key_path())
+            .build();
         attach_key_browse_button(&key_path);
         let passphrase = adw::PasswordEntryRow::builder().title("Key passphrase").build();
 
@@ -175,6 +178,20 @@ impl SshSection {
             secret_to_store: secret,
         })
     }
+}
+
+fn default_ssh_key_path() -> String {
+    let Some(home) = std::env::var_os("HOME") else {
+        return String::new();
+    };
+    let home = PathBuf::from(home).join(".ssh");
+    for candidate in ["id_ed25519", "id_rsa", "id_ecdsa"] {
+        let path = home.join(candidate);
+        if path.exists() {
+            return path.to_string_lossy().into_owned();
+        }
+    }
+    String::new()
 }
 
 fn attach_key_browse_button(key_path: &adw::EntryRow) {
