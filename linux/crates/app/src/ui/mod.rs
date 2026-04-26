@@ -5,6 +5,7 @@ mod editor;
 mod error_text;
 mod grid;
 mod insert_dialog;
+mod preferences;
 mod row_object;
 mod ssh_section;
 

@@ -106,6 +106,7 @@ pub enum AppMsg {
     RefreshPage,
     ShowShortcuts,
     ShowAbout,
+    ShowPreferences,
     SortChanged(usize),
     PageSizeChanged(u64),
     RowCountLoaded(String, u64),
@@ -504,7 +505,7 @@ impl SimpleComponent for App {
             current_driver_id: None,
             current_sort: None,
             current_total_rows: None,
-            page_size: DEFAULT_PAGE_SIZE,
+            page_size: crate::services::preferences::load().default_page_size,
             table_names: Vec::new(),
             saved_connections: Vec::new(),
             connected: false,
@@ -595,6 +596,7 @@ impl SimpleComponent for App {
             AppMsg::RefreshPage => self.fetch_current_page(sender),
             AppMsg::ShowShortcuts => self.on_show_shortcuts(),
             AppMsg::ShowAbout => self.on_show_about(),
+            AppMsg::ShowPreferences => super::preferences::present(&self.window),
             AppMsg::SortChanged(col_idx) => self.on_sort_changed(col_idx, sender),
             AppMsg::PageSizeChanged(size) => self.on_page_size_changed(size, sender),
             AppMsg::RowCountLoaded(table, count) => self.on_row_count_loaded(table, count),
@@ -1776,6 +1778,9 @@ fn primary_menu_model() -> gio::Menu {
     let connection_section = gio::Menu::new();
     connection_section.append(Some("Disconnect"), Some("win.disconnect"));
     menu.append_section(None, &connection_section);
+    let prefs_section = gio::Menu::new();
+    prefs_section.append(Some("Preferences"), Some("win.preferences"));
+    menu.append_section(None, &prefs_section);
     let app_section = gio::Menu::new();
     app_section.append(Some("Keyboard Shortcuts"), Some("win.shortcuts"));
     app_section.append(Some("About TablePro"), Some("win.about"));
@@ -1812,6 +1817,11 @@ fn install_window_actions(window: &adw::ApplicationWindow, sender: ComponentSend
         .activate(move |_, _, _| disconnect_sender.input(AppMsg::Disconnect))
         .build();
 
+    let prefs_sender = sender.clone();
+    let preferences = gio::ActionEntry::builder("preferences")
+        .activate(move |_, _, _| prefs_sender.input(AppMsg::ShowPreferences))
+        .build();
+
     let refresh_sender = sender.clone();
     let refresh = gio::ActionEntry::builder("refresh-page")
         .activate(move |_, _, _| refresh_sender.input(AppMsg::RefreshPage))
@@ -1838,6 +1848,7 @@ fn install_window_actions(window: &adw::ApplicationWindow, sender: ComponentSend
         quit,
         open_editor,
         disconnect,
+        preferences,
         refresh,
         find,
         export_csv,
@@ -1857,6 +1868,7 @@ fn install_window_shortcuts(window: &adw::ApplicationWindow) {
     controller.add_shortcut(make_shortcut("<Primary>e", "win.open-editor"));
     controller.add_shortcut(make_shortcut("F5", "win.refresh-page"));
     controller.add_shortcut(make_shortcut("<Primary>f", "win.find-in-results"));
+    controller.add_shortcut(make_shortcut("<Primary>comma", "win.preferences"));
     window.add_controller(controller);
 }
 
@@ -1878,6 +1890,7 @@ fn build_shortcuts_window(parent: &adw::ApplicationWindow) -> gtk::ShortcutsWind
     general.append(&shortcut_entry("<Primary>e", "Open SQL editor"));
     general.append(&shortcut_entry("<Primary>f", "Find in results"));
     general.append(&shortcut_entry("F5", "Refresh table"));
+    general.append(&shortcut_entry("<Primary>comma", "Open Preferences"));
     general.append(&shortcut_entry("<Primary>question", "Show keyboard shortcuts"));
     general.append(&shortcut_entry("<Primary>q", "Quit"));
     general.append(&shortcut_entry("<Primary>w", "Close window"));
