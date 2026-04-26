@@ -7,21 +7,61 @@ use crate::error::StorageError;
 
 const SCHEMA: &str = "com.tablepro.Linux.Password";
 
+const KIND_DB_PASSWORD: &str = "db_password";
+const KIND_SSH_PASSWORD: &str = "ssh_password";
+const KIND_SSH_PASSPHRASE: &str = "ssh_passphrase";
+
 pub async fn store_password(id: Uuid, password: &str, label: &str) -> Result<(), StorageError> {
+    store_secret(id, KIND_DB_PASSWORD, password, label).await
+}
+
+pub async fn load_password(id: Uuid) -> Result<Option<String>, StorageError> {
+    load_secret(id, KIND_DB_PASSWORD).await
+}
+
+pub async fn delete_password(id: Uuid) -> Result<(), StorageError> {
+    delete_secret(id, KIND_DB_PASSWORD).await
+}
+
+pub async fn store_ssh_password(id: Uuid, password: &str, label: &str) -> Result<(), StorageError> {
+    store_secret(id, KIND_SSH_PASSWORD, password, label).await
+}
+
+pub async fn load_ssh_password(id: Uuid) -> Result<Option<String>, StorageError> {
+    load_secret(id, KIND_SSH_PASSWORD).await
+}
+
+pub async fn delete_ssh_password(id: Uuid) -> Result<(), StorageError> {
+    delete_secret(id, KIND_SSH_PASSWORD).await
+}
+
+pub async fn store_ssh_passphrase(id: Uuid, passphrase: &str, label: &str) -> Result<(), StorageError> {
+    store_secret(id, KIND_SSH_PASSPHRASE, passphrase, label).await
+}
+
+pub async fn load_ssh_passphrase(id: Uuid) -> Result<Option<String>, StorageError> {
+    load_secret(id, KIND_SSH_PASSPHRASE).await
+}
+
+pub async fn delete_ssh_passphrase(id: Uuid) -> Result<(), StorageError> {
+    delete_secret(id, KIND_SSH_PASSPHRASE).await
+}
+
+async fn store_secret(id: Uuid, kind: &str, value: &str, label: &str) -> Result<(), StorageError> {
     let keyring = open().await?;
     keyring
-        .create_item(label, &attrs_for(id), password.as_bytes(), true)
+        .create_item(label, &attrs_for(id, kind), value.as_bytes(), true)
         .await
         .map_err(map_err)?;
     Ok(())
 }
 
-pub async fn load_password(id: Uuid) -> Result<Option<String>, StorageError> {
+async fn load_secret(id: Uuid, kind: &str) -> Result<Option<String>, StorageError> {
     let keyring = match open().await {
         Ok(k) => k,
         Err(_) => return Ok(None),
     };
-    let items = keyring.search_items(&attrs_for(id)).await.map_err(map_err)?;
+    let items = keyring.search_items(&attrs_for(id, kind)).await.map_err(map_err)?;
     let Some(item) = items.into_iter().next() else {
         return Ok(None);
     };
@@ -30,9 +70,9 @@ pub async fn load_password(id: Uuid) -> Result<Option<String>, StorageError> {
     Ok(Some(s))
 }
 
-pub async fn delete_password(id: Uuid) -> Result<(), StorageError> {
+async fn delete_secret(id: Uuid, kind: &str) -> Result<(), StorageError> {
     let keyring = open().await?;
-    keyring.delete(&attrs_for(id)).await.map_err(map_err)?;
+    keyring.delete(&attrs_for(id, kind)).await.map_err(map_err)?;
     Ok(())
 }
 
@@ -42,15 +82,16 @@ async fn open() -> Result<Keyring, StorageError> {
         .map_err(|e| StorageError::Schema(format!("secret service unavailable: {e}")))
 }
 
-fn attrs_for(id: Uuid) -> HashMap<&'static str, String> {
+fn map_err(e: oo7::Error) -> StorageError {
+    StorageError::Schema(format!("secret service: {e}"))
+}
+
+fn attrs_for(id: Uuid, kind: &str) -> HashMap<&'static str, String> {
     let mut m = HashMap::new();
     m.insert("xdg:schema", SCHEMA.to_string());
     m.insert("connection-id", id.to_string());
+    m.insert("kind", kind.to_string());
     m
-}
-
-fn map_err(e: oo7::Error) -> StorageError {
-    StorageError::Schema(format!("secret service: {e}"))
 }
 
 #[cfg(test)]
@@ -58,14 +99,25 @@ mod tests {
     use super::*;
 
     #[test]
-    fn attrs_include_schema_and_connection_id() {
+    fn attrs_include_schema_connection_id_and_kind() {
         let id = Uuid::new_v4();
-        let a = attrs_for(id);
+        let a = attrs_for(id, KIND_DB_PASSWORD);
         assert_eq!(a.get("xdg:schema").map(String::as_str), Some(SCHEMA));
         assert_eq!(
             a.get("connection-id").map(String::as_str),
             Some(id.to_string().as_str())
         );
+        assert_eq!(a.get("kind").map(String::as_str), Some(KIND_DB_PASSWORD));
+    }
+
+    #[test]
+    fn attrs_distinguish_kinds() {
+        let id = Uuid::new_v4();
+        let db = attrs_for(id, KIND_DB_PASSWORD);
+        let ssh = attrs_for(id, KIND_SSH_PASSWORD);
+        let pp = attrs_for(id, KIND_SSH_PASSPHRASE);
+        assert_ne!(db.get("kind"), ssh.get("kind"));
+        assert_ne!(ssh.get("kind"), pp.get("kind"));
     }
 
     #[tokio::test]

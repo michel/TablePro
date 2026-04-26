@@ -18,6 +18,7 @@ chrono.workspace = true
 rust_decimal.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
+tablepro-ssh = { path = "../ssh" }
 tablepro-storage = { path = "../storage" }
 gtk4.workspace = true
 libadwaita.workspace = true

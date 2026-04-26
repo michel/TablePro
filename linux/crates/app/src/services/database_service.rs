@@ -4,6 +4,7 @@ use std::sync::{Arc, Mutex, OnceLock};
 use uuid::Uuid;
 
 use tablepro_core::Connection;
+use tablepro_ssh::SshTunnel;
 
 static SERVICE: OnceLock<DatabaseService> = OnceLock::new();
 
@@ -11,8 +12,13 @@ pub fn instance() -> &'static DatabaseService {
     SERVICE.get_or_init(DatabaseService::new)
 }
 
+struct Entry {
+    connection: Arc<dyn Connection>,
+    _tunnel: Option<SshTunnel>,
+}
+
 pub struct DatabaseService {
-    connections: Mutex<HashMap<Uuid, Arc<dyn Connection>>>,
+    connections: Mutex<HashMap<Uuid, Entry>>,
     active: Mutex<Option<Uuid>>,
 }
 
@@ -24,9 +30,16 @@ impl DatabaseService {
         }
     }
 
-    pub fn add(&self, id: Uuid, connection: Box<dyn Connection>) {
+    pub fn add(&self, id: Uuid, connection: Box<dyn Connection>, tunnel: Option<SshTunnel>) {
         let arc: Arc<dyn Connection> = Arc::from(connection);
-        self.connections.lock().expect("database_service lock").insert(id, arc);
+        let entry = Entry {
+            connection: arc,
+            _tunnel: tunnel,
+        };
+        self.connections
+            .lock()
+            .expect("database_service lock")
+            .insert(id, entry);
         *self.active.lock().expect("database_service lock") = Some(id);
     }
 
@@ -35,7 +48,7 @@ impl DatabaseService {
             .lock()
             .expect("database_service lock")
             .get(&id)
-            .cloned()
+            .map(|e| e.connection.clone())
     }
 
     pub fn active(&self) -> Option<Arc<dyn Connection>> {

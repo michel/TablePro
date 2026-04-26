@@ -17,6 +17,27 @@ pub struct SavedConnection {
     pub database: String,
     pub username: String,
     pub use_tls: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ssh: Option<SavedSshConfig>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SavedSshConfig {
+    pub host: String,
+    pub port: u16,
+    pub username: String,
+    pub auth: SavedSshAuth,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum SavedSshAuth {
+    Password,
+    PrivateKey {
+        path: PathBuf,
+        #[serde(default)]
+        has_passphrase: bool,
+    },
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -98,6 +119,7 @@ mod tests {
             database: "postgres".into(),
             username: "postgres".into(),
             use_tls: false,
+            ssh: None,
         }
     }
 
@@ -136,5 +158,41 @@ mod tests {
             .unwrap();
         let err = load_from(&path).await.unwrap_err();
         assert!(matches!(err, StorageError::Schema(_)));
+    }
+
+    #[tokio::test]
+    async fn load_accepts_legacy_files_without_ssh_field() {
+        let dir = TempDir::new().unwrap();
+        let path = dir.path().join("connections.json");
+        let id = Uuid::new_v4();
+        let legacy = format!(
+            r#"{{"version":1,"connections":[{{
+                "id":"{id}","name":"Old","driver_id":"postgres",
+                "host":"localhost","port":5432,"database":"postgres",
+                "username":"postgres","use_tls":false}}]}}"#
+        );
+        tokio::fs::write(&path, legacy).await.unwrap();
+        let loaded = load_from(&path).await.unwrap();
+        assert_eq!(loaded.len(), 1);
+        assert!(loaded[0].ssh.is_none());
+    }
+
+    #[tokio::test]
+    async fn ssh_config_round_trips() {
+        let dir = TempDir::new().unwrap();
+        let path = dir.path().join("connections.json");
+        let mut conn = sample_connection();
+        conn.ssh = Some(SavedSshConfig {
+            host: "bastion.example.com".into(),
+            port: 22,
+            username: "deploy".into(),
+            auth: SavedSshAuth::PrivateKey {
+                path: PathBuf::from("/home/u/.ssh/id_ed25519"),
+                has_passphrase: true,
+            },
+        });
+        save_to(&path, &[conn.clone()]).await.unwrap();
+        let loaded = load_from(&path).await.unwrap();
+        assert_eq!(loaded, vec![conn]);
     }
 }
