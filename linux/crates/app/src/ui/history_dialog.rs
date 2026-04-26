@@ -734,9 +734,12 @@ impl HistoryDialog {
         row.connect_activated(move |_| s_act.input(HistoryDialogInput::Activate(id)));
 
         let menu = gio::Menu::new();
-        menu.append(Some(&crate::tr!("Open in new tab")), Some("history-row.open"));
-        menu.append(Some(&crate::tr!("Replace current tab")), Some("history-row.replace"));
-        menu.append(
+        let nav_section = gio::Menu::new();
+        nav_section.append(Some(&crate::tr!("Open in new tab")), Some("history-row.open"));
+        nav_section.append(Some(&crate::tr!("Replace current tab")), Some("history-row.replace"));
+        menu.append_section(None, &nav_section);
+        let util_section = gio::Menu::new();
+        util_section.append(
             Some(&if entry.pinned {
                 crate::tr!("Unpin")
             } else {
@@ -744,8 +747,11 @@ impl HistoryDialog {
             }),
             Some("history-row.pin"),
         );
-        menu.append(Some(&crate::tr!("Copy SQL")), Some("history-row.copy"));
-        menu.append(Some(&crate::tr!("Delete")), Some("history-row.delete"));
+        util_section.append(Some(&crate::tr!("Copy SQL")), Some("history-row.copy"));
+        menu.append_section(None, &util_section);
+        let danger_section = gio::Menu::new();
+        danger_section.append(Some(&crate::tr!("Delete")), Some("history-row.delete"));
+        menu.append_section(None, &danger_section);
 
         let popover_menu = gtk::PopoverMenu::from_model(Some(&menu));
         popover_menu.set_has_arrow(true);

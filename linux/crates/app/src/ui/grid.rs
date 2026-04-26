@@ -71,6 +71,19 @@ pub fn build_column_view(
         columns.push(col);
     }
 
+    // Apply the inbound sort state BEFORE wiring the signal so the resulting
+    // primary-sort change doesn't echo back as a SortChanged dispatch.
+    if let Some((col_idx, ascending)) = sort
+        && let Some(col) = columns.get(col_idx)
+    {
+        let direction = if ascending {
+            gtk::SortType::Ascending
+        } else {
+            gtk::SortType::Descending
+        };
+        column_view.sort_by_column(Some(col), direction);
+    }
+
     if let Some(app_sender) = sort_sender
         && let Some(view_sorter) = column_view
             .sorter()
@@ -225,13 +238,10 @@ fn build_column(
         }
     });
 
-    let title = match sort_indicator {
-        Some(true) => format!("{} \u{2191}", info.name),
-        Some(false) => format!("{} \u{2193}", info.name),
-        None => info.name.clone(),
-    };
+    let _ = sort_indicator; // Native ColumnView sort triangle is set on the
+    // primary sort column by the caller via sort_by_column.
     let column = gtk::ColumnViewColumn::builder()
-        .title(&title)
+        .title(&info.name)
         .factory(&factory)
         .resizable(true)
         .expand(true)

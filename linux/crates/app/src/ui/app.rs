@@ -218,6 +218,7 @@ impl SimpleComponent for App {
                         set_label: &crate::tr!("Read-only"),
                         set_margin_end: 6,
                         add_css_class: "warning",
+                        add_css_class: "caption-heading",
                     },
 
                     #[name = "health_pill"]
@@ -258,16 +259,21 @@ impl SimpleComponent for App {
                     set_show_sidebar: false,
 
                     #[wrap(Some)]
+                    #[name = "sidebar_root"]
                     set_sidebar = &gtk::Box {
                         set_orientation: gtk::Orientation::Vertical,
 
-                        #[name = "table_search"]
-                        gtk::SearchEntry {
-                            set_placeholder_text: Some(crate::tr!("Filter tables…").as_str()),
-                            set_margin_top: 12,
-                            set_margin_bottom: 6,
-                            set_margin_start: 12,
-                            set_margin_end: 12,
+                        #[name = "table_search_bar"]
+                        gtk::SearchBar {
+                            set_show_close_button: true,
+                            set_search_mode: false,
+
+                            #[wrap(Some)]
+                            #[name = "table_search"]
+                            set_child = &gtk::SearchEntry {
+                                set_placeholder_text: Some(crate::tr!("Filter tables…").as_str()),
+                                set_hexpand: true,
+                            },
                         },
 
                         #[name = "sidebar_scroll"]
@@ -365,6 +371,10 @@ impl SimpleComponent for App {
         widgets.table_search.connect_search_changed(move |_| {
             listbox_for_invalidate.invalidate_filter();
         });
+        widgets.table_search_bar.connect_entry(&widgets.table_search);
+        widgets
+            .table_search_bar
+            .set_key_capture_widget(Some(&widgets.sidebar_root));
 
         let schemas_for_header = sidebar_schemas.clone();
         sidebar_listbox.set_header_func(move |row, before| {
@@ -1601,12 +1611,31 @@ impl App {
     }
 
     fn set_loading_page(&self, title: &str, description: &str) {
-        let page = adw::StatusPage::builder().title(title).description(description).build();
         let spinner = gtk::Spinner::new();
         spinner.set_spinning(true);
         spinner.set_size_request(48, 48);
-        page.set_child(Some(&spinner));
-        self.content_holder.set_content(Some(&page));
+
+        let title_label = gtk::Label::builder().label(title).build();
+        title_label.add_css_class("title-2");
+        let description_label = gtk::Label::builder()
+            .label(description)
+            .wrap(true)
+            .justify(gtk::Justification::Center)
+            .build();
+        description_label.add_css_class("dim-label");
+
+        let outer = gtk::Box::builder()
+            .orientation(gtk::Orientation::Vertical)
+            .spacing(12)
+            .halign(gtk::Align::Center)
+            .valign(gtk::Align::Center)
+            .hexpand(true)
+            .vexpand(true)
+            .build();
+        outer.append(&spinner);
+        outer.append(&title_label);
+        outer.append(&description_label);
+        self.content_holder.set_content(Some(&outer));
     }
 
     fn set_status_page(&self, title: &str, description: &str) {
@@ -2234,14 +2263,19 @@ fn build_shortcuts_window(parent: &adw::ApplicationWindow) -> gtk::ShortcutsWind
         &crate::tr!("Show keyboard shortcuts"),
     ));
     general.append(&shortcut_entry("<Primary>q", &crate::tr!("Quit")));
-    general.append(&shortcut_entry("<Primary>w", &crate::tr!("Close window")));
+    // Ctrl+W is documented in the SQL editor section because it's
+    // context-sensitive (close current tab when in editor, close window
+    // otherwise). Listing it twice with different labels confused readers.
     section.append(&general);
 
     let editor = gtk::ShortcutsGroup::builder().title(crate::tr!("SQL editor")).build();
     editor.append(&shortcut_entry("<Primary>Return", &crate::tr!("Run query")));
     editor.append(&shortcut_entry("Escape", &crate::tr!("Cancel running query")));
     editor.append(&shortcut_entry("<Primary>t", &crate::tr!("New editor tab")));
-    editor.append(&shortcut_entry("<Primary>w", &crate::tr!("Close editor tab")));
+    editor.append(&shortcut_entry(
+        "<Primary>w",
+        &crate::tr!("Close current tab or window"),
+    ));
     editor.append(&shortcut_entry("<Primary>Tab", &crate::tr!("Next editor tab")));
     editor.append(&shortcut_entry(
         "<Primary><Shift>Tab",
