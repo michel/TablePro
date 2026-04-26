@@ -593,9 +593,9 @@ impl SimpleComponent for App {
             .primary_menu_button
             .update_property(&[gtk::accessible::Property::Label("Main menu")]);
 
-        widgets.primary_menu_button.set_menu_model(Some(&primary_menu_model()));
         install_window_actions(&widgets.window, sender.clone());
         install_window_shortcuts(&widgets.window);
+        widgets.primary_menu_button.set_menu_model(Some(&primary_menu_model()));
 
         let banner_sender = sender.clone();
         widgets.reconnect_banner.connect_button_clicked(move |_| {
