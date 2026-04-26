@@ -81,9 +81,8 @@ impl Component for HistoryDialog {
     fn init_root() -> Self::Root {
         adw::Dialog::builder()
             .title(crate::tr!("Query History"))
-            .content_width(560)
+            .content_width(640)
             .content_height(640)
-            .follows_content_size(true)
             .build()
     }
 
