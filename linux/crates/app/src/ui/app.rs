@@ -2094,8 +2094,14 @@ impl App {
             .version(env!("CARGO_PKG_VERSION"))
             .website("https://github.com/TableProApp/TablePro")
             .issue_url("https://github.com/TableProApp/TablePro/issues")
+            .support_url("https://github.com/TableProApp/TablePro/discussions")
+            .copyright("© 2025–2026 TablePro Authors")
             .license_type(gtk::License::Custom)
+            .license("Source-available; license not yet finalised. See https://github.com/TableProApp/TablePro for the latest terms.")
+            .comments("A native Linux database client built with GTK4 + libadwaita.")
             .build();
+        dialog.set_developers(&["TablePro Authors https://github.com/TableProApp/TablePro"]);
+        dialog.set_translator_credits("translator-credits");
         dialog.present(Some(&self.window));
     }
 }
