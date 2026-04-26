@@ -14,6 +14,8 @@ use super::grid::build_column_view;
 use crate::runtime;
 use crate::services::{connection_holder, connection_service};
 
+const PAGE_SIZE: u64 = 1000;
+
 pub struct App {
     registry: Arc<DriverRegistry>,
     window: adw::ApplicationWindow,
@@ -23,9 +25,15 @@ pub struct App {
     connections_popover: gtk::Popover,
     edit_button: gtk::Button,
     disconnect_button: gtk::Button,
+    paginator_label: gtk::Label,
+    prev_button: gtk::Button,
+    next_button: gtk::Button,
+    grid_holder: gtk::Box,
+    browse_view: gtk::Box,
     dialog: Option<Controller<ConnectDialog>>,
     editor: Option<Controller<SqlEditor>>,
-    selected: Option<String>,
+    current_table: Option<String>,
+    current_offset: u64,
     connected: bool,
 }
 
@@ -35,8 +43,10 @@ pub enum AppMsg {
     Connected { tables: Vec<TableInfo>, driver_id: String },
     DialogClosed,
     SelectTable(String),
-    RowsLoaded(String, QueryResult),
+    RowsLoaded(String, u64, QueryResult),
     LoadFailed(String),
+    PrevPage,
+    NextPage,
     ReloadConnections,
     ConnectionsLoaded(Vec<SavedConnection>),
     OpenSaved(SavedConnection),
@@ -167,6 +177,46 @@ impl SimpleComponent for App {
         popover_content.append(&scroll);
         widgets.connections_popover.set_child(Some(&popover_content));
 
+        let prev_button = gtk::Button::builder()
+            .icon_name("go-previous-symbolic")
+            .tooltip_text("Previous page")
+            .sensitive(false)
+            .build();
+        let next_button = gtk::Button::builder()
+            .icon_name("go-next-symbolic")
+            .tooltip_text("Next page")
+            .sensitive(false)
+            .build();
+        let paginator_label = gtk::Label::builder().build();
+        paginator_label.add_css_class("dim-label");
+
+        let sender_for_prev = sender.clone();
+        prev_button.connect_clicked(move |_| sender_for_prev.input(AppMsg::PrevPage));
+        let sender_for_next = sender.clone();
+        next_button.connect_clicked(move |_| sender_for_next.input(AppMsg::NextPage));
+
+        let paginator_bar = gtk::Box::builder()
+            .orientation(gtk::Orientation::Horizontal)
+            .spacing(8)
+            .margin_top(8)
+            .margin_bottom(8)
+            .margin_start(12)
+            .margin_end(12)
+            .build();
+        paginator_bar.append(&prev_button);
+        paginator_bar.append(&next_button);
+        paginator_bar.append(&paginator_label);
+
+        let grid_holder = gtk::Box::builder()
+            .orientation(gtk::Orientation::Vertical)
+            .vexpand(true)
+            .build();
+
+        let browse_view = gtk::Box::builder().orientation(gtk::Orientation::Vertical).build();
+        browse_view.append(&paginator_bar);
+        browse_view.append(&gtk::Separator::new(gtk::Orientation::Horizontal));
+        browse_view.append(&grid_holder);
+
         let model = App {
             registry,
             window: root.clone(),
@@ -176,9 +226,15 @@ impl SimpleComponent for App {
             connections_popover: widgets.connections_popover.clone(),
             edit_button: widgets.edit_button.clone(),
             disconnect_button: widgets.disconnect_button.clone(),
+            paginator_label,
+            prev_button,
+            next_button,
+            grid_holder,
+            browse_view,
             dialog: None,
             editor: None,
-            selected: None,
+            current_table: None,
+            current_offset: 0,
             connected: false,
         };
         sender.input(AppMsg::ReloadConnections);
@@ -217,7 +273,8 @@ impl SimpleComponent for App {
             AppMsg::Disconnect => {
                 connection_holder::clear();
                 self.editor = None;
-                self.selected = None;
+                self.current_table = None;
+                self.current_offset = 0;
                 self.connected = false;
                 self.edit_button.set_sensitive(false);
                 self.disconnect_button.set_visible(false);
@@ -237,44 +294,50 @@ impl SimpleComponent for App {
 
             AppMsg::SelectTable(name) => {
                 self.editor = None;
-                self.selected = Some(name.clone());
+                self.current_table = Some(name.clone());
+                self.current_offset = 0;
                 self.set_status_page("Loading…", &format!("Fetching rows from {name}"));
-                let conn = match connection_holder::get() {
-                    Some(c) => c,
-                    None => {
-                        sender.input(AppMsg::LoadFailed("no active connection".into()));
-                        return;
-                    }
-                };
-                let table = name.clone();
-                let table_for_send = name.clone();
-                let (tx, rx) = async_channel::bounded(1);
-                runtime::handle().spawn(async move {
-                    let result = conn.fetch_rows(&table, 0, 100_000).await;
-                    let _ = tx.send(result).await;
-                });
-                let sender_recv = sender.clone();
-                glib::spawn_future_local(async move {
-                    if let Ok(result) = rx.recv().await {
-                        match result {
-                            Ok(query_result) => sender_recv.input(AppMsg::RowsLoaded(table_for_send, query_result)),
-                            Err(e) => sender_recv.input(AppMsg::LoadFailed(format!("{e}"))),
-                        }
-                    }
-                });
+                self.fetch_current_page(sender.clone());
             }
 
-            AppMsg::RowsLoaded(table, result) => {
+            AppMsg::PrevPage => {
+                if self.current_offset >= PAGE_SIZE {
+                    self.current_offset -= PAGE_SIZE;
+                    self.fetch_current_page(sender.clone());
+                }
+            }
+
+            AppMsg::NextPage => {
+                self.current_offset += PAGE_SIZE;
+                self.fetch_current_page(sender.clone());
+            }
+
+            AppMsg::RowsLoaded(table, offset, result) => {
                 let n_rows = result.rows.len();
                 let n_cols = result.columns.len();
-                tracing::info!(table = %table, rows = n_rows, cols = n_cols, "rows loaded");
+                tracing::info!(table = %table, offset, rows = n_rows, cols = n_cols, "rows loaded");
+
+                clear_box(&self.grid_holder);
                 let column_view = build_column_view(&result);
                 let scrolled = gtk::ScrolledWindow::builder()
                     .child(&column_view)
                     .hexpand(true)
                     .vexpand(true)
                     .build();
-                self.content_holder.set_content(Some(&scrolled));
+                self.grid_holder.append(&scrolled);
+
+                let label = if n_rows == 0 {
+                    format!("No rows at offset {offset}")
+                } else {
+                    let start = offset + 1;
+                    let end = offset + n_rows as u64;
+                    format!("Rows {start} – {end}")
+                };
+                self.paginator_label.set_label(&label);
+                self.prev_button.set_sensitive(offset > 0);
+                self.next_button.set_sensitive(n_rows as u64 == PAGE_SIZE);
+
+                self.content_holder.set_content(Some(&self.browse_view));
             }
 
             AppMsg::LoadFailed(msg) => {
@@ -362,6 +425,42 @@ impl App {
             .icon_name("view-grid-symbolic")
             .build();
         self.content_holder.set_content(Some(&page));
+    }
+
+    fn fetch_current_page(&self, sender: ComponentSender<App>) {
+        let Some(table) = self.current_table.clone() else {
+            return;
+        };
+        let offset = self.current_offset;
+        let conn = match connection_holder::get() {
+            Some(c) => c,
+            None => {
+                sender.input(AppMsg::LoadFailed("no active connection".into()));
+                return;
+            }
+        };
+        let table_for_task = table.clone();
+        let (tx, rx) = async_channel::bounded(1);
+        runtime::handle().spawn(async move {
+            let result = conn.fetch_rows(&table_for_task, offset, PAGE_SIZE).await;
+            let _ = tx.send(result).await;
+        });
+        let sender_recv = sender.clone();
+        let table_for_send = table;
+        glib::spawn_future_local(async move {
+            if let Ok(result) = rx.recv().await {
+                match result {
+                    Ok(query_result) => sender_recv.input(AppMsg::RowsLoaded(table_for_send, offset, query_result)),
+                    Err(e) => sender_recv.input(AppMsg::LoadFailed(format!("{e}"))),
+                }
+            }
+        });
+    }
+}
+
+fn clear_box(b: &gtk::Box) {
+    while let Some(child) = b.first_child() {
+        b.remove(&child);
     }
 }
 
