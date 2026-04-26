@@ -14,6 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Removed the separate Copilot settings tab and the per-feature routing UI
 - Existing AI providers are preserved on upgrade; the first one is auto-set as active
 - Filter value field uses a native SwiftUI suggestion dropdown instead of the AppKit autocomplete popup
+- MCP bridge now pins the server's TLS certificate fingerprint instead of accepting any certificate
+- Replaced custom search field with native NSSearchField in keyboard shortcuts, database switcher, and quick switcher
+- Column layout and filter state storage migrated from UserDefaults to file-based storage
 
 ### Added
 
@@ -32,6 +35,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- MCP server now shuts down reliably on app quit
+- Improved keyboard and VoiceOver accessibility for interactive rows across the app
+- Compiled theme fallback colors now match the default theme JSON files
 - TablePlus import: correctly map all SSL/TLS modes instead of treating Prefer as disabled
 - DBeaver import: parse SSL configuration from handler properties
 - Sequel Ace import: read SSH port as number, not string
@@ -51,6 +57,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - DDL results showing misleading "0 row(s) affected"
 - Export dialog missing empty state when no tables found
 - Save-changes error messages, duplicated connection "(Copy)" suffix, query window title fallback, preview window subtitle, and inspector row count not localized
+- Filter settings popover options not localized
 
 ### Changed
 
