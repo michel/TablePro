@@ -27,6 +27,9 @@ const DEFAULT_PAGE_SIZE: u64 = 1_000;
 pub struct App {
     registry: Arc<DriverRegistry>,
     window: adw::ApplicationWindow,
+    split_view: adw::OverlaySplitView,
+    window_title: adw::WindowTitle,
+    saved_connections_button: gtk::MenuButton,
     sidebar_factory: FactoryVecDeque<SidebarRow>,
     sidebar_schemas: std::rc::Rc<std::cell::RefCell<Vec<Option<String>>>>,
     content_holder: adw::ToolbarView,
@@ -159,7 +162,11 @@ impl SimpleComponent for App {
 
             adw::ToolbarView {
                 add_top_bar = &adw::HeaderBar {
-                    set_title_widget: Some(&adw::WindowTitle::new("TablePro Linux", env!("CARGO_PKG_VERSION"))),
+                    #[name = "window_title"]
+                    #[wrap(Some)]
+                    set_title_widget = &adw::WindowTitle {
+                        set_title: "TablePro Linux",
+                    },
 
                     #[name = "new_connection_button"]
                     pack_start = &gtk::Button {
@@ -172,6 +179,7 @@ impl SimpleComponent for App {
                     pack_start = &gtk::MenuButton {
                         set_icon_name: "folder-open-symbolic",
                         set_tooltip_text: Some("Open saved connection"),
+                        set_visible: false,
 
                         #[wrap(Some)]
                         #[name = "connections_popover"]
@@ -205,6 +213,7 @@ impl SimpleComponent for App {
                         set_icon_name: "edit-symbolic",
                         set_tooltip_text: Some("SQL editor"),
                         set_sensitive: false,
+                        set_visible: false,
                         connect_clicked => AppMsg::OpenEditor,
                     },
 
@@ -217,58 +226,49 @@ impl SimpleComponent for App {
 
                 #[wrap(Some)]
                 #[name = "split_view"]
-                set_content = &adw::NavigationSplitView {
+                set_content = &adw::OverlaySplitView {
                     set_min_sidebar_width: 220.0,
                     set_max_sidebar_width: 360.0,
+                    set_show_sidebar: false,
 
                     #[wrap(Some)]
-                    set_sidebar = &adw::NavigationPage {
-                        set_title: "Tables",
+                    set_sidebar = &gtk::Box {
+                        set_orientation: gtk::Orientation::Vertical,
 
-                        #[wrap(Some)]
-                        set_child = &gtk::Box {
-                            set_orientation: gtk::Orientation::Vertical,
+                        #[name = "table_search"]
+                        gtk::SearchEntry {
+                            set_placeholder_text: Some("Filter tables…"),
+                            set_margin_top: 12,
+                            set_margin_bottom: 6,
+                            set_margin_start: 12,
+                            set_margin_end: 12,
+                        },
 
-                            #[name = "table_search"]
-                            gtk::SearchEntry {
-                                set_placeholder_text: Some("Filter tables…"),
-                                set_margin_top: 12,
-                                set_margin_bottom: 6,
-                                set_margin_start: 12,
-                                set_margin_end: 12,
-                            },
-
-                            #[name = "sidebar_scroll"]
-                            gtk::ScrolledWindow {
-                                set_hscrollbar_policy: gtk::PolicyType::Never,
-                                set_vexpand: true,
-                            },
+                        #[name = "sidebar_scroll"]
+                        gtk::ScrolledWindow {
+                            set_hscrollbar_policy: gtk::PolicyType::Never,
+                            set_vexpand: true,
                         },
                     },
 
                     #[wrap(Some)]
-                    set_content = &adw::NavigationPage {
-                        set_title: "Data",
-
+                    #[name = "toast_overlay"]
+                    set_content = &adw::ToastOverlay {
                         #[wrap(Some)]
-                        #[name = "toast_overlay"]
-                        set_child = &adw::ToastOverlay {
-                            #[wrap(Some)]
-                            #[name = "content_holder"]
-                            set_child = &adw::ToolbarView {
-                                #[name = "reconnect_banner"]
-                                add_top_bar = &adw::Banner {
-                                    set_revealed: false,
-                                    set_use_markup: false,
-                                    set_button_label: Some("Retry"),
-                                },
+                        #[name = "content_holder"]
+                        set_child = &adw::ToolbarView {
+                            #[name = "reconnect_banner"]
+                            add_top_bar = &adw::Banner {
+                                set_revealed: false,
+                                set_use_markup: false,
+                                set_button_label: Some("Retry"),
+                            },
 
-                                #[wrap(Some)]
-                                set_content = &adw::StatusPage {
-                                    set_icon_name: Some("network-server-symbolic"),
-                                    set_title: "Connect to a database",
-                                    set_description: Some("Click the server icon for a new connection or the folder icon to open a saved one."),
-                                },
+                            #[wrap(Some)]
+                            set_content = &adw::StatusPage {
+                                set_icon_name: Some("network-server-symbolic"),
+                                set_title: "Connect to a database",
+                                set_description: Some("Click the server icon for a new connection or the folder icon to open a saved one."),
                             },
                         },
                     },
@@ -531,6 +531,9 @@ impl SimpleComponent for App {
         let model = App {
             registry,
             window: root.clone(),
+            split_view: widgets.split_view.clone(),
+            window_title: widgets.window_title.clone(),
+            saved_connections_button: widgets.saved_connections_button.clone(),
             sidebar_factory,
             sidebar_schemas,
             content_holder: widgets.content_holder.clone(),
@@ -697,7 +700,10 @@ impl App {
         self.dialog = None;
         self.connected = true;
         self.current_driver_id = Some(driver_id.clone());
+        self.split_view.set_show_sidebar(true);
+        self.edit_button.set_visible(true);
         self.edit_button.set_sensitive(true);
+        self.saved_connections_button.set_visible(true);
         self.window.action_set_enabled("win.disconnect", true);
         self.table_search.set_text("");
         self.table_names = tables.iter().map(|t| t.name.clone()).collect();
@@ -729,6 +735,9 @@ impl App {
         self.current_driver_id = None;
         self.connected = false;
         self.edit_button.set_sensitive(false);
+        self.edit_button.set_visible(false);
+        self.saved_connections_button.set_visible(false);
+        self.split_view.set_show_sidebar(false);
         self.window.action_set_enabled("win.disconnect", false);
         self.refresh_crud_buttons();
         self.refresh_window_title();
@@ -1231,6 +1240,7 @@ impl App {
             new_btn.connect_clicked(move |_| s.input(AppMsg::OpenConnect));
             page.set_child(Some(&new_btn));
             self.content_holder.set_content(Some(&page));
+            new_btn.grab_focus();
             return;
         }
 
@@ -1247,17 +1257,14 @@ impl App {
             .margin_start(24)
             .margin_end(24)
             .halign(gtk::Align::Center)
+            .valign(gtk::Align::Center)
             .build();
         outer.set_size_request(560, -1);
 
-        let header = gtk::Label::builder()
-            .label(crate::tr!("Saved connections"))
-            .xalign(0.0)
+        let group = adw::PreferencesGroup::builder()
+            .title(crate::tr!("Saved connections"))
             .build();
-        header.add_css_class("title-2");
-        outer.append(&header);
-
-        let group = adw::PreferencesGroup::new();
+        let mut first_row: Option<adw::ActionRow> = None;
         for saved in &self.saved_connections {
             let subtitle = if saved.driver_id == "sqlite" {
                 format!("sqlite · {}", saved.database)
@@ -1269,9 +1276,24 @@ impl App {
                 .subtitle(&subtitle)
                 .activatable(true)
                 .build();
+
+            let delete = gtk::Button::builder()
+                .icon_name("user-trash-symbolic")
+                .valign(gtk::Align::Center)
+                .tooltip_text(crate::tr!("Remove connection"))
+                .build();
+            delete.add_css_class("flat");
+            let saved_id = saved.id;
+            let s_del = sender.clone();
+            delete.connect_clicked(move |_| s_del.input(AppMsg::DeleteConnection(saved_id)));
+            row.add_suffix(&delete);
+
             let saved_clone = saved.clone();
             let s = sender.clone();
             row.connect_activated(move |_| s.input(AppMsg::OpenSaved(saved_clone.clone())));
+            if first_row.is_none() {
+                first_row = Some(row.clone());
+            }
             group.add(&row);
         }
         outer.append(&group);
@@ -1289,6 +1311,9 @@ impl App {
 
         scroller.set_child(Some(&outer));
         self.content_holder.set_content(Some(&scroller));
+        if let Some(row) = first_row {
+            row.grab_focus();
+        }
     }
 
     fn set_loading_page(&self, title: &str, description: &str) {
@@ -1509,15 +1534,16 @@ impl App {
     }
 
     fn refresh_window_title(&self) {
-        let title = match (&self.current_driver_id, &self.current_table) {
+        let (os_title, subtitle) = match (&self.current_driver_id, &self.current_table) {
             (Some(driver), Some(table)) => {
                 let label = qualified_label(self.current_schema.as_deref(), table);
-                format!("{label} · {driver} — TablePro")
+                (format!("{label} · {driver} — TablePro"), format!("{label} · {driver}"))
             }
-            (Some(driver), None) => format!("{driver} — TablePro"),
-            _ => "TablePro Linux".to_string(),
+            (Some(driver), None) => (format!("{driver} — TablePro"), driver.clone()),
+            _ => ("TablePro Linux".to_string(), String::new()),
         };
-        self.window.set_title(Some(&title));
+        self.window.set_title(Some(&os_title));
+        self.window_title.set_subtitle(&subtitle);
     }
 
     fn show_toast(&self, msg: &str) {
