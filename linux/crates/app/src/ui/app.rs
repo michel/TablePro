@@ -30,6 +30,7 @@ pub struct App {
     split_view: adw::OverlaySplitView,
     window_title: adw::WindowTitle,
     saved_connections_button: gtk::MenuButton,
+    disconnect_action: gio::SimpleAction,
     sidebar_factory: FactoryVecDeque<SidebarRow>,
     sidebar_schemas: std::rc::Rc<std::cell::RefCell<Vec<Option<String>>>>,
     content_holder: adw::ToolbarView,
@@ -530,12 +531,17 @@ impl SimpleComponent for App {
         browse_view.append(&grid_holder);
         grid_search_bar.set_key_capture_widget(Some(&browse_view));
 
+        let disconnect_action = install_window_actions(&widgets.window, sender.clone());
+        install_window_shortcuts(&widgets.window);
+        widgets.primary_menu_button.set_menu_model(Some(&primary_menu_model()));
+
         let model = App {
             registry,
             window: root.clone(),
             split_view: widgets.split_view.clone(),
             window_title: widgets.window_title.clone(),
             saved_connections_button: widgets.saved_connections_button.clone(),
+            disconnect_action,
             sidebar_factory,
             sidebar_schemas,
             content_holder: widgets.content_holder.clone(),
@@ -592,10 +598,6 @@ impl SimpleComponent for App {
         widgets
             .primary_menu_button
             .update_property(&[gtk::accessible::Property::Label("Main menu")]);
-
-        install_window_actions(&widgets.window, sender.clone());
-        install_window_shortcuts(&widgets.window);
-        widgets.primary_menu_button.set_menu_model(Some(&primary_menu_model()));
 
         let banner_sender = sender.clone();
         widgets.reconnect_banner.connect_button_clicked(move |_| {
@@ -706,7 +708,7 @@ impl App {
         self.edit_button.set_visible(true);
         self.edit_button.set_sensitive(true);
         self.saved_connections_button.set_visible(true);
-        self.window.action_set_enabled("win.disconnect", true);
+        self.disconnect_action.set_enabled(true);
         self.table_search.set_text("");
         self.table_names = tables.iter().map(|t| t.name.clone()).collect();
         tracing::info!(driver = %driver_id, table_count = tables.len(), "workspace ready");
@@ -741,7 +743,7 @@ impl App {
         self.edit_button.set_visible(false);
         self.saved_connections_button.set_visible(false);
         self.split_view.set_show_sidebar(false);
-        self.window.action_set_enabled("win.disconnect", false);
+        self.disconnect_action.set_enabled(false);
         self.refresh_crud_buttons();
         self.refresh_window_title();
         self.table_search.set_text("");
@@ -1808,9 +1810,7 @@ fn qualified_label(schema: Option<&str>, table: &str) -> String {
 fn primary_menu_model() -> gio::Menu {
     let menu = gio::Menu::new();
     let connection_section = gio::Menu::new();
-    let disconnect_item = gio::MenuItem::new(Some(&crate::tr!("Disconnect")), Some("win.disconnect"));
-    disconnect_item.set_attribute_value("hidden-when", Some(&"action-disabled".to_variant()));
-    connection_section.append_item(&disconnect_item);
+    connection_section.append(Some(&crate::tr!("Disconnect")), Some("win.disconnect"));
     menu.append_section(None, &connection_section);
     let prefs_section = gio::Menu::new();
     prefs_section.append(Some(&crate::tr!("Preferences")), Some("win.preferences"));
@@ -1823,7 +1823,7 @@ fn primary_menu_model() -> gio::Menu {
     menu
 }
 
-fn install_window_actions(window: &adw::ApplicationWindow, sender: ComponentSender<App>) {
+fn install_window_actions(window: &adw::ApplicationWindow, sender: ComponentSender<App>) -> gio::SimpleAction {
     let group = gio::SimpleActionGroup::new();
 
     let shortcuts_sender = sender.clone();
@@ -1889,7 +1889,13 @@ fn install_window_actions(window: &adw::ApplicationWindow, sender: ComponentSend
         export_json,
     ]);
     window.insert_action_group("win", Some(&group));
-    window.action_set_enabled("win.disconnect", false);
+    let disconnect_action: gio::SimpleAction = group
+        .lookup_action("disconnect")
+        .and_then(|a| a.downcast::<gio::SimpleAction>().ok())
+        .expect("disconnect action must be a SimpleAction");
+    disconnect_action.set_enabled(false);
+    tracing::info!(enabled = disconnect_action.is_enabled(), "registered win.disconnect");
+    disconnect_action
 }
 
 fn install_window_shortcuts(window: &adw::ApplicationWindow) {
