@@ -20,12 +20,18 @@ impl Connection for ReadOnlyConnection {
         self.inner.list_tables().await
     }
 
-    async fn fetch_columns(&self, table: &str) -> Result<Vec<ColumnInfo>, DriverError> {
-        self.inner.fetch_columns(table).await
+    async fn fetch_columns(&self, schema: Option<&str>, table: &str) -> Result<Vec<ColumnInfo>, DriverError> {
+        self.inner.fetch_columns(schema, table).await
     }
 
-    async fn fetch_rows(&self, table: &str, offset: u64, limit: u64) -> Result<QueryResult, DriverError> {
-        self.inner.fetch_rows(table, offset, limit).await
+    async fn fetch_rows(
+        &self,
+        schema: Option<&str>,
+        table: &str,
+        offset: u64,
+        limit: u64,
+    ) -> Result<QueryResult, DriverError> {
+        self.inner.fetch_rows(schema, table, offset, limit).await
     }
 
     async fn query(&self, sql: &str) -> Result<QueryResult, DriverError> {
@@ -68,10 +74,10 @@ mod tests {
                 name: "t".into(),
             }])
         }
-        async fn fetch_columns(&self, _: &str) -> Result<Vec<ColumnInfo>, DriverError> {
+        async fn fetch_columns(&self, _: Option<&str>, _: &str) -> Result<Vec<ColumnInfo>, DriverError> {
             Ok(vec![])
         }
-        async fn fetch_rows(&self, _: &str, _: u64, _: u64) -> Result<QueryResult, DriverError> {
+        async fn fetch_rows(&self, _: Option<&str>, _: &str, _: u64, _: u64) -> Result<QueryResult, DriverError> {
             Ok(QueryResult {
                 columns: vec![],
                 rows: vec![],

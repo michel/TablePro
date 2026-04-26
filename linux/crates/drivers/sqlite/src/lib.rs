@@ -75,7 +75,7 @@ impl Connection for SqliteConnection {
             .collect())
     }
 
-    async fn fetch_columns(&self, table: &str) -> Result<Vec<ColumnInfo>, DriverError> {
+    async fn fetch_columns(&self, _schema: Option<&str>, table: &str) -> Result<Vec<ColumnInfo>, DriverError> {
         let sql = format!("PRAGMA table_info({})", quote_ident(table));
         let rows = sqlx::query(&sql).fetch_all(&self.pool).await.map_err(map_sqlx_error)?;
         Ok(rows
@@ -89,7 +89,13 @@ impl Connection for SqliteConnection {
             .collect())
     }
 
-    async fn fetch_rows(&self, table: &str, offset: u64, limit: u64) -> Result<QueryResult, DriverError> {
+    async fn fetch_rows(
+        &self,
+        _schema: Option<&str>,
+        table: &str,
+        offset: u64,
+        limit: u64,
+    ) -> Result<QueryResult, DriverError> {
         let sql = format!("SELECT * FROM {} LIMIT {limit} OFFSET {offset}", quote_ident(table));
         stream_into_result(&self.pool, &sql, limit as usize).await
     }
@@ -262,11 +268,11 @@ mod tests {
         let tables = conn.list_tables().await.unwrap();
         assert_eq!(tables.len(), 1);
         assert_eq!(tables[0].name, "foo");
-        let cols = conn.fetch_columns("foo").await.unwrap();
+        let cols = conn.fetch_columns(None, "foo").await.unwrap();
         assert_eq!(cols.len(), 2);
         assert_eq!(cols[0].name, "id");
         assert!(cols[0].primary_key);
-        let result = conn.fetch_rows("foo", 0, 100).await.unwrap();
+        let result = conn.fetch_rows(None, "foo", 0, 100).await.unwrap();
         assert_eq!(result.columns.len(), 2);
         assert_eq!(result.rows.len(), 3);
     }
@@ -281,7 +287,7 @@ mod tests {
         for i in 1..=10 {
             conn.execute(&format!("INSERT INTO n VALUES ({i})")).await.unwrap();
         }
-        let page = conn.fetch_rows("n", 5, 3).await.unwrap();
+        let page = conn.fetch_rows(None, "n", 5, 3).await.unwrap();
         assert_eq!(page.rows.len(), 3);
     }
 
@@ -307,7 +313,7 @@ mod tests {
         conn.execute("INSERT INTO \"weird\"\"name\" VALUES (1), (2)")
             .await
             .unwrap();
-        let result = conn.fetch_rows("weird\"name", 0, 100).await.unwrap();
+        let result = conn.fetch_rows(None, "weird\"name", 0, 100).await.unwrap();
         assert_eq!(result.rows.len(), 2);
     }
 }

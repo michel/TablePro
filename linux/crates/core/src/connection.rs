@@ -30,8 +30,14 @@ impl Default for ConnectOptions {
 #[async_trait]
 pub trait Connection: Send + Sync {
     async fn list_tables(&self) -> Result<Vec<TableInfo>, DriverError>;
-    async fn fetch_columns(&self, table: &str) -> Result<Vec<ColumnInfo>, DriverError>;
-    async fn fetch_rows(&self, table: &str, offset: u64, limit: u64) -> Result<QueryResult, DriverError>;
+    async fn fetch_columns(&self, schema: Option<&str>, table: &str) -> Result<Vec<ColumnInfo>, DriverError>;
+    async fn fetch_rows(
+        &self,
+        schema: Option<&str>,
+        table: &str,
+        offset: u64,
+        limit: u64,
+    ) -> Result<QueryResult, DriverError>;
     async fn query(&self, sql: &str) -> Result<QueryResult, DriverError>;
     async fn execute(&self, sql: &str) -> Result<ExecResult, DriverError>;
     async fn execute_params(&self, sql: &str, params: &[Value]) -> Result<ExecResult, DriverError>;

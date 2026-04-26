@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use relm4::adw::prelude::*;
-use relm4::gtk::gio;
+use relm4::gtk::{gio, glib};
 use relm4::prelude::*;
 use relm4::{ComponentController, Controller, adw, gtk};
 
@@ -51,6 +51,7 @@ pub struct App {
     insert_dialog: Option<Controller<InsertDialog>>,
     edit_dialog: Option<Controller<EditDialog>>,
     current_table: Option<String>,
+    current_schema: Option<String>,
     current_offset: u64,
     current_columns: Vec<ColumnInfo>,
     current_result: Option<QueryResult>,
@@ -71,7 +72,10 @@ pub enum AppMsg {
         driver_id: String,
     },
     DialogClosed,
-    SelectTable(String),
+    SelectTable {
+        schema: Option<String>,
+        name: String,
+    },
     ColumnsLoaded(String, Vec<ColumnInfo>),
     RowsLoaded(String, u64, QueryResult),
     LoadFailed(String),
@@ -264,6 +268,20 @@ impl SimpleComponent for App {
 
     fn init(registry: Self::Init, root: Self::Root, sender: ComponentSender<Self>) -> ComponentParts<Self> {
         let widgets = view_output!();
+
+        let restored = crate::services::window_state::load();
+        widgets.window.set_default_size(restored.width, restored.height);
+        if restored.maximized {
+            widgets.window.maximize();
+        }
+        widgets.window.connect_close_request(|w| {
+            crate::services::window_state::save(crate::services::window_state::WindowState {
+                width: w.default_width(),
+                height: w.default_height(),
+                maximized: w.is_maximized(),
+            });
+            glib::Propagation::Proceed
+        });
 
         let search_for_filter = widgets.table_search.clone();
         widgets.sidebar.set_filter_func(move |row| {
@@ -467,6 +485,7 @@ impl SimpleComponent for App {
             insert_dialog: None,
             edit_dialog: None,
             current_table: None,
+            current_schema: None,
             current_offset: 0,
             current_columns: Vec::new(),
             current_result: None,
@@ -479,6 +498,7 @@ impl SimpleComponent for App {
             connected: false,
         };
         sender.input(AppMsg::ReloadConnections);
+        model.show_welcome_page(sender.clone());
 
         widgets
             .new_connection_button
@@ -518,9 +538,9 @@ impl SimpleComponent for App {
         match msg {
             AppMsg::OpenConnect => self.on_open_connect(sender),
             AppMsg::Connected { tables, driver_id } => self.on_connected(tables, driver_id, sender),
-            AppMsg::Disconnect => self.on_disconnect(),
+            AppMsg::Disconnect => self.on_disconnect(sender),
             AppMsg::DialogClosed => self.dialog = None,
-            AppMsg::SelectTable(name) => self.on_select_table(name, sender),
+            AppMsg::SelectTable { schema, name } => self.on_select_table(schema, name, sender),
             AppMsg::ColumnsLoaded(table, columns) => self.on_columns_loaded(table, columns, sender),
             AppMsg::PrevPage => self.on_prev_page(sender),
             AppMsg::NextPage => self.on_next_page(sender),
@@ -601,7 +621,7 @@ impl App {
         sender.input(AppMsg::ReloadConnections);
     }
 
-    fn on_disconnect(&mut self) {
+    fn on_disconnect(&mut self, sender: ComponentSender<Self>) {
         let svc = database_service::instance();
         if let Some(id) = svc.active_id() {
             svc.remove(id);
@@ -610,6 +630,7 @@ impl App {
         }
         self.editor = None;
         self.current_table = None;
+        self.current_schema = None;
         self.current_offset = 0;
         self.current_columns.clear();
         self.current_result = None;
@@ -624,28 +645,27 @@ impl App {
         while let Some(child) = self.sidebar.first_child() {
             self.sidebar.remove(&child);
         }
-        self.set_status_page(
-            "Connect to a database",
-            "Click the server icon for a new connection or the folder icon to open a saved one.",
-        );
+        self.show_welcome_page(sender);
         tracing::info!("disconnected");
     }
 
-    fn on_select_table(&mut self, name: String, sender: ComponentSender<Self>) {
+    fn on_select_table(&mut self, schema: Option<String>, name: String, sender: ComponentSender<Self>) {
         self.editor = None;
         self.current_table = Some(name.clone());
+        self.current_schema = schema.clone();
         self.current_offset = 0;
         self.current_columns.clear();
         self.current_sort = None;
         self.current_total_rows = None;
         self.refresh_window_title();
-        self.set_status_page("Loading…", &format!("Fetching rows from {name}"));
+        let label = qualified_label(schema.as_deref(), &name);
+        self.set_loading_page("Loading…", &format!("Fetching rows from {label}"));
         self.fetch_current_page(sender.clone());
-        self.fetch_columns(name.clone(), sender.clone());
-        self.fetch_row_count(name, sender);
+        self.fetch_columns(schema.clone(), name.clone(), sender.clone());
+        self.fetch_row_count(schema, name, sender);
     }
 
-    fn fetch_row_count(&self, table: String, sender: ComponentSender<Self>) {
+    fn fetch_row_count(&self, schema: Option<String>, table: String, sender: ComponentSender<Self>) {
         let Some(conn) = database_service::instance().active() else {
             return;
         };
@@ -655,10 +675,15 @@ impl App {
         sender.command(move |_, shutdown| {
             shutdown
                 .register(async move {
-                    let sql = format!(
-                        "SELECT COUNT(*) FROM {}",
-                        crate::sql_dialect::quote_ident(&driver_id, &table_for_async)
-                    );
+                    let qualified = match schema {
+                        Some(s) => format!(
+                            "{}.{}",
+                            crate::sql_dialect::quote_ident(&driver_id, &s),
+                            crate::sql_dialect::quote_ident(&driver_id, &table_for_async)
+                        ),
+                        None => crate::sql_dialect::quote_ident(&driver_id, &table_for_async),
+                    };
+                    let sql = format!("SELECT COUNT(*) FROM {qualified}");
                     if let Ok(qr) = conn.query(&sql).await
                         && let Some(row) = qr.rows.first()
                         && let Some(value) = row.first()
@@ -1039,7 +1064,7 @@ impl App {
 
     fn on_open_saved(&self, saved: SavedConnection, sender: ComponentSender<Self>) {
         self.connections_popover.popdown();
-        self.set_status_page("Connecting…", &format!("Opening {}", saved.name));
+        self.set_loading_page("Connecting…", &format!("Opening {}", saved.name));
         let driver_id = saved.driver_id.clone();
         let registry = self.registry.clone();
         let sender_clone = sender.clone();
@@ -1055,6 +1080,33 @@ impl App {
         });
     }
 
+    fn show_welcome_page(&self, sender: ComponentSender<Self>) {
+        let page = adw::StatusPage::builder()
+            .icon_name("network-server-symbolic")
+            .title("Connect to a database")
+            .description("Pick a saved connection from the popover or create a new one.")
+            .build();
+        let new_btn = gtk::Button::builder()
+            .label("New connection")
+            .halign(gtk::Align::Center)
+            .build();
+        new_btn.add_css_class("suggested-action");
+        new_btn.add_css_class("pill");
+        let s = sender;
+        new_btn.connect_clicked(move |_| s.input(AppMsg::OpenConnect));
+        page.set_child(Some(&new_btn));
+        self.content_holder.set_content(Some(&page));
+    }
+
+    fn set_loading_page(&self, title: &str, description: &str) {
+        let page = adw::StatusPage::builder().title(title).description(description).build();
+        let spinner = gtk::Spinner::new();
+        spinner.set_spinning(true);
+        spinner.set_size_request(48, 48);
+        page.set_child(Some(&spinner));
+        self.content_holder.set_content(Some(&page));
+    }
+
     fn set_status_page(&self, title: &str, description: &str) {
         let page = adw::StatusPage::builder()
             .title(title)
@@ -1068,6 +1120,7 @@ impl App {
         let Some(table) = self.current_table.clone() else {
             return;
         };
+        let schema = self.current_schema.clone();
         let offset = self.current_offset;
         let limit = self.page_size;
         let Some(conn) = database_service::instance().active() else {
@@ -1088,16 +1141,19 @@ impl App {
                 .register(async move {
                     let result = match &order_by {
                         Some(order) => {
-                            let sql = format!(
-                                "SELECT * FROM {} ORDER BY {} LIMIT {} OFFSET {}",
-                                crate::sql_dialect::quote_ident(&driver_id, &table),
-                                order,
-                                limit,
-                                offset,
-                            );
+                            let qualified = match &schema {
+                                Some(s) => format!(
+                                    "{}.{}",
+                                    crate::sql_dialect::quote_ident(&driver_id, s),
+                                    crate::sql_dialect::quote_ident(&driver_id, &table)
+                                ),
+                                None => crate::sql_dialect::quote_ident(&driver_id, &table),
+                            };
+                            let sql =
+                                format!("SELECT * FROM {qualified} ORDER BY {order} LIMIT {limit} OFFSET {offset}");
                             conn.query(&sql).await
                         }
-                        None => conn.fetch_rows(&table, offset, limit).await,
+                        None => conn.fetch_rows(schema.as_deref(), &table, offset, limit).await,
                     };
                     match result {
                         Ok(query_result) => sender_clone.input(AppMsg::RowsLoaded(table, offset, query_result)),
@@ -1108,7 +1164,7 @@ impl App {
         });
     }
 
-    fn fetch_columns(&self, table: String, sender: ComponentSender<App>) {
+    fn fetch_columns(&self, schema: Option<String>, table: String, sender: ComponentSender<App>) {
         let Some(conn) = database_service::instance().active() else {
             return;
         };
@@ -1116,7 +1172,7 @@ impl App {
         sender.command(move |_, shutdown| {
             shutdown
                 .register(async move {
-                    if let Ok(columns) = conn.fetch_columns(&table).await {
+                    if let Ok(columns) = conn.fetch_columns(schema.as_deref(), &table).await {
                         sender_clone.input(AppMsg::ColumnsLoaded(table, columns));
                     }
                 })
@@ -1225,7 +1281,10 @@ impl App {
 
     fn refresh_window_title(&self) {
         let title = match (&self.current_driver_id, &self.current_table) {
-            (Some(driver), Some(table)) => format!("{table} · {driver} — TablePro"),
+            (Some(driver), Some(table)) => {
+                let label = qualified_label(self.current_schema.as_deref(), table);
+                format!("{label} · {driver} — TablePro")
+            }
             (Some(driver), None) => format!("{driver} — TablePro"),
             _ => "TablePro Linux".to_string(),
         };
@@ -1409,14 +1468,54 @@ fn rebuild_sidebar(listbox: &gtk::ListBox, tables: &[TableInfo], sender: Compone
     while let Some(child) = listbox.first_child() {
         listbox.remove(&child);
     }
+    let multiple_schemas = tables
+        .iter()
+        .filter_map(|t| t.schema.as_deref())
+        .collect::<std::collections::BTreeSet<_>>()
+        .len()
+        > 1;
+    let mut last_schema: Option<String> = None;
     for table in tables {
+        if multiple_schemas && table.schema != last_schema {
+            if let Some(schema) = &table.schema {
+                let header = gtk::Label::builder()
+                    .label(schema)
+                    .xalign(0.0)
+                    .margin_top(8)
+                    .margin_bottom(4)
+                    .margin_start(12)
+                    .margin_end(12)
+                    .selectable(false)
+                    .build();
+                header.add_css_class("heading");
+                header.add_css_class("dim-label");
+                let header_row = gtk::ListBoxRow::builder()
+                    .activatable(false)
+                    .selectable(false)
+                    .child(&header)
+                    .build();
+                listbox.append(&header_row);
+            }
+            last_schema = table.schema.clone();
+        }
         let row = adw::ActionRow::builder().title(&table.name).activatable(true).build();
         let name = table.name.clone();
+        let schema = table.schema.clone();
         let sender_for_row = sender.clone();
         row.connect_activated(move |_| {
-            sender_for_row.input(AppMsg::SelectTable(name.clone()));
+            sender_for_row.input(AppMsg::SelectTable {
+                schema: schema.clone(),
+                name: name.clone(),
+            });
         });
         listbox.append(&row);
+    }
+}
+
+fn qualified_label(schema: Option<&str>, table: &str) -> String {
+    match schema {
+        Some(s) => format!("{s}.{table}"),
+        None => table.to_string(),
     }
 }
 

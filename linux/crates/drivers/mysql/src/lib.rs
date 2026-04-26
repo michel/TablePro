@@ -75,14 +75,15 @@ impl Connection for MysqlConnection {
             .collect())
     }
 
-    async fn fetch_columns(&self, table: &str) -> Result<Vec<ColumnInfo>, DriverError> {
+    async fn fetch_columns(&self, schema: Option<&str>, table: &str) -> Result<Vec<ColumnInfo>, DriverError> {
         let rows = sqlx::query(
             "SELECT CAST(column_name AS CHAR), CAST(data_type AS CHAR),
                     CAST(is_nullable AS CHAR), CAST(column_key AS CHAR)
              FROM information_schema.columns
-             WHERE table_schema = DATABASE() AND table_name = ?
+             WHERE table_schema = COALESCE(?, DATABASE()) AND table_name = ?
              ORDER BY ordinal_position",
         )
+        .bind(schema)
         .bind(table)
         .fetch_all(&self.pool)
         .await
@@ -98,8 +99,17 @@ impl Connection for MysqlConnection {
             .collect())
     }
 
-    async fn fetch_rows(&self, table: &str, offset: u64, limit: u64) -> Result<QueryResult, DriverError> {
-        let sql = format!("SELECT * FROM {} LIMIT {limit} OFFSET {offset}", quote_ident(table));
+    async fn fetch_rows(
+        &self,
+        schema: Option<&str>,
+        table: &str,
+        offset: u64,
+        limit: u64,
+    ) -> Result<QueryResult, DriverError> {
+        let sql = format!(
+            "SELECT * FROM {} LIMIT {limit} OFFSET {offset}",
+            qualified(schema, table)
+        );
         stream_into_result(&self.pool, &sql, limit as usize).await
     }
 
@@ -234,6 +244,13 @@ fn extract_value(row: &MySqlRow, idx: usize) -> Value {
 
 fn quote_ident(name: &str) -> String {
     format!("`{}`", name.replace('`', "``"))
+}
+
+fn qualified(schema: Option<&str>, table: &str) -> String {
+    match schema {
+        Some(s) => format!("{}.{}", quote_ident(s), quote_ident(table)),
+        None => quote_ident(table),
+    }
 }
 
 fn map_sqlx_error(err: sqlx::Error) -> DriverError {

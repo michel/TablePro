@@ -52,7 +52,7 @@ async fn connect_list_tables_and_pk_detection() {
     let tables = conn.list_tables().await.unwrap();
     assert!(tables.iter().any(|t| t.name == "pk_demo"));
 
-    let cols = conn.fetch_columns("pk_demo").await.unwrap();
+    let cols = conn.fetch_columns(None, "pk_demo").await.unwrap();
     assert_eq!(cols.len(), 3);
     let id_col = cols.iter().find(|c| c.name == "id").unwrap();
     assert!(id_col.primary_key, "id must be detected as primary key");
@@ -61,7 +61,7 @@ async fn connect_list_tables_and_pk_detection() {
     assert!(!note_col.primary_key);
     assert!(note_col.nullable);
 
-    let result = conn.fetch_rows("pk_demo", 0, 100).await.unwrap();
+    let result = conn.fetch_rows(None, "pk_demo", 0, 100).await.unwrap();
     assert_eq!(result.rows.len(), 2);
     assert!(!result.truncated);
 }
@@ -190,7 +190,7 @@ async fn pagination_and_truncated_flag() {
     }
     conn.execute(&sql).await.unwrap();
 
-    let page = conn.fetch_rows("big", 10, 5).await.unwrap();
+    let page = conn.fetch_rows(None, "big", 10, 5).await.unwrap();
     assert_eq!(page.rows.len(), 5);
     let firsts: Vec<i64> = page
         .rows

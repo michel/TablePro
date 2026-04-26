@@ -16,6 +16,7 @@ tablepro-driver-postgres = { path = "../drivers/postgres" }
 tablepro-driver-sqlite = { path = "../drivers/sqlite" }
 chrono.workspace = true
 rust_decimal.workspace = true
+serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
 tablepro-ssh = { path = "../ssh" }

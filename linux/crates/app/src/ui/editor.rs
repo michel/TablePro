@@ -14,6 +14,7 @@ pub struct SqlEditor {
     source_view: sourceview5::View,
     run_button: gtk::Button,
     cancel_button: gtk::Button,
+    running_spinner: gtk::Spinner,
     results_holder: gtk::Box,
     status: gtk::Label,
     cancel_token: Option<CancellationToken>,
@@ -61,6 +62,13 @@ impl SimpleComponent for SqlEditor {
                     add_css_class: "dim-label",
                     add_css_class: "monospace",
                     set_margin_end: 8,
+                },
+
+                #[name = "running_spinner"]
+                gtk::Spinner {
+                    set_visible: false,
+                    set_spinning: true,
+                    set_size_request: (20, 20),
                 },
 
                 #[name = "status"]
@@ -192,6 +200,7 @@ impl SimpleComponent for SqlEditor {
             source_view: widgets.source_view.clone(),
             run_button: widgets.run_button.clone(),
             cancel_button: widgets.cancel_button.clone(),
+            running_spinner: widgets.running_spinner.clone(),
             results_holder: widgets.results_holder.clone(),
             status: widgets.status.clone(),
             cancel_token: None,
@@ -229,6 +238,7 @@ impl SimpleComponent for SqlEditor {
 
                 self.run_button.set_sensitive(false);
                 self.cancel_button.set_visible(true);
+                self.running_spinner.set_visible(true);
                 self.status.set_label("Running…");
                 clear_box(&self.results_holder);
 
@@ -275,6 +285,7 @@ impl SimpleComponent for SqlEditor {
                 self.cancel_token = None;
                 self.run_button.set_sensitive(true);
                 self.cancel_button.set_visible(false);
+                self.running_spinner.set_visible(false);
                 let label = if result.truncated {
                     format!("{} row(s) in {} ms (truncated)", result.rows.len(), elapsed_ms)
                 } else {
@@ -306,6 +317,7 @@ impl SimpleComponent for SqlEditor {
                 self.cancel_token = None;
                 self.run_button.set_sensitive(true);
                 self.cancel_button.set_visible(false);
+                self.running_spinner.set_visible(false);
                 self.status.set_label("error");
                 clear_box(&self.results_holder);
                 let err_page = adw::StatusPage::builder()
@@ -330,6 +342,7 @@ impl SimpleComponent for SqlEditor {
                 self.cancel_token = None;
                 self.run_button.set_sensitive(true);
                 self.cancel_button.set_visible(false);
+                self.running_spinner.set_visible(false);
                 self.status.set_label("cancelled");
                 clear_box(&self.results_holder);
                 let cancelled_page = adw::StatusPage::builder()

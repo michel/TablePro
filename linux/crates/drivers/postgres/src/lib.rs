@@ -75,7 +75,7 @@ impl Connection for PgConnection {
             .collect())
     }
 
-    async fn fetch_columns(&self, table: &str) -> Result<Vec<ColumnInfo>, DriverError> {
+    async fn fetch_columns(&self, schema: Option<&str>, table: &str) -> Result<Vec<ColumnInfo>, DriverError> {
         let rows = sqlx::query(
             "SELECT
                 c.column_name,
@@ -95,10 +95,11 @@ impl Connection for PgConnection {
                 ) AS is_pk
              FROM information_schema.columns c
              WHERE c.table_name = $1
-               AND c.table_schema = current_schema()
+               AND c.table_schema = COALESCE($2, current_schema())
              ORDER BY c.ordinal_position",
         )
         .bind(table)
+        .bind(schema)
         .fetch_all(&self.pool)
         .await
         .map_err(map_sqlx_error)?;
@@ -113,8 +114,17 @@ impl Connection for PgConnection {
             .collect())
     }
 
-    async fn fetch_rows(&self, table: &str, offset: u64, limit: u64) -> Result<QueryResult, DriverError> {
-        let sql = format!("SELECT * FROM {} OFFSET {offset} LIMIT {limit}", quote_ident(table));
+    async fn fetch_rows(
+        &self,
+        schema: Option<&str>,
+        table: &str,
+        offset: u64,
+        limit: u64,
+    ) -> Result<QueryResult, DriverError> {
+        let sql = format!(
+            "SELECT * FROM {} OFFSET {offset} LIMIT {limit}",
+            qualified(schema, table)
+        );
         stream_into_result(&self.pool, &sql, limit as usize).await
     }
 
@@ -261,6 +271,13 @@ fn extract_value(row: &PgRow, idx: usize) -> Value {
 
 fn quote_ident(name: &str) -> String {
     format!("\"{}\"", name.replace('"', "\"\""))
+}
+
+fn qualified(schema: Option<&str>, table: &str) -> String {
+    match schema {
+        Some(s) => format!("{}.{}", quote_ident(s), quote_ident(table)),
+        None => quote_ident(table),
+    }
 }
 
 fn map_sqlx_error(err: sqlx::Error) -> DriverError {
