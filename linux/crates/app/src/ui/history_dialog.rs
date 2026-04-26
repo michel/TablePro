@@ -20,9 +20,9 @@ pub struct HistoryDialog {
     stack: gtk::Stack,
     status_page: adw::StatusPage,
 
-    filter_connection: adw::ComboRow,
-    filter_status: adw::ComboRow,
-    filter_window: adw::ComboRow,
+    filter_connection: gtk::DropDown,
+    filter_status: gtk::DropDown,
+    filter_window: gtk::DropDown,
 
     selection_bar: gtk::Revealer,
     selection_label: gtk::Label,
@@ -105,10 +105,7 @@ impl Component for HistoryDialog {
             .chain(connections.iter().map(|m| m.name.clone()))
             .collect();
         let conn_strings_ref: Vec<&str> = conn_strings.iter().map(String::as_str).collect();
-        let filter_connection = adw::ComboRow::builder()
-            .title(crate::tr!("Connection"))
-            .model(&gtk::StringList::new(&conn_strings_ref))
-            .build();
+        let filter_connection = gtk::DropDown::from_strings(&conn_strings_ref);
 
         let status_strings = [
             crate::tr!("Any"),
@@ -117,10 +114,7 @@ impl Component for HistoryDialog {
             crate::tr!("Cancelled"),
         ];
         let status_strings_ref: Vec<&str> = status_strings.iter().map(String::as_str).collect();
-        let filter_status = adw::ComboRow::builder()
-            .title(crate::tr!("Status"))
-            .model(&gtk::StringList::new(&status_strings_ref))
-            .build();
+        let filter_status = gtk::DropDown::from_strings(&status_strings_ref);
 
         let window_strings = [
             crate::tr!("Any time"),
@@ -129,25 +123,51 @@ impl Component for HistoryDialog {
             crate::tr!("Last 30 days"),
         ];
         let window_strings_ref: Vec<&str> = window_strings.iter().map(String::as_str).collect();
-        let filter_window = adw::ComboRow::builder()
-            .title(crate::tr!("Time window"))
-            .model(&gtk::StringList::new(&window_strings_ref))
-            .build();
+        let filter_window = gtk::DropDown::from_strings(&window_strings_ref);
 
-        let popover_group = adw::PreferencesGroup::builder()
-            .margin_top(8)
-            .margin_bottom(8)
-            .margin_start(8)
-            .margin_end(8)
-            .build();
-        popover_group.add(&filter_connection);
-        popover_group.add(&filter_status);
-        popover_group.add(&filter_window);
-        filter_popover.set_child(Some(&popover_group));
+        let reset_button = gtk::Button::builder().label(crate::tr!("Reset")).build();
+        reset_button.add_css_class("flat");
+        let reset_conn = filter_connection.clone();
+        let reset_status = filter_status.clone();
+        let reset_window = filter_window.clone();
+        reset_button.connect_clicked(move |_| {
+            reset_conn.set_selected(0);
+            reset_status.set_selected(0);
+            reset_window.set_selected(0);
+        });
 
-        for combo in [&filter_connection, &filter_status, &filter_window] {
+        let popover_grid = gtk::Grid::builder()
+            .row_spacing(12)
+            .column_spacing(12)
+            .margin_top(12)
+            .margin_bottom(12)
+            .margin_start(12)
+            .margin_end(12)
+            .build();
+        let conn_label = gtk::Label::builder()
+            .label(crate::tr!("Connection"))
+            .xalign(0.0)
+            .build();
+        let status_label_widget = gtk::Label::builder().label(crate::tr!("Status")).xalign(0.0).build();
+        let window_label = gtk::Label::builder()
+            .label(crate::tr!("Time window"))
+            .xalign(0.0)
+            .build();
+        for label in [&conn_label, &status_label_widget, &window_label] {
+            label.add_css_class("dim-label");
+        }
+        popover_grid.attach(&conn_label, 0, 0, 1, 1);
+        popover_grid.attach(&filter_connection, 1, 0, 1, 1);
+        popover_grid.attach(&status_label_widget, 0, 1, 1, 1);
+        popover_grid.attach(&filter_status, 1, 1, 1, 1);
+        popover_grid.attach(&window_label, 0, 2, 1, 1);
+        popover_grid.attach(&filter_window, 1, 2, 1, 1);
+        popover_grid.attach(&reset_button, 1, 3, 1, 1);
+        filter_popover.set_child(Some(&popover_grid));
+
+        for dropdown in [&filter_connection, &filter_status, &filter_window] {
             let s = sender.clone();
-            combo.connect_selected_notify(move |_| s.input(HistoryDialogInput::FiltersChanged));
+            dropdown.connect_selected_notify(move |_| s.input(HistoryDialogInput::FiltersChanged));
         }
 
         header.pack_start(&filter_button);

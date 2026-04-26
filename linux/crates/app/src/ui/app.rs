@@ -57,7 +57,7 @@ pub struct App {
     grid_search: gtk::SearchEntry,
     grid_search_bar: gtk::SearchBar,
     grid_search_handler: Option<glib::SignalHandlerId>,
-    browse_view: gtk::Box,
+    browse_view: adw::ToolbarView,
     dialog: Option<Controller<ConnectDialog>>,
     editor_root: Option<gtk::Box>,
     editor_tab_view: Option<adw::TabView>,
@@ -554,11 +554,10 @@ impl SimpleComponent for App {
             .build();
         grid_search_bar.connect_entry(&grid_search);
 
-        let browse_view = gtk::Box::builder().orientation(gtk::Orientation::Vertical).build();
-        browse_view.append(&paginator_bar);
-        browse_view.append(&gtk::Separator::new(gtk::Orientation::Horizontal));
-        browse_view.append(&grid_search_bar);
-        browse_view.append(&grid_holder);
+        let browse_view = adw::ToolbarView::new();
+        browse_view.add_top_bar(&grid_search_bar);
+        browse_view.set_content(Some(&grid_holder));
+        browse_view.add_bottom_bar(&paginator_bar);
         grid_search_bar.set_key_capture_widget(Some(&browse_view));
 
         let disconnect_action = install_window_actions(&widgets.window, sender.clone());

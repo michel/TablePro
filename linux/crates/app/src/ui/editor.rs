@@ -54,10 +54,8 @@ impl SimpleComponent for SqlEditor {
     type Output = SqlEditorOutput;
 
     view! {
-        gtk::Box {
-            set_orientation: gtk::Orientation::Vertical,
-
-            gtk::Box {
+        adw::ToolbarView {
+            add_top_bar = &gtk::Box {
                 set_orientation: gtk::Orientation::Horizontal,
                 set_spacing: 8,
                 set_margin_top: 8,
@@ -109,7 +107,8 @@ impl SimpleComponent for SqlEditor {
                 },
             },
 
-            gtk::Paned {
+            #[wrap(Some)]
+            set_content = &gtk::Paned {
                 set_orientation: gtk::Orientation::Vertical,
                 set_position: 280,
                 set_vexpand: true,
