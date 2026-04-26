@@ -33,6 +33,12 @@ pub async fn save_connections(connections: &[SavedConnection]) -> Result<(), Sto
     save_to(&connections_path()?, connections).await
 }
 
+pub async fn delete_connection(id: Uuid) -> Result<(), StorageError> {
+    let mut existing = load_connections().await.unwrap_or_default();
+    existing.retain(|c| c.id != id);
+    save_connections(&existing).await
+}
+
 pub(crate) async fn load_from(path: &Path) -> Result<Vec<SavedConnection>, StorageError> {
     if !path.exists() {
         return Ok(Vec::new());

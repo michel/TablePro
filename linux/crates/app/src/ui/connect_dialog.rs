@@ -152,14 +152,16 @@ impl Component for ConnectDialog {
         let widgets = view_output!();
 
         if let Some(first) = drivers.first() {
-            apply_form_visibility(
-                &first.id,
-                &model.host,
-                &model.port,
-                &model.database,
-                &model.username,
-                &model.password,
-            );
+            if let Some(driver) = model.registry.get(&first.id) {
+                apply_form_visibility(
+                    driver.as_ref(),
+                    &model.host,
+                    &model.port,
+                    &model.database,
+                    &model.username,
+                    &model.password,
+                );
+            }
             root.set_title(&format!("Connect to {}", first.display_name));
         }
 
@@ -172,14 +174,16 @@ impl Component for ConnectDialog {
                 let Some(entry) = self.drivers.get(idx as usize) else {
                     return;
                 };
-                apply_form_visibility(
-                    &entry.id,
-                    &self.host,
-                    &self.port,
-                    &self.database,
-                    &self.username,
-                    &self.password,
-                );
+                if let Some(driver) = self.registry.get(&entry.id) {
+                    apply_form_visibility(
+                        driver.as_ref(),
+                        &self.host,
+                        &self.port,
+                        &self.database,
+                        &self.username,
+                        &self.password,
+                    );
+                }
                 root.set_title(&format!("Connect to {}", entry.display_name));
             }
 
@@ -224,8 +228,12 @@ impl Component for ConnectDialog {
                             let result = match driver.connect(opts.clone()).await {
                                 Ok(conn) => match conn.list_tables().await {
                                     Ok(tables) => {
+                                        let id = match find_existing_id(&driver_id, &opts).await {
+                                            Some(id) => id,
+                                            None => Uuid::new_v4(),
+                                        };
                                         let saved = SavedConnection {
-                                            id: Uuid::new_v4(),
+                                            id,
                                             name: label.clone(),
                                             driver_id: driver_id.clone(),
                                             host: opts.host.clone(),
@@ -280,19 +288,19 @@ impl Component for ConnectDialog {
 }
 
 fn apply_form_visibility(
-    driver_id: &str,
+    driver: &dyn tablepro_core::DatabaseDriver,
     host: &adw::EntryRow,
     port: &adw::EntryRow,
     database: &adw::EntryRow,
     username: &adw::EntryRow,
     password: &adw::PasswordEntryRow,
 ) {
-    let is_file_based = driver_id == "sqlite";
-    host.set_visible(!is_file_based);
-    port.set_visible(!is_file_based);
-    username.set_visible(!is_file_based);
-    password.set_visible(!is_file_based);
-    database.set_title(if is_file_based { "File path" } else { "Database" });
+    let file_based = driver.is_file_based();
+    host.set_visible(!file_based);
+    port.set_visible(!file_based);
+    username.set_visible(!file_based);
+    password.set_visible(!file_based);
+    database.set_title(if file_based { "File path" } else { "Database" });
 }
 
 async fn save_one(connection: &SavedConnection) -> Result<(), tablepro_storage::StorageError> {
@@ -300,4 +308,18 @@ async fn save_one(connection: &SavedConnection) -> Result<(), tablepro_storage::
     existing.retain(|c| c.id != connection.id);
     existing.push(connection.clone());
     save_connections(&existing).await
+}
+
+async fn find_existing_id(driver_id: &str, opts: &ConnectOptions) -> Option<Uuid> {
+    let existing = tablepro_storage::load_connections().await.ok()?;
+    existing
+        .into_iter()
+        .find(|c| {
+            c.driver_id == driver_id
+                && c.host == opts.host
+                && c.port == opts.port
+                && c.database == opts.database
+                && c.username == opts.username
+        })
+        .map(|c| c.id)
 }

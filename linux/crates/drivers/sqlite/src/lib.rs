@@ -25,6 +25,10 @@ impl DatabaseDriver for SqliteDriver {
         0
     }
 
+    fn is_file_based(&self) -> bool {
+        true
+    }
+
     async fn connect(&self, opts: ConnectOptions) -> Result<Box<dyn Connection>, DriverError> {
         let url = if opts.database.is_empty() || opts.database == ":memory:" {
             "sqlite::memory:".to_string()

@@ -10,28 +10,32 @@ The spike at `~/Workspaces/tablepro-linux-spike` proved that Rust + GTK4 + libad
 
 Goal: a workspace that compiles, has CI, and has the contracts in place that the rest of the project will fill in.
 
-- [ ] Cargo workspace skeleton: `app`, `core`, `storage`, `drivers/postgres`, `drivers/sqlite`, `drivers/mysql`
-- [ ] `core::DatabaseDriver`, `core::Connection`, `core::DriverRegistry` traits (final shape, not stubs)
-- [ ] `storage`: libsecret wrapper (`oo7` crate), `gio::Settings` schema, JSON connection store, with full test coverage
-- [ ] One end-to-end smoke test: `tablepro-app` connects to PostgreSQL via the registered driver and prints the table list to stderr
-- [ ] CI: `cargo build`, `cargo test`, `cargo clippy --deny warnings`, `cargo fmt --check` on Ubuntu 24.04
-- [ ] Flatpak manifest skeleton, builds locally with `flatpak-builder`
-- [ ] `rustfmt.toml`, `clippy.toml`, `rust-toolchain.toml` set
+- [x] Cargo workspace skeleton: `app`, `core`, `storage`, `drivers/postgres`, `drivers/sqlite`, `drivers/mysql`
+- [x] `core::DatabaseDriver`, `core::Connection`, `core::DriverRegistry` traits (final shape, not stubs)
+- [x] `storage`: libsecret wrapper (`oo7` crate), JSON connection store, with full test coverage. *`gio::Settings` schema deferred to Phase 1.*
+- [x] CI: `cargo build`, `cargo test`, `cargo clippy --deny warnings`, `cargo fmt --check` on Ubuntu 24.04
+- [x] `rustfmt.toml`, `clippy.toml`, `rust-toolchain.toml` set
+- [x] Flatpak manifest skeleton (does not build locally yet — needs cargo offline mode + flatpak-cargo-generator)
+- [ ] One end-to-end smoke test (manual `cargo run` works; automated test deferred)
 - [ ] Pre-commit hook (rustfmt + clippy)
 
-Exit criterion: a fresh contributor can clone the repo, follow [README.md](README.md), and reach a working `cargo run` against a local PostgreSQL in under 15 minutes.
+Exit criterion: a fresh contributor can clone the repo, follow [README.md](README.md), and reach a working `cargo run` against a local PostgreSQL in under 15 minutes. **Met as of 2026-04-26.**
 
 ## Phase 1 — MVP (2–3 months)
 
 Goal: an app a developer would use daily for the three most common engines.
 
-- [ ] Connection list with libsecret-backed credentials, group support, colour tags
-- [ ] `AdwNavigationSplitView` shell — sidebar, content area, header bar with connect / disconnect / refresh
-- [ ] Table list (filtered, sorted, searchable)
+- [x] Three drivers: PostgreSQL, SQLite, MySQL / MariaDB
+- [x] `AdwNavigationSplitView` shell with header bar
+- [x] Connection list with libsecret-backed credentials (popover with delete + reconnect; group support deferred)
+- [x] Multi-driver Connect dialog with engine picker (per-driver form via `DatabaseDriver::is_file_based`)
+- [x] Browse a table: 100k rows in `GtkColumnView` with smooth scroll
+- [ ] Table list filter / sort / search
 - [ ] Browse a table: pagination, basic where-filter, column resize, column reorder
 - [ ] SQL editor: GtkSourceView 5 + tree-sitter-sql, run query, results grid
 - [ ] Single-row insert / update / delete with explicit save
-- [ ] Three drivers: PostgreSQL, SQLite, MySQL / MariaDB
+- [ ] Disconnect button + multi-connection state (one connection at a time today)
+- [ ] Connection groups + colour tags
 - [ ] Flathub nightly publishing
 
 Out: AI chat, ER diagram, schema editor, multi-tab queries, history search. Those land in Phase 2.

@@ -6,6 +6,7 @@ use relm4::{ComponentController, Controller, adw, gtk};
 
 use tablepro_core::{DriverRegistry, QueryResult, TableInfo};
 use tablepro_storage::SavedConnection;
+use uuid::Uuid;
 
 use super::connect_dialog::{ConnectDialog, ConnectDialogInit, ConnectDialogOutput};
 use super::grid::build_column_view;
@@ -34,6 +35,7 @@ pub enum AppMsg {
     ReloadConnections,
     ConnectionsLoaded(Vec<SavedConnection>),
     OpenSaved(SavedConnection),
+    DeleteConnection(Uuid),
 }
 
 #[relm4::component(pub)]
@@ -254,6 +256,21 @@ impl SimpleComponent for App {
                 );
             }
 
+            AppMsg::DeleteConnection(id) => {
+                let (tx, rx) = async_channel::bounded(1);
+                runtime::handle().spawn(async move {
+                    let _ = tablepro_storage::delete_connection(id).await;
+                    let _ = tablepro_storage::delete_password(id).await;
+                    let _ = tx.send(()).await;
+                });
+                let sender_recv = sender.clone();
+                glib::spawn_future_local(async move {
+                    if rx.recv().await.is_ok() {
+                        sender_recv.input(AppMsg::ReloadConnections);
+                    }
+                });
+            }
+
             AppMsg::OpenSaved(saved) => {
                 self.connections_popover.popdown();
                 self.set_status_page("Connecting…", &format!("Opening {}", saved.name));
@@ -334,6 +351,20 @@ fn rebuild_connections_listbox(
             .subtitle(&subtitle)
             .activatable(true)
             .build();
+
+        let delete = gtk::Button::builder()
+            .icon_name("user-trash-symbolic")
+            .valign(gtk::Align::Center)
+            .tooltip_text("Remove connection")
+            .build();
+        delete.add_css_class("flat");
+        let saved_id = s.id;
+        let sender_for_delete = sender.clone();
+        delete.connect_clicked(move |_| {
+            sender_for_delete.input(AppMsg::DeleteConnection(saved_id));
+        });
+        row.add_suffix(&delete);
+
         let saved_clone = s.clone();
         let sender_for_row = sender.clone();
         let popover_for_row = popover.clone();
