@@ -1808,7 +1808,9 @@ fn qualified_label(schema: Option<&str>, table: &str) -> String {
 fn primary_menu_model() -> gio::Menu {
     let menu = gio::Menu::new();
     let connection_section = gio::Menu::new();
-    connection_section.append(Some(&crate::tr!("Disconnect")), Some("win.disconnect"));
+    let disconnect_item = gio::MenuItem::new(Some(&crate::tr!("Disconnect")), Some("win.disconnect"));
+    disconnect_item.set_attribute_value("hidden-when", Some(&"action-disabled".to_variant()));
+    connection_section.append_item(&disconnect_item);
     menu.append_section(None, &connection_section);
     let prefs_section = gio::Menu::new();
     prefs_section.append(Some(&crate::tr!("Preferences")), Some("win.preferences"));
