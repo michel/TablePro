@@ -156,7 +156,7 @@ impl SimpleComponent for App {
     view! {
         #[name = "window"]
         adw::ApplicationWindow {
-            set_title: Some("TablePro Linux"),
+            set_title: Some("TablePro"),
             set_default_width: 1200,
             set_default_height: 760,
 
@@ -165,7 +165,7 @@ impl SimpleComponent for App {
                     #[name = "window_title"]
                     #[wrap(Some)]
                     set_title_widget = &adw::WindowTitle {
-                        set_title: "TablePro Linux",
+                        set_title: "TablePro",
                     },
 
                     #[name = "new_connection_button"]
@@ -1563,7 +1563,7 @@ impl App {
                 (format!("{label} · {driver} — TablePro"), format!("{label} · {driver}"))
             }
             (Some(driver), None) => (format!("{driver} — TablePro"), driver.clone()),
-            _ => ("TablePro Linux".to_string(), String::new()),
+            _ => ("TablePro".to_string(), String::new()),
         };
         self.window.set_title(Some(&os_title));
         self.window_title.set_subtitle(&subtitle);
@@ -2140,7 +2140,7 @@ impl App {
 
     fn on_show_about(&self) {
         let dialog = adw::AboutDialog::builder()
-            .application_name(crate::tr!("TablePro Linux"))
+            .application_name(crate::tr!("TablePro"))
             .application_icon("com.tablepro.linux")
             .developer_name(crate::tr!("TablePro Authors"))
             .version(env!("CARGO_PKG_VERSION"))

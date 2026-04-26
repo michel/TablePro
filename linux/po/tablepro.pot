@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: tablepro 0.1.0\n"
 "Report-Msgid-Bugs-To: https://github.com/TableProApp/TablePro/issues\n"
-"POT-Creation-Date: 2026-04-26 11:18+0000\n"
+"POT-Creation-Date: 2026-04-26 11:28+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -346,7 +346,7 @@ msgid "Export failed: {error}"
 msgstr ""
 
 #: crates/app/src/ui/app.rs:2143
-msgid "TablePro Linux"
+msgid "TablePro"
 msgstr ""
 
 #: crates/app/src/ui/app.rs:2145
