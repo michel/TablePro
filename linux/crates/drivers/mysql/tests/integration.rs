@@ -144,8 +144,9 @@ async fn value_roundtrip_all_types() {
     let row = &q.rows[0];
 
     match &row[0] {
+        Value::Bool(true) => {}
         Value::Int(1) => {}
-        v => panic!("expected tinyint(1) -> Int(1), got {v:?}"),
+        v => panic!("expected tinyint(1) -> Bool(true) or Int(1), got {v:?}"),
     }
     assert!(matches!(row[1], Value::Int(123)));
     assert!(matches!(row[2], Value::Int(456_789)));

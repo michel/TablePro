@@ -58,7 +58,7 @@ struct MysqlConnection {
 impl Connection for MysqlConnection {
     async fn list_tables(&self) -> Result<Vec<TableInfo>, DriverError> {
         let rows = sqlx::query(
-            "SELECT table_schema, table_name
+            "SELECT CAST(table_schema AS CHAR), CAST(table_name AS CHAR)
              FROM information_schema.tables
              WHERE table_schema = DATABASE()
              ORDER BY table_name",
@@ -77,7 +77,8 @@ impl Connection for MysqlConnection {
 
     async fn fetch_columns(&self, table: &str) -> Result<Vec<ColumnInfo>, DriverError> {
         let rows = sqlx::query(
-            "SELECT column_name, data_type, is_nullable, column_key
+            "SELECT CAST(column_name AS CHAR), CAST(data_type AS CHAR),
+                    CAST(is_nullable AS CHAR), CAST(column_key AS CHAR)
              FROM information_schema.columns
              WHERE table_schema = DATABASE() AND table_name = ?
              ORDER BY ordinal_position",
