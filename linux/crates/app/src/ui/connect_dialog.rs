@@ -409,6 +409,17 @@ impl Component for ConnectDialog {
 
 impl ConnectDialog {
     fn refresh_validity(&self) {
+        let database_empty = self.database.text().trim().is_empty();
+        toggle_error(&self.database, database_empty);
+
+        let host_required = self.host.is_visible();
+        let host_empty = host_required && self.host.text().trim().is_empty();
+        toggle_error(&self.host, host_empty);
+
+        let username_required = self.username.is_visible();
+        let username_empty = username_required && self.username.text().trim().is_empty();
+        toggle_error(&self.username, username_empty);
+
         let valid = self.is_form_valid();
         self.submit.set_sensitive(valid);
         self.test_button.set_sensitive(valid);
@@ -442,6 +453,14 @@ impl ConnectDialog {
         self.ssh.set_enable_visible(!file_based);
         self.database
             .set_title(if file_based { "File path" } else { "Database" });
+    }
+}
+
+fn toggle_error(row: &adw::EntryRow, invalid: bool) {
+    if invalid {
+        row.add_css_class("error");
+    } else {
+        row.remove_css_class("error");
     }
 }
 

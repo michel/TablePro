@@ -34,6 +34,7 @@ pub struct App {
     disconnect_button: gtk::Button,
     health_pill: gtk::Label,
     health_state: Option<ConnectionHealth>,
+    row_op_spinner: gtk::Spinner,
     read_only_badge: gtk::Label,
     table_search: gtk::SearchEntry,
     paginator_label: gtk::Label,
@@ -44,7 +45,7 @@ pub struct App {
     delete_button: gtk::Button,
     grid_holder: gtk::Box,
     grid_search: gtk::SearchEntry,
-    grid_search_revealer: gtk::Revealer,
+    grid_search_bar: gtk::SearchBar,
     browse_view: gtk::Box,
     dialog: Option<Controller<ConnectDialog>>,
     editor: Option<Controller<SqlEditor>>,
@@ -88,6 +89,7 @@ pub enum AppMsg {
     EditCommitted,
     DeleteSelectedRow,
     RowOperationCommitted(Option<UndoBatch>),
+    RowOpStarted,
     ExecuteUndo(UndoBatch),
     CellEdited {
         table: String,
@@ -185,6 +187,13 @@ impl SimpleComponent for App {
                         set_visible: false,
                         set_margin_end: 6,
                         add_css_class: "caption-heading",
+                    },
+
+                    #[name = "row_op_spinner"]
+                    pack_end = &gtk::Spinner {
+                        set_visible: false,
+                        set_margin_end: 6,
+                        set_tooltip_text: Some("Saving…"),
                     },
 
                     #[name = "edit_button"]
@@ -451,30 +460,20 @@ impl SimpleComponent for App {
             .vexpand(true)
             .build();
 
-        let grid_search = gtk::SearchEntry::builder()
-            .placeholder_text("Find in results")
-            .margin_top(4)
-            .margin_bottom(4)
-            .margin_start(8)
-            .margin_end(8)
-            .build();
-        let grid_search_revealer = gtk::Revealer::builder()
-            .transition_type(gtk::RevealerTransitionType::SlideDown)
-            .reveal_child(false)
+        let grid_search = gtk::SearchEntry::builder().placeholder_text("Find in results").build();
+        let grid_search_bar = gtk::SearchBar::builder()
             .child(&grid_search)
+            .show_close_button(true)
+            .search_mode_enabled(false)
             .build();
-        let revealer_for_close = grid_search_revealer.clone();
-        let entry_for_close = grid_search.clone();
-        grid_search.connect_stop_search(move |_| {
-            revealer_for_close.set_reveal_child(false);
-            entry_for_close.set_text("");
-        });
+        grid_search_bar.connect_entry(&grid_search);
 
         let browse_view = gtk::Box::builder().orientation(gtk::Orientation::Vertical).build();
         browse_view.append(&paginator_bar);
         browse_view.append(&gtk::Separator::new(gtk::Orientation::Horizontal));
-        browse_view.append(&grid_search_revealer);
+        browse_view.append(&grid_search_bar);
         browse_view.append(&grid_holder);
+        grid_search_bar.set_key_capture_widget(Some(&browse_view));
 
         let model = App {
             registry,
@@ -489,6 +488,7 @@ impl SimpleComponent for App {
             disconnect_button: widgets.disconnect_button.clone(),
             health_pill: widgets.health_pill.clone(),
             health_state: None,
+            row_op_spinner: widgets.row_op_spinner.clone(),
             read_only_badge: widgets.read_only_badge.clone(),
             table_search: widgets.table_search.clone(),
             paginator_label,
@@ -499,7 +499,7 @@ impl SimpleComponent for App {
             delete_button,
             grid_holder,
             grid_search,
-            grid_search_revealer,
+            grid_search_bar,
             browse_view,
             dialog: None,
             editor: None,
@@ -574,6 +574,7 @@ impl SimpleComponent for App {
             AppMsg::EditCommitted => self.on_edit_committed(sender),
             AppMsg::DeleteSelectedRow => self.on_delete_selected_row(sender),
             AppMsg::RowOperationCommitted(undo) => {
+                self.set_row_op_in_flight(false);
                 let label = undo
                     .as_ref()
                     .map(|u| u.label.clone())
@@ -585,7 +586,9 @@ impl SimpleComponent for App {
                 }
                 self.fetch_current_page(sender);
             }
+            AppMsg::RowOpStarted => self.set_row_op_in_flight(true),
             AppMsg::ExecuteUndo(batch) => {
+                self.set_row_op_in_flight(true);
                 self.show_toast("Undoing…");
                 run_undo_batch(sender, batch);
             }
@@ -873,7 +876,17 @@ impl App {
 
     fn on_load_failed(&self, msg: String) {
         tracing::warn!(error = %msg, "load failed");
+        self.set_row_op_in_flight(false);
         self.set_status_page("Failed", &msg);
+    }
+
+    fn set_row_op_in_flight(&self, in_flight: bool) {
+        self.row_op_spinner.set_visible(in_flight);
+        if in_flight {
+            self.row_op_spinner.start();
+        } else {
+            self.row_op_spinner.stop();
+        }
     }
 
     fn on_insert_row(&mut self, sender: ComponentSender<Self>) {
@@ -1056,6 +1069,7 @@ impl App {
             label: "Cell updated".into(),
             statements: vec![(s, p)],
         });
+        self.set_row_op_in_flight(true);
         execute_then_refetch(sender, sql, params, undo);
     }
 
@@ -1414,6 +1428,7 @@ impl App {
             let sql = sql.clone();
             let batches = batches.clone();
             let undo = undo.clone();
+            sender_clone.input(AppMsg::RowOpStarted);
             execute_many_then_refetch(sender_clone.clone(), sql, batches, undo);
         });
         dialog.present(Some(&self.window));
@@ -1940,6 +1955,7 @@ impl App {
             label: "Cell cleared".into(),
             statements: vec![(s, p)],
         });
+        self.set_row_op_in_flight(true);
         execute_then_refetch(sender, sql, params, undo);
     }
 
@@ -2065,8 +2081,8 @@ impl App {
     }
 
     fn on_find_in_results(&self) {
-        if !self.grid_search_revealer.is_child_revealed() {
-            self.grid_search_revealer.set_reveal_child(true);
+        if !self.grid_search_bar.is_search_mode() {
+            self.grid_search_bar.set_search_mode(true);
         }
         self.grid_search.grab_focus();
     }
