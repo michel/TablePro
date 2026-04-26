@@ -586,13 +586,20 @@ fn apply_editor_scheme(view: &sourceview5::View) {
     }
 }
 
-fn apply_editor_font_size(view: &sourceview5::View, font_size: u32) {
+fn apply_editor_font_size(_view: &sourceview5::View, font_size: u32) {
+    // GTK 4.10+ removed per-widget CssProvider (gtk::Widget::style_context()
+    // is deprecated). The replacement is display-scoped — register the rule
+    // once on the default display; the textview selector ensures only
+    // SourceView / TextView descendants are affected (gtk::Entry doesn't
+    // match). Multiple invocations stack harmlessly when the rule body is
+    // identical, but if the font size has changed since the last call we
+    // need a fresh provider per call.
     let css = format!("textview, textview text {{ font-size: {font_size}pt; }}");
     let provider = gtk::CssProvider::new();
     provider.load_from_string(&css);
-    #[allow(deprecated)]
-    view.style_context()
-        .add_provider(&provider, gtk::STYLE_PROVIDER_PRIORITY_APPLICATION);
+    if let Some(display) = gtk::gdk::Display::default() {
+        gtk::style_context_add_provider_for_display(&display, &provider, gtk::STYLE_PROVIDER_PRIORITY_APPLICATION);
+    }
 }
 
 #[cfg(test)]

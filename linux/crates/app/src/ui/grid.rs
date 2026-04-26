@@ -7,17 +7,40 @@ use gtk4::{self as gtk, gio, glib};
 use tablepro_core::{ColumnInfo, QueryResult, Value};
 
 use super::row_object::RowObject;
-use crate::ui::app::AppMsg;
 
 pub type FilterSetter = Rc<dyn Fn(&str)>;
+
+#[derive(Debug)]
+pub enum GridMsg {
+    SortChanged(usize),
+    CellEdited {
+        table: String,
+        row_position: u32,
+        col_index: usize,
+        new_value: String,
+    },
+    CopyToClipboard(String),
+    CopyRowAsInsert {
+        row_position: u32,
+    },
+    SetCellNull {
+        table: String,
+        row_position: u32,
+        col_index: usize,
+    },
+    DeleteRowAt {
+        table: String,
+        row_position: u32,
+    },
+}
 
 pub fn build_column_view(
     result: &QueryResult,
     schema_columns: &[ColumnInfo],
     table: &str,
-    edit_sender: Option<relm4::Sender<AppMsg>>,
+    edit_sender: Option<relm4::Sender<GridMsg>>,
     sort: Option<(usize, bool)>,
-    sort_sender: Option<relm4::Sender<AppMsg>>,
+    sort_sender: Option<relm4::Sender<GridMsg>>,
     connection_id: Option<uuid::Uuid>,
 ) -> (gtk::ColumnView, gtk::MultiSelection, FilterSetter) {
     let store = gtk4::gio::ListStore::new::<RowObject>();
@@ -95,7 +118,7 @@ pub fn build_column_view(
             };
             for (idx, col) in columns.iter().enumerate() {
                 if col == &active {
-                    app_sender.send(AppMsg::SortChanged(idx)).ok();
+                    app_sender.send(GridMsg::SortChanged(idx)).ok();
                     break;
                 }
             }
@@ -111,9 +134,9 @@ fn build_column(
     idx: usize,
     editable: bool,
     table: String,
-    sender: Option<relm4::Sender<AppMsg>>,
+    sender: Option<relm4::Sender<GridMsg>>,
     sort_indicator: Option<bool>,
-    sort_sender: Option<relm4::Sender<AppMsg>>,
+    sort_sender: Option<relm4::Sender<GridMsg>>,
     connection_id: Option<uuid::Uuid>,
 ) -> gtk::ColumnViewColumn {
     let factory = gtk::SignalListItemFactory::new();
@@ -163,7 +186,7 @@ fn build_column(
                     return;
                 }
                 sender_clone
-                    .send(AppMsg::CellEdited {
+                    .send(GridMsg::CellEdited {
                         table: table_clone.clone(),
                         row_position: snap.position,
                         col_index: idx,
@@ -266,7 +289,7 @@ fn build_column(
     column
 }
 
-fn attach_context_menu(widget: &gtk::Widget, idx: usize, table: String, sender: relm4::Sender<AppMsg>) {
+fn attach_context_menu(widget: &gtk::Widget, idx: usize, table: String, sender: relm4::Sender<GridMsg>) {
     let editable = widget.is::<gtk::EditableLabel>();
     let menu = gio::Menu::new();
     menu.append(Some(&crate::tr!("Copy value")), Some("cell.copy-value"));
@@ -288,7 +311,7 @@ fn attach_context_menu(widget: &gtk::Widget, idx: usize, table: String, sender: 
         .activate({
             let s = sender.clone();
             move |_, _, _| {
-                s.send(AppMsg::CopyToClipboard(cell_text(&widget_for_copy))).ok();
+                s.send(GridMsg::CopyToClipboard(cell_text(&widget_for_copy))).ok();
             }
         })
         .build();
@@ -298,7 +321,7 @@ fn attach_context_menu(widget: &gtk::Widget, idx: usize, table: String, sender: 
             let s = sender.clone();
             move |_, _, _| {
                 let position = POSITION_SLOT.get(&widget_for_row).unwrap_or(0);
-                s.send(AppMsg::CopyRowAsInsert { row_position: position }).ok();
+                s.send(GridMsg::CopyRowAsInsert { row_position: position }).ok();
             }
         })
         .build();
@@ -309,7 +332,7 @@ fn attach_context_menu(widget: &gtk::Widget, idx: usize, table: String, sender: 
             let s = sender.clone();
             move |_, _, _| {
                 let position = POSITION_SLOT.get(&widget_for_null).unwrap_or(0);
-                s.send(AppMsg::SetCellNull {
+                s.send(GridMsg::SetCellNull {
                     table: table_for_null.clone(),
                     row_position: position,
                     col_index: idx,
@@ -325,7 +348,7 @@ fn attach_context_menu(widget: &gtk::Widget, idx: usize, table: String, sender: 
             let s = sender;
             move |_, _, _| {
                 let position = POSITION_SLOT.get(&widget_for_delete).unwrap_or(0);
-                s.send(AppMsg::DeleteRowAt {
+                s.send(GridMsg::DeleteRowAt {
                     table: table_for_delete.clone(),
                     row_position: position,
                 })

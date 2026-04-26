@@ -5,7 +5,7 @@ use relm4::{adw, gtk};
 use tablepro_core::{ColumnInfo, Value};
 
 use crate::services::database_service;
-use crate::sql_dialect::build_full_row_update;
+use tablepro_core::sql_dialect::build_full_row_update;
 
 pub struct EditDialog {
     table: String,

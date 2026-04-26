@@ -1,6 +1,6 @@
 use tablepro_core::DriverError;
 
-use crate::sql_dialect::BuildSqlError;
+use tablepro_core::sql_dialect::BuildSqlError;
 
 pub fn build_sql_message(error: &BuildSqlError) -> String {
     match error {

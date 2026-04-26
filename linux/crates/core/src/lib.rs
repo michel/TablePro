@@ -4,6 +4,7 @@ mod error;
 mod query;
 mod read_only;
 mod registry;
+pub mod sql_dialect;
 
 pub use connection::{ConnectOptions, Connection};
 pub use driver::DatabaseDriver;

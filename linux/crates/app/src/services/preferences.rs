@@ -1,6 +1,6 @@
-use std::path::PathBuf;
-
 use serde::{Deserialize, Serialize};
+
+use super::config_io::{atomic_write_json, xdg_config_path};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Preferences {
@@ -27,7 +27,7 @@ impl Default for Preferences {
 }
 
 pub fn load() -> Preferences {
-    let Some(path) = config_path() else {
+    let Some(path) = xdg_config_path("preferences.json") else {
         return Preferences::default();
     };
     std::fs::read(path)
@@ -37,24 +37,8 @@ pub fn load() -> Preferences {
 }
 
 pub fn save(prefs: &Preferences) {
-    let Some(path) = config_path() else { return };
-    if let Some(parent) = path.parent()
-        && std::fs::create_dir_all(parent).is_err()
-    {
-        return;
-    }
-    let Ok(json) = serde_json::to_vec_pretty(prefs) else {
+    let Some(path) = xdg_config_path("preferences.json") else {
         return;
     };
-    let tmp = path.with_extension("json.tmp");
-    if std::fs::write(&tmp, json).is_ok() {
-        let _ = std::fs::rename(tmp, path);
-    }
-}
-
-fn config_path() -> Option<PathBuf> {
-    let base = std::env::var_os("XDG_CONFIG_HOME")
-        .map(PathBuf::from)
-        .or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".config")))?;
-    Some(base.join("tablepro").join("preferences.json"))
+    let _ = atomic_write_json(&path, prefs);
 }

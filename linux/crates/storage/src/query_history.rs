@@ -225,7 +225,10 @@ pub async fn record(entry: NewEntry) -> Result<i64, StorageError> {
 
 pub async fn search(filter: SearchFilter) -> Result<Vec<Entry>, StorageError> {
     let pool = pool()?;
-    let limit = if filter.limit == 0 { 200 } else { filter.limit as i64 };
+    let limit_usize = if filter.limit == 0 { 200 } else { filter.limit };
+    // Cap to a value that fits losslessly in i64 (no negative-LIMIT surprise
+    // in SQLite, which would silently disable the limit).
+    let limit = limit_usize.min(i64::MAX as usize) as i64;
 
     let mut sql = String::from(
         "SELECT h.id, h.query, h.driver_id, h.connection_id, h.connection_name, \
@@ -233,9 +236,13 @@ pub async fn search(filter: SearchFilter) -> Result<Vec<Entry>, StorageError> {
          FROM history h ",
     );
     let mut wheres: Vec<&str> = Vec::new();
+    // FTS5 requires the MATCH operator to be applied directly to the
+    // virtual-table reference; combining it with other WHERE predicates
+    // via AND raises "unable to use function MATCH in the requested
+    // context" on some SQLite builds. Pinning the predicate to the JOIN
+    // condition keeps it isolated from the user-filter predicates below.
     if filter.needle.is_some() {
-        sql.push_str("JOIN history_fts fts ON h.id = fts.rowid ");
-        wheres.push("history_fts MATCH ?");
+        sql.push_str("JOIN history_fts fts ON fts.rowid = h.id AND history_fts MATCH ? ");
     }
     if filter.connection_id.is_some() {
         wheres.push("h.connection_id = ?");

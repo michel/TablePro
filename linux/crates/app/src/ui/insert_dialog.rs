@@ -5,7 +5,7 @@ use relm4::{adw, gtk};
 use tablepro_core::{ColumnInfo, Value};
 
 use crate::services::database_service;
-use crate::sql_dialect::{placeholder_for, quote_ident};
+use tablepro_core::sql_dialect::{placeholder_for, quote_ident};
 
 pub struct InsertDialog {
     table: String,

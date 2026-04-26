@@ -1,6 +1,6 @@
 use thiserror::Error;
 
-use tablepro_core::{ColumnInfo, Value};
+use crate::{ColumnInfo, Value};
 
 #[derive(Debug, Error)]
 pub enum BuildSqlError {

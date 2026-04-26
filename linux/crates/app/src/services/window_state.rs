@@ -1,6 +1,6 @@
-use std::path::PathBuf;
-
 use serde::{Deserialize, Serialize};
+
+use super::config_io::{atomic_write_json, xdg_config_path};
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct WindowState {
@@ -20,7 +20,7 @@ impl Default for WindowState {
 }
 
 pub fn load() -> WindowState {
-    let Some(path) = config_path() else {
+    let Some(path) = xdg_config_path("window.json") else {
         return WindowState::default();
     };
     std::fs::read(path)
@@ -30,24 +30,8 @@ pub fn load() -> WindowState {
 }
 
 pub fn save(state: WindowState) {
-    let Some(path) = config_path() else { return };
-    if let Some(parent) = path.parent()
-        && std::fs::create_dir_all(parent).is_err()
-    {
-        return;
-    }
-    let Ok(json) = serde_json::to_vec_pretty(&state) else {
+    let Some(path) = xdg_config_path("window.json") else {
         return;
     };
-    let tmp = path.with_extension("json.tmp");
-    if std::fs::write(&tmp, json).is_ok() {
-        let _ = std::fs::rename(tmp, path);
-    }
-}
-
-fn config_path() -> Option<PathBuf> {
-    let base = std::env::var_os("XDG_CONFIG_HOME")
-        .map(PathBuf::from)
-        .or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".config")))?;
-    Some(base.join("tablepro").join("window.json"))
+    let _ = atomic_write_json(&path, &state);
 }

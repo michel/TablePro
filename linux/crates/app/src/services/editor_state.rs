@@ -1,12 +1,9 @@
-use std::path::PathBuf;
-use std::sync::Mutex;
-
 use serde::{Deserialize, Serialize};
+
+use super::config_io::{atomic_write_json, xdg_config_path};
 
 const MAX_QUERY_BYTES: usize = 256 * 1024;
 const MAX_TABS: usize = 32;
-
-static SAVE_LOCK: Mutex<()> = Mutex::new(());
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct EditorState {
@@ -20,7 +17,7 @@ pub struct EditorTab {
 }
 
 pub fn load() -> EditorState {
-    let Some(path) = config_path() else {
+    let Some(path) = xdg_config_path("editor.json") else {
         return EditorState::default();
     };
     let mut state: EditorState = std::fs::read(path)
@@ -32,22 +29,12 @@ pub fn load() -> EditorState {
 }
 
 pub fn save(state: &EditorState) {
-    let Some(path) = config_path() else { return };
-    if let Some(parent) = path.parent()
-        && std::fs::create_dir_all(parent).is_err()
-    {
-        return;
-    }
-    let mut snapshot = state.clone();
-    clamp(&mut snapshot);
-    let Ok(json) = serde_json::to_vec_pretty(&snapshot) else {
+    let Some(path) = xdg_config_path("editor.json") else {
         return;
     };
-    let _guard = SAVE_LOCK.lock();
-    let tmp = path.with_extension(format!("json.{}.tmp", std::process::id()));
-    if std::fs::write(&tmp, json).is_ok() {
-        let _ = std::fs::rename(tmp, path);
-    }
+    let mut snapshot = state.clone();
+    clamp(&mut snapshot);
+    let _ = atomic_write_json(&path, &snapshot);
 }
 
 fn clamp(state: &mut EditorState) {
@@ -74,11 +61,4 @@ fn floor_char_boundary(s: &str, idx: usize) -> usize {
         b -= 1;
     }
     b
-}
-
-fn config_path() -> Option<PathBuf> {
-    let base = std::env::var_os("XDG_CONFIG_HOME")
-        .map(PathBuf::from)
-        .or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".config")))?;
-    Some(base.join("tablepro").join("editor.json"))
 }
