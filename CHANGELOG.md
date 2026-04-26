@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - MCP bridge now pins the server's TLS certificate fingerprint instead of accepting any certificate
 - Replaced custom search field with native NSSearchField in keyboard shortcuts, database switcher, and quick switcher
 - Column layout and filter state storage migrated from UserDefaults to file-based storage
+- Refactored welcome screen to properly separate view model and view layer responsibilities
 
 ### Added
 
@@ -37,7 +38,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- ER diagram no longer uses a polling loop to wait for database connection
 - MCP server now shuts down reliably on app quit
+- Result tab bar and history panel follow macOS HIG patterns
 - Improved keyboard and VoiceOver accessibility for interactive rows across the app
 - Compiled theme fallback colors now match the default theme JSON files
 - TablePlus import: correctly map all SSL/TLS modes instead of treating Prefer as disabled
