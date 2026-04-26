@@ -467,20 +467,20 @@ impl SimpleComponent for App {
                 ConnectionRowOutput::Delete(id) => AppMsg::DeleteConnection(id),
             });
 
+        // The SplitButton's tooltip already labels the popover, so we drop
+        // the in-popover "Saved Connections" header that previously sat
+        // above the list. Explicit width_request prevents AdwSplitButton's
+        // narrow dropdown trigger from constraining the popover width
+        // (which produced mid-word hyphenation of connection names).
         let popover_content = gtk::Box::builder()
             .orientation(gtk::Orientation::Vertical)
-            .spacing(8)
-            .margin_top(12)
-            .margin_bottom(12)
-            .margin_start(12)
-            .margin_end(12)
+            .spacing(0)
+            .margin_top(6)
+            .margin_bottom(6)
+            .margin_start(6)
+            .margin_end(6)
+            .width_request(320)
             .build();
-        let header = gtk::Label::builder()
-            .label(crate::tr!("Saved Connections"))
-            .halign(gtk::Align::Start)
-            .build();
-        header.add_css_class("heading");
-        popover_content.append(&header);
 
         let scroll = gtk::ScrolledWindow::builder()
             .child(connections_factory.widget())
@@ -644,6 +644,12 @@ impl SimpleComponent for App {
         let title_stack = gtk::Stack::builder()
             .transition_type(gtk::StackTransitionType::Crossfade)
             .build();
+        // The window_title widget was placed into the headerbar's title slot
+        // by the view! macro. GTK4 enforces single-parent on widgets, so we
+        // must unparent it from the headerbar before re-parenting into
+        // title_stack — otherwise add_named fails silently and the title
+        // area renders empty.
+        widgets.header_bar.set_title_widget(gtk::Widget::NONE);
         title_stack.add_named(&widgets.window_title, Some("title"));
         title_stack.add_named(&view_switcher, Some("switcher"));
         title_stack.set_visible_child_name("title");
