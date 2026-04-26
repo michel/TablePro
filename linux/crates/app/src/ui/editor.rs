@@ -18,7 +18,11 @@ pub struct SqlEditor {
     results_holder: gtk::Box,
     status: gtk::Label,
     cancel_token: Option<CancellationToken>,
-    schema_buffer: gtk::TextBuffer,
+}
+
+pub struct SqlEditorInit {
+    pub schema_buffer: gtk::TextBuffer,
+    pub initial_query: Option<String>,
 }
 
 #[derive(Debug)]
@@ -28,14 +32,19 @@ pub enum SqlEditorInput {
     ShowResult(QueryResult, u128),
     ShowError(String),
     ShowCancelled,
-    SetSchemaWords(Vec<String>),
+}
+
+#[derive(Debug)]
+pub enum SqlEditorOutput {
+    RunStateChanged(bool),
+    QueryChanged(String),
 }
 
 #[relm4::component(pub)]
 impl SimpleComponent for SqlEditor {
-    type Init = ();
+    type Init = SqlEditorInit;
     type Input = SqlEditorInput;
-    type Output = ();
+    type Output = SqlEditorOutput;
 
     view! {
         gtk::Box {
@@ -127,14 +136,17 @@ impl SimpleComponent for SqlEditor {
         }
     }
 
-    fn init(_: Self::Init, _root: Self::Root, sender: ComponentSender<Self>) -> ComponentParts<Self> {
+    fn init(init: Self::Init, _root: Self::Root, sender: ComponentSender<Self>) -> ComponentParts<Self> {
         let widgets = view_output!();
 
         let lang_manager = sourceview5::LanguageManager::default();
+        let initial_text = init.initial_query.unwrap_or_else(|| "SELECT 1;".to_string());
         if let Some(lang) = lang_manager.language("sql") {
             let buffer = sourceview5::Buffer::with_language(&lang);
-            buffer.set_text("SELECT 1;");
+            buffer.set_text(&initial_text);
             widgets.source_view.set_buffer(Some(&buffer));
+        } else {
+            widgets.source_view.buffer().set_text(&initial_text);
         }
         apply_editor_scheme(&widgets.source_view);
         let view_for_theme = widgets.source_view.clone();
@@ -145,10 +157,8 @@ impl SimpleComponent for SqlEditor {
         let font_size = crate::services::preferences::load().editor_font_size;
         apply_editor_font_size(&widgets.source_view, font_size);
 
-        let schema_buffer = gtk::TextBuffer::new(None);
-        schema_buffer.set_text(SQL_KEYWORDS);
         let provider = sourceview5::CompletionWords::new(Some("SQL"));
-        provider.register(&schema_buffer);
+        provider.register(&init.schema_buffer);
         if let Ok(view_buffer) = widgets.source_view.buffer().downcast::<sourceview5::Buffer>() {
             provider.register(&view_buffer);
         }
@@ -170,6 +180,15 @@ impl SimpleComponent for SqlEditor {
             .source_view
             .buffer()
             .connect_cursor_position_notify(move |_| update_cursor());
+
+        let view_for_change = widgets.source_view.clone();
+        let sender_for_change = sender.clone();
+        widgets.source_view.buffer().connect_changed(move |_| {
+            let buffer = view_for_change.buffer();
+            let (start, end) = buffer.bounds();
+            let text = buffer.text(&start, &end, false).to_string();
+            let _ = sender_for_change.output(SqlEditorOutput::QueryChanged(text));
+        });
 
         let run_shortcut = gtk::Shortcut::builder()
             .trigger(&gtk::ShortcutTrigger::parse_string("<Primary>Return").expect("valid trigger"))
@@ -207,9 +226,7 @@ impl SimpleComponent for SqlEditor {
             results_holder: widgets.results_holder.clone(),
             status: widgets.status.clone(),
             cancel_token: None,
-            schema_buffer,
         };
-        let _ = sender;
         ComponentParts { model, widgets }
     }
 
@@ -244,6 +261,7 @@ impl SimpleComponent for SqlEditor {
                 self.running_spinner.set_visible(true);
                 self.status.set_label(&crate::tr!("Running…"));
                 clear_box(&self.results_holder);
+                let _ = sender.output(SqlEditorOutput::RunStateChanged(true));
 
                 let started = std::time::Instant::now();
                 let sender_clone = sender.clone();
@@ -289,6 +307,7 @@ impl SimpleComponent for SqlEditor {
                 self.run_button.set_sensitive(true);
                 self.cancel_button.set_visible(false);
                 self.running_spinner.set_visible(false);
+                let _ = sender.output(SqlEditorOutput::RunStateChanged(false));
                 let n = result.rows.len().to_string();
                 let ms = elapsed_ms.to_string();
                 let label = if result.truncated {
@@ -327,6 +346,7 @@ impl SimpleComponent for SqlEditor {
                 self.run_button.set_sensitive(true);
                 self.cancel_button.set_visible(false);
                 self.running_spinner.set_visible(false);
+                let _ = sender.output(SqlEditorOutput::RunStateChanged(false));
                 self.status.set_label(&crate::tr!("error"));
                 clear_box(&self.results_holder);
                 let err_page = adw::StatusPage::builder()
@@ -338,25 +358,17 @@ impl SimpleComponent for SqlEditor {
                 self.results_holder.append(&err_page);
             }
 
-            SqlEditorInput::SetSchemaWords(words) => {
-                let mut text = String::from(SQL_KEYWORDS);
-                for w in &words {
-                    text.push(' ');
-                    text.push_str(w);
-                }
-                self.schema_buffer.set_text(&text);
-            }
-
             SqlEditorInput::ShowCancelled => {
                 self.cancel_token = None;
                 self.run_button.set_sensitive(true);
                 self.cancel_button.set_visible(false);
                 self.running_spinner.set_visible(false);
+                let _ = sender.output(SqlEditorOutput::RunStateChanged(false));
                 self.status.set_label(&crate::tr!("cancelled"));
                 clear_box(&self.results_holder);
                 let cancelled_page = adw::StatusPage::builder()
-                    .title("Query cancelled")
-                    .description("The running query was stopped.")
+                    .title(crate::tr!("Query cancelled"))
+                    .description(crate::tr!("The running query was stopped."))
                     .icon_name("process-stop-symbolic")
                     .vexpand(true)
                     .build();
@@ -464,7 +476,7 @@ fn split_sql_statements(sql: &str) -> Vec<String> {
     out
 }
 
-const SQL_KEYWORDS: &str = "\
+pub const SQL_KEYWORDS: &str = "\
 SELECT FROM WHERE INSERT INTO VALUES UPDATE SET DELETE \
 JOIN INNER LEFT RIGHT FULL OUTER ON USING UNION INTERSECT EXCEPT \
 GROUP BY ORDER HAVING LIMIT OFFSET DISTINCT ALL AS WITH \
@@ -473,6 +485,36 @@ PRIMARY KEY FOREIGN REFERENCES UNIQUE NOT NULL DEFAULT CHECK \
 AND OR IS LIKE IN BETWEEN EXISTS ANY \
 COUNT SUM AVG MIN MAX CASE WHEN THEN ELSE END \
 TRUE FALSE ASC DESC RETURNING";
+
+pub fn build_schema_buffer() -> gtk::TextBuffer {
+    let buf = gtk::TextBuffer::new(None);
+    buf.set_text(SQL_KEYWORDS);
+    buf
+}
+
+pub fn update_schema_buffer(buffer: &gtk::TextBuffer, schema_words: &[String]) {
+    let mut text = String::from(SQL_KEYWORDS);
+    for w in schema_words {
+        text.push(' ');
+        text.push_str(w);
+    }
+    buffer.set_text(&text);
+}
+
+pub fn derive_tab_label(query: &str) -> String {
+    for line in query.lines() {
+        let trimmed = line.trim();
+        if trimmed.is_empty() || trimmed.starts_with("--") {
+            continue;
+        }
+        let cleaned: String = trimmed.chars().take(30).collect();
+        if cleaned.chars().count() < trimmed.chars().count() {
+            return format!("{cleaned}…");
+        }
+        return cleaned;
+    }
+    crate::tr!("Empty query")
+}
 
 fn apply_editor_scheme(view: &sourceview5::View) {
     let scheme_name = if adw::StyleManager::default().is_dark() {

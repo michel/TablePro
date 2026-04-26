@@ -13,7 +13,9 @@ use uuid::Uuid;
 use super::connect_dialog::{ConnectDialog, ConnectDialogInit, ConnectDialogOutput};
 use super::connection_row::{ConnectionRow, ConnectionRowOutput};
 use super::edit_dialog::{EditDialog, EditDialogInit, EditDialogOutput};
-use super::editor::SqlEditor;
+use super::editor::{
+    SqlEditor, SqlEditorInit, SqlEditorOutput, build_schema_buffer, derive_tab_label, update_schema_buffer,
+};
 use super::grid::build_column_view;
 use super::insert_dialog::{InsertDialog, InsertDialogInit, InsertDialogOutput};
 use super::sidebar_row::{SidebarRow, SidebarRowOutput};
@@ -56,7 +58,10 @@ pub struct App {
     grid_search_handler: Option<glib::SignalHandlerId>,
     browse_view: gtk::Box,
     dialog: Option<Controller<ConnectDialog>>,
-    editor: Option<Controller<SqlEditor>>,
+    editor_root: Option<gtk::Box>,
+    editor_tab_view: Option<adw::TabView>,
+    editor_tabs: Vec<EditorTabSlot>,
+    schema_buffer: gtk::TextBuffer,
     insert_dialog: Option<Controller<InsertDialog>>,
     edit_dialog: Option<Controller<EditDialog>>,
     current_table: Option<String>,
@@ -73,6 +78,15 @@ pub struct App {
     saved_connections: Vec<SavedConnection>,
     connected: bool,
 }
+
+pub struct EditorTabSlot {
+    pub id: Uuid,
+    pub controller: Controller<SqlEditor>,
+    pub page: adw::TabPage,
+    pub query: String,
+}
+
+const EDITOR_TAB_ID_KEY: &str = "tp-editor-tab-id";
 
 #[derive(Debug)]
 pub enum AppMsg {
@@ -110,6 +124,11 @@ pub enum AppMsg {
     OpenSaved(SavedConnection),
     DeleteConnection(Uuid),
     OpenEditor,
+    NewEditorTab,
+    CloseActiveEditorTab,
+    EditorTabClosed(Uuid),
+    EditorTabRunStateChanged(Uuid, bool),
+    EditorTabQueryChanged(Uuid, String),
     Disconnect,
     PollHealth,
     RefreshPage,
@@ -573,7 +592,10 @@ impl SimpleComponent for App {
             grid_search_handler: None,
             browse_view,
             dialog: None,
-            editor: None,
+            editor_root: None,
+            editor_tab_view: None,
+            editor_tabs: Vec::new(),
+            schema_buffer: build_schema_buffer(),
             insert_dialog: None,
             edit_dialog: None,
             current_table: None,
@@ -667,7 +689,12 @@ impl SimpleComponent for App {
                 let conns = connections;
                 self.on_connections_loaded(&conns, sender);
             }
-            AppMsg::OpenEditor => self.on_open_editor(),
+            AppMsg::OpenEditor => self.on_open_editor(sender),
+            AppMsg::NewEditorTab => self.append_editor_tab(None, sender),
+            AppMsg::CloseActiveEditorTab => self.close_active_editor_tab(sender),
+            AppMsg::EditorTabClosed(id) => self.close_editor_tab_by_id(id, sender),
+            AppMsg::EditorTabRunStateChanged(id, running) => self.on_editor_tab_run_state_changed(id, running),
+            AppMsg::EditorTabQueryChanged(id, text) => self.on_editor_tab_query_changed(id, text),
             AppMsg::PollHealth => self.on_poll_health(),
             AppMsg::RefreshPage => self.fetch_current_page(sender),
             AppMsg::ShowShortcuts => self.on_show_shortcuts(),
@@ -737,7 +764,7 @@ impl App {
         } else {
             svc.clear_all();
         }
-        self.editor = None;
+        self.cancel_all_editor_runs();
         self.current_table = None;
         self.current_schema = None;
         self.current_offset = 0;
@@ -761,7 +788,6 @@ impl App {
     }
 
     fn on_select_table(&mut self, schema: Option<String>, name: String, sender: ComponentSender<Self>) {
-        self.editor = None;
         self.current_table = Some(name.clone());
         self.current_schema = schema.clone();
         self.current_offset = 0;
@@ -829,18 +855,13 @@ impl App {
     }
 
     fn push_schema_words(&self) {
-        if let Some(editor) = self.editor.as_ref() {
-            let mut words: Vec<String> = self.table_names.clone();
-            for c in &self.current_columns {
-                words.push(c.name.clone());
-            }
-            words.sort_unstable();
-            words.dedup();
-            editor
-                .sender()
-                .send(super::editor::SqlEditorInput::SetSchemaWords(words))
-                .ok();
+        let mut words: Vec<String> = self.table_names.clone();
+        for c in &self.current_columns {
+            words.push(c.name.clone());
         }
+        words.sort_unstable();
+        words.dedup();
+        update_schema_buffer(&self.schema_buffer, &words);
     }
 
     fn on_prev_page(&mut self, sender: ComponentSender<Self>) {
@@ -1185,7 +1206,7 @@ impl App {
         }
     }
 
-    fn on_open_editor(&mut self) {
+    fn on_open_editor(&mut self, sender: ComponentSender<Self>) {
         if database_service::instance().active().is_none() {
             self.set_status_page(
                 &crate::tr!("No connection"),
@@ -1193,10 +1214,231 @@ impl App {
             );
             return;
         }
-        let editor = SqlEditor::builder().launch(()).detach();
-        self.content_holder.set_content(Some(editor.widget()));
-        self.editor = Some(editor);
+        if self.editor_root.is_none() {
+            self.build_editor_root(sender.clone());
+            self.restore_editor_tabs(sender);
+        }
+        if let Some(root) = self.editor_root.as_ref() {
+            self.content_holder.set_content(Some(root));
+        }
+    }
+
+    fn build_editor_root(&mut self, sender: ComponentSender<Self>) {
+        let tab_view = adw::TabView::new();
+        let tab_bar = adw::TabBar::builder()
+            .view(&tab_view)
+            .autohide(false)
+            .expand_tabs(true)
+            .build();
+
+        let new_tab_button = gtk::Button::builder()
+            .icon_name("tab-new-symbolic")
+            .tooltip_text(crate::tr!("New tab"))
+            .valign(gtk::Align::Center)
+            .build();
+        new_tab_button.add_css_class("flat");
+        let new_tab_sender = sender.clone();
+        new_tab_button.connect_clicked(move |_| new_tab_sender.input(AppMsg::NewEditorTab));
+        tab_bar.set_end_action_widget(Some(&new_tab_button));
+
+        let close_sender = sender.clone();
+        tab_view.connect_close_page(move |_view, page| {
+            if let Some(id) = read_tab_id(page) {
+                close_sender.input(AppMsg::EditorTabClosed(id));
+            }
+            glib::Propagation::Stop
+        });
+
+        let root = gtk::Box::builder().orientation(gtk::Orientation::Vertical).build();
+        root.append(&tab_bar);
+        root.append(&tab_view);
+
+        let close_tab_shortcut = gtk::Shortcut::builder()
+            .trigger(&gtk::ShortcutTrigger::parse_string("<Primary>w").expect("valid trigger"))
+            .action(&gtk::CallbackAction::new({
+                let s = sender.clone();
+                move |_, _| {
+                    s.input(AppMsg::CloseActiveEditorTab);
+                    glib::Propagation::Stop
+                }
+            }))
+            .build();
+        let new_tab_shortcut = gtk::Shortcut::builder()
+            .trigger(&gtk::ShortcutTrigger::parse_string("<Primary>t").expect("valid trigger"))
+            .action(&gtk::CallbackAction::new({
+                let s = sender.clone();
+                move |_, _| {
+                    s.input(AppMsg::NewEditorTab);
+                    glib::Propagation::Stop
+                }
+            }))
+            .build();
+        let controller = gtk::ShortcutController::new();
+        controller.set_scope(gtk::ShortcutScope::Local);
+        controller.add_shortcut(close_tab_shortcut);
+        controller.add_shortcut(new_tab_shortcut);
+        root.add_controller(controller);
+
+        self.editor_root = Some(root);
+        self.editor_tab_view = Some(tab_view);
+    }
+
+    fn restore_editor_tabs(&mut self, sender: ComponentSender<Self>) {
+        let saved = crate::services::editor_state::load();
+        if saved.tabs.is_empty() {
+            self.append_editor_tab(None, sender);
+            return;
+        }
+        for tab in &saved.tabs {
+            self.append_editor_tab(Some(tab.query.clone()), sender.clone());
+        }
+        if let Some(tab_view) = self.editor_tab_view.as_ref()
+            && let Some(slot) = self.editor_tabs.get(saved.active_idx as usize)
+        {
+            tab_view.set_selected_page(&slot.page);
+        }
+    }
+
+    fn append_editor_tab(&mut self, initial_query: Option<String>, sender: ComponentSender<Self>) {
+        let Some(tab_view) = self.editor_tab_view.clone() else {
+            return;
+        };
+        let query = initial_query.clone().unwrap_or_default();
+        let label = if query.trim().is_empty() {
+            self.next_default_tab_label()
+        } else {
+            derive_tab_label(&query)
+        };
+        let tab_id = Uuid::new_v4();
+
+        let editor = SqlEditor::builder()
+            .launch(SqlEditorInit {
+                schema_buffer: self.schema_buffer.clone(),
+                initial_query,
+            })
+            .forward(sender.input_sender(), move |out| match out {
+                SqlEditorOutput::RunStateChanged(running) => AppMsg::EditorTabRunStateChanged(tab_id, running),
+                SqlEditorOutput::QueryChanged(text) => AppMsg::EditorTabQueryChanged(tab_id, text),
+            });
+
+        let page = tab_view.append(editor.widget());
+        page.set_title(&label);
+        page.set_tooltip(&label);
+        write_tab_id(&page, tab_id);
+        tab_view.set_selected_page(&page);
+
+        let slot = EditorTabSlot {
+            id: tab_id,
+            controller: editor,
+            page,
+            query,
+        };
+        self.editor_tabs.push(slot);
         self.push_schema_words();
+        self.persist_editor_state();
+    }
+
+    fn next_default_tab_label(&self) -> String {
+        let n = self.editor_tabs.len() + 1;
+        crate::tr!("Query {n}").replace("{n}", &n.to_string())
+    }
+
+    fn close_editor_tab_by_id(&mut self, id: Uuid, sender: ComponentSender<Self>) {
+        let Some(tab_view) = self.editor_tab_view.clone() else {
+            return;
+        };
+        let Some(idx) = self.editor_tabs.iter().position(|s| s.id == id) else {
+            return;
+        };
+        let slot = self.editor_tabs.remove(idx);
+        let _ = slot.controller.sender().send(super::editor::SqlEditorInput::Cancel);
+        tab_view.close_page_finish(&slot.page, true);
+        drop(slot);
+        self.persist_editor_state();
+
+        if self.editor_tabs.is_empty() {
+            self.editor_root = None;
+            self.editor_tab_view = None;
+            self.show_welcome_or_grid_after_editor_close(sender);
+        }
+    }
+
+    fn close_active_editor_tab(&mut self, sender: ComponentSender<Self>) {
+        let Some(tab_view) = self.editor_tab_view.as_ref() else {
+            self.window.close();
+            return;
+        };
+        let Some(page) = tab_view.selected_page() else {
+            return;
+        };
+        let Some(id) = read_tab_id(&page) else {
+            return;
+        };
+        self.close_editor_tab_by_id(id, sender);
+    }
+
+    fn show_welcome_or_grid_after_editor_close(&mut self, sender: ComponentSender<Self>) {
+        if self.connected {
+            self.set_status_page(
+                &crate::tr!("Select a table"),
+                &crate::tr!("Pick a table from the left to load rows."),
+            );
+        } else {
+            self.show_welcome_page(sender);
+        }
+    }
+
+    fn slot_for_id(&self, id: Uuid) -> Option<&EditorTabSlot> {
+        self.editor_tabs.iter().find(|s| s.id == id)
+    }
+
+    fn slot_for_id_mut(&mut self, id: Uuid) -> Option<&mut EditorTabSlot> {
+        self.editor_tabs.iter_mut().find(|s| s.id == id)
+    }
+
+    fn on_editor_tab_run_state_changed(&self, id: Uuid, running: bool) {
+        if let Some(slot) = self.slot_for_id(id) {
+            slot.page.set_loading(running);
+        }
+    }
+
+    fn on_editor_tab_query_changed(&mut self, id: Uuid, query: String) {
+        let label = if query.trim().is_empty() {
+            crate::tr!("Empty query")
+        } else {
+            derive_tab_label(&query)
+        };
+        if let Some(slot) = self.slot_for_id_mut(id) {
+            slot.page.set_title(&label);
+            slot.page.set_tooltip(&label);
+            slot.query = query;
+        }
+        self.persist_editor_state();
+    }
+
+    fn persist_editor_state(&self) {
+        let Some(tab_view) = self.editor_tab_view.as_ref() else {
+            crate::services::editor_state::save(&crate::services::editor_state::EditorState::default());
+            return;
+        };
+        let active_idx = tab_view
+            .selected_page()
+            .and_then(|p| read_tab_id(&p))
+            .and_then(|id| self.editor_tabs.iter().position(|s| s.id == id))
+            .unwrap_or(0) as u32;
+        let tabs: Vec<crate::services::editor_state::EditorTab> = self
+            .editor_tabs
+            .iter()
+            .map(|s| crate::services::editor_state::EditorTab { query: s.query.clone() })
+            .collect();
+        let state = crate::services::editor_state::EditorState { tabs, active_idx };
+        crate::services::editor_state::save(&state);
+    }
+
+    fn cancel_all_editor_runs(&self) {
+        for slot in &self.editor_tabs {
+            let _ = slot.controller.sender().send(super::editor::SqlEditorInput::Cancel);
+        }
     }
 
     fn on_poll_health(&mut self) {
@@ -1818,6 +2060,16 @@ fn qualified_label(schema: Option<&str>, table: &str) -> String {
     }
 }
 
+fn write_tab_id(page: &adw::TabPage, id: Uuid) {
+    unsafe {
+        page.set_data(EDITOR_TAB_ID_KEY, id);
+    }
+}
+
+fn read_tab_id(page: &adw::TabPage) -> Option<Uuid> {
+    unsafe { page.data::<Uuid>(EDITOR_TAB_ID_KEY).map(|p| *p.as_ref()) }
+}
+
 fn primary_menu_model() -> gio::Menu {
     let menu = gio::Menu::new();
     let connection_section = gio::Menu::new();
@@ -1955,6 +2207,13 @@ fn build_shortcuts_window(parent: &adw::ApplicationWindow) -> gtk::ShortcutsWind
     let editor = gtk::ShortcutsGroup::builder().title(crate::tr!("SQL editor")).build();
     editor.append(&shortcut_entry("<Primary>Return", &crate::tr!("Run query")));
     editor.append(&shortcut_entry("Escape", &crate::tr!("Cancel running query")));
+    editor.append(&shortcut_entry("<Primary>t", &crate::tr!("New editor tab")));
+    editor.append(&shortcut_entry("<Primary>w", &crate::tr!("Close editor tab")));
+    editor.append(&shortcut_entry("<Primary>Tab", &crate::tr!("Next editor tab")));
+    editor.append(&shortcut_entry(
+        "<Primary><Shift>Tab",
+        &crate::tr!("Previous editor tab"),
+    ));
     section.append(&editor);
 
     let dialogs = gtk::ShortcutsGroup::builder().title(crate::tr!("Dialogs")).build();
