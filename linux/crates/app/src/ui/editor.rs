@@ -17,6 +17,7 @@ pub struct SqlEditor {
     results_holder: gtk::Box,
     status: gtk::Label,
     cancel_token: Option<CancellationToken>,
+    schema_buffer: gtk::TextBuffer,
 }
 
 #[derive(Debug)]
@@ -26,6 +27,7 @@ pub enum SqlEditorInput {
     ShowResult(QueryResult, u128),
     ShowError(String),
     ShowCancelled,
+    SetSchemaWords(Vec<String>),
 }
 
 #[relm4::component(pub)]
@@ -124,6 +126,16 @@ impl SimpleComponent for SqlEditor {
             apply_editor_scheme(&view_for_theme);
         });
 
+        let schema_buffer = gtk::TextBuffer::new(None);
+        schema_buffer.set_text(SQL_KEYWORDS);
+        let provider = sourceview5::CompletionWords::new(Some("SQL"));
+        provider.register(&schema_buffer);
+        if let Ok(view_buffer) = widgets.source_view.buffer().downcast::<sourceview5::Buffer>() {
+            provider.register(&view_buffer);
+        }
+        let completion = widgets.source_view.completion();
+        completion.add_provider(&provider);
+
         let run_shortcut = gtk::Shortcut::builder()
             .trigger(&gtk::ShortcutTrigger::parse_string("<Primary>Return").expect("valid trigger"))
             .action(&gtk::CallbackAction::new({
@@ -145,6 +157,7 @@ impl SimpleComponent for SqlEditor {
             results_holder: widgets.results_holder.clone(),
             status: widgets.status.clone(),
             cancel_token: None,
+            schema_buffer,
         };
         let _ = sender;
         ComponentParts { model, widgets }
@@ -240,7 +253,7 @@ impl SimpleComponent for SqlEditor {
                     self.results_holder.append(&placeholder);
                 } else {
                     let (column_view, _selection, _filter) =
-                        build_column_view(&result, &result.columns, "", None, None, None);
+                        build_column_view(&result, &result.columns, "", None, None, None, None);
                     let scrolled = gtk::ScrolledWindow::builder()
                         .child(&column_view)
                         .hexpand(true)
@@ -263,6 +276,15 @@ impl SimpleComponent for SqlEditor {
                     .vexpand(true)
                     .build();
                 self.results_holder.append(&err_page);
+            }
+
+            SqlEditorInput::SetSchemaWords(words) => {
+                let mut text = String::from(SQL_KEYWORDS);
+                for w in &words {
+                    text.push(' ');
+                    text.push_str(w);
+                }
+                self.schema_buffer.set_text(&text);
             }
 
             SqlEditorInput::ShowCancelled => {
@@ -288,6 +310,16 @@ fn clear_box(b: &gtk::Box) {
         b.remove(&child);
     }
 }
+
+const SQL_KEYWORDS: &str = "\
+SELECT FROM WHERE INSERT INTO VALUES UPDATE SET DELETE \
+JOIN INNER LEFT RIGHT FULL OUTER ON USING UNION INTERSECT EXCEPT \
+GROUP BY ORDER HAVING LIMIT OFFSET DISTINCT ALL AS WITH \
+CREATE TABLE INDEX VIEW DROP ALTER TRUNCATE \
+PRIMARY KEY FOREIGN REFERENCES UNIQUE NOT NULL DEFAULT CHECK \
+AND OR IS LIKE IN BETWEEN EXISTS ANY \
+COUNT SUM AVG MIN MAX CASE WHEN THEN ELSE END \
+TRUE FALSE ASC DESC RETURNING";
 
 fn apply_editor_scheme(view: &sourceview5::View) {
     let scheme_name = if adw::StyleManager::default().is_dark() {

@@ -18,6 +18,7 @@ pub fn build_column_view(
     edit_sender: Option<relm4::Sender<AppMsg>>,
     sort: Option<(usize, bool)>,
     sort_sender: Option<relm4::Sender<AppMsg>>,
+    connection_id: Option<uuid::Uuid>,
 ) -> (gtk::ColumnView, gtk::MultiSelection, FilterSetter) {
     let store = gtk4::gio::ListStore::new::<RowObject>();
     for row in &result.rows {
@@ -64,6 +65,7 @@ pub fn build_column_view(
             edit_sender.clone(),
             sort_indicator,
             sort_sender.clone(),
+            connection_id,
         );
         column_view.append_column(&col);
         columns.push(col);
@@ -90,6 +92,7 @@ pub fn build_column_view(
     (column_view, selection, setter)
 }
 
+#[allow(clippy::too_many_arguments)]
 fn build_column(
     info: &ColumnInfo,
     idx: usize,
@@ -98,12 +101,16 @@ fn build_column(
     sender: Option<relm4::Sender<AppMsg>>,
     sort_indicator: Option<bool>,
     sort_sender: Option<relm4::Sender<AppMsg>>,
+    connection_id: Option<uuid::Uuid>,
 ) -> gtk::ColumnViewColumn {
     let factory = gtk::SignalListItemFactory::new();
     let editable_for_setup = editable && sender.is_some();
     let sender_for_setup = sender.clone();
-    let table_for_setup = table;
+    let table_for_setup = table.clone();
+    let table_for_persist = table;
 
+    let context_sender = sender.clone();
+    let context_table = table_for_setup.clone();
     factory.connect_setup(move |_, item| {
         let Some(item) = item.downcast_ref::<gtk::ListItem>() else {
             return;
@@ -116,6 +123,10 @@ fn build_column(
             .build();
         label.set_editable(editable_for_setup);
         item.set_child(Some(&label));
+
+        if let Some(ctx_sender) = context_sender.clone() {
+            attach_context_menu(&label, idx, context_table.clone(), ctx_sender);
+        }
 
         if !editable_for_setup {
             return;
@@ -206,7 +217,110 @@ fn build_column(
         let dummy = gtk::CustomSorter::new(|_, _| gtk::Ordering::Equal);
         column.set_sorter(Some(&dummy));
     }
+    if let Some(id) = connection_id {
+        if let Some(saved) = crate::services::column_widths::load(id, &table_for_persist, &info.name) {
+            column.set_fixed_width(saved);
+        }
+        let column_for_save = column.clone();
+        let column_name = info.name.clone();
+        column.connect_fixed_width_notify(move |_| {
+            let width = column_for_save.fixed_width();
+            if width > 0 {
+                crate::services::column_widths::save(id, &table_for_persist, &column_name, width);
+            }
+        });
+    }
     column
+}
+
+fn attach_context_menu(label: &gtk::EditableLabel, idx: usize, table: String, sender: relm4::Sender<AppMsg>) {
+    let gesture = gtk::GestureClick::new();
+    gesture.set_button(3);
+    let label_ref = label.clone();
+    gesture.connect_pressed(move |g, _, x, y| {
+        g.set_state(gtk::EventSequenceState::Claimed);
+        let position = POSITION_SLOT.get(&label_ref).unwrap_or(0);
+        let cell_text = label_ref.text().to_string();
+
+        let popover = gtk::Popover::builder()
+            .has_arrow(true)
+            .pointing_to(&gtk::gdk::Rectangle::new(x as i32, y as i32, 1, 1))
+            .build();
+        let menu_box = gtk::Box::builder()
+            .orientation(gtk::Orientation::Vertical)
+            .spacing(2)
+            .margin_top(6)
+            .margin_bottom(6)
+            .margin_start(6)
+            .margin_end(6)
+            .build();
+
+        let copy_btn = menu_button("Copy value");
+        let s = sender.clone();
+        let pop = popover.clone();
+        let txt = cell_text.clone();
+        copy_btn.connect_clicked(move |_| {
+            s.send(AppMsg::CopyToClipboard(txt.clone())).ok();
+            pop.popdown();
+        });
+        menu_box.append(&copy_btn);
+
+        let copy_row_btn = menu_button("Copy row as INSERT");
+        let s = sender.clone();
+        let pop = popover.clone();
+        copy_row_btn.connect_clicked(move |_| {
+            s.send(AppMsg::CopyRowAsInsert { row_position: position }).ok();
+            pop.popdown();
+        });
+        menu_box.append(&copy_row_btn);
+
+        if label_ref.is_editable() {
+            menu_box.append(&gtk::Separator::new(gtk::Orientation::Horizontal));
+
+            let null_btn = menu_button("Set to NULL");
+            let s = sender.clone();
+            let pop = popover.clone();
+            let table_for_null = table.clone();
+            null_btn.connect_clicked(move |_| {
+                s.send(AppMsg::SetCellNull {
+                    table: table_for_null.clone(),
+                    row_position: position,
+                    col_index: idx,
+                })
+                .ok();
+                pop.popdown();
+            });
+            menu_box.append(&null_btn);
+
+            let delete_btn = menu_button("Delete row");
+            delete_btn.add_css_class("destructive-action");
+            let s = sender.clone();
+            let pop = popover.clone();
+            let table_for_delete = table.clone();
+            delete_btn.connect_clicked(move |_| {
+                s.send(AppMsg::DeleteRowAt {
+                    table: table_for_delete.clone(),
+                    row_position: position,
+                })
+                .ok();
+                pop.popdown();
+            });
+            menu_box.append(&delete_btn);
+        }
+
+        popover.set_child(Some(&menu_box));
+        popover.set_parent(&label_ref);
+        popover.popup();
+    });
+    label.add_controller(gesture);
+}
+
+fn menu_button(label: &str) -> gtk::Button {
+    let btn = gtk::Button::builder().label(label).build();
+    btn.add_css_class("flat");
+    btn.set_halign(gtk::Align::Fill);
+    btn.set_hexpand(true);
+    btn
 }
 
 fn is_cell_editable(col: &ColumnInfo) -> bool {

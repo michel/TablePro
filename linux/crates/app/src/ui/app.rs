@@ -58,6 +58,7 @@ pub struct App {
     current_sort: Option<(usize, bool)>,
     current_total_rows: Option<u64>,
     page_size: u64,
+    table_names: Vec<String>,
     connected: bool,
 }
 
@@ -103,6 +104,19 @@ pub enum AppMsg {
     FindInResults,
     ExportCsv,
     ExportJson,
+    CopyToClipboard(String),
+    SetCellNull {
+        table: String,
+        row_position: u32,
+        col_index: usize,
+    },
+    DeleteRowAt {
+        table: String,
+        row_position: u32,
+    },
+    CopyRowAsInsert {
+        row_position: u32,
+    },
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -449,6 +463,7 @@ impl SimpleComponent for App {
             current_sort: None,
             current_total_rows: None,
             page_size: DEFAULT_PAGE_SIZE,
+            table_names: Vec::new(),
             connected: false,
         };
         sender.input(AppMsg::ReloadConnections);
@@ -527,6 +542,14 @@ impl SimpleComponent for App {
             AppMsg::FindInResults => self.on_find_in_results(),
             AppMsg::ExportCsv => self.on_export(ExportFormat::Csv),
             AppMsg::ExportJson => self.on_export(ExportFormat::Json),
+            AppMsg::CopyToClipboard(text) => self.on_copy_to_clipboard(text),
+            AppMsg::SetCellNull {
+                table,
+                row_position,
+                col_index,
+            } => self.on_set_cell_null(table, row_position, col_index, sender),
+            AppMsg::DeleteRowAt { table, row_position } => self.on_delete_row_at(table, row_position, sender),
+            AppMsg::CopyRowAsInsert { row_position } => self.on_copy_row_as_insert(row_position),
             AppMsg::DeleteConnection(id) => self.on_delete_connection(id, sender),
             AppMsg::OpenSaved(saved) => self.on_open_saved(saved, sender),
         }
@@ -554,8 +577,10 @@ impl App {
         self.edit_button.set_sensitive(true);
         self.disconnect_button.set_visible(true);
         self.table_search.set_text("");
+        self.table_names = tables.iter().map(|t| t.name.clone()).collect();
         tracing::info!(driver = %driver_id, table_count = tables.len(), "workspace ready");
         rebuild_sidebar(&self.sidebar, &tables, sender.clone());
+        self.push_schema_words();
         self.set_status_page(
             "Select a table",
             &format!("Connected to {driver_id}. Pick a table from the left to load up to 100,000 rows."),
@@ -643,8 +668,24 @@ impl App {
         }
         self.current_columns = columns;
         self.refresh_crud_buttons();
+        self.push_schema_words();
         if self.current_result.is_some() {
             self.fetch_current_page(sender);
+        }
+    }
+
+    fn push_schema_words(&self) {
+        if let Some(editor) = self.editor.as_ref() {
+            let mut words: Vec<String> = self.table_names.clone();
+            for c in &self.current_columns {
+                words.push(c.name.clone());
+            }
+            words.sort_unstable();
+            words.dedup();
+            editor
+                .sender()
+                .send(super::editor::SqlEditorInput::SetSchemaWords(words))
+                .ok();
         }
     }
 
@@ -729,6 +770,7 @@ impl App {
             edit_sender,
             self.current_sort,
             Some(sender.input_sender().clone()),
+            database_service::instance().active_id(),
         );
         let setter = filter_setter.clone();
         self.grid_search.connect_search_changed(move |entry| {
@@ -956,6 +998,7 @@ impl App {
         let editor = SqlEditor::builder().launch(()).detach();
         self.content_holder.set_content(Some(editor.widget()));
         self.editor = Some(editor);
+        self.push_schema_words();
     }
 
     fn on_poll_health(&mut self) {
@@ -1171,6 +1214,24 @@ impl App {
         dialog.add_response("ok", "OK");
         dialog.set_default_response(Some("ok"));
         dialog.present(Some(&self.window));
+    }
+}
+
+fn value_to_sql_literal(v: &Value) -> String {
+    match v {
+        Value::Null => "NULL".into(),
+        Value::Bool(b) => b.to_string(),
+        Value::Int(i) => i.to_string(),
+        Value::Float(f) => f.to_string(),
+        Value::Decimal(d) => d.to_string(),
+        Value::Text(s) => format!("'{}'", s.replace('\'', "''")),
+        Value::Bytes(_) => "/* bytes omitted */ NULL".into(),
+        Value::Date(d) => format!("'{}'", d.format("%Y-%m-%d")),
+        Value::Time(t) => format!("'{}'", t.format("%H:%M:%S")),
+        Value::DateTime(dt) => format!("'{}'", dt.format("%Y-%m-%d %H:%M:%S")),
+        Value::TimestampTz(ts) => format!("'{}'", ts.to_rfc3339()),
+        Value::Uuid(u) => format!("'{u}'"),
+        Value::Json(j) => format!("'{}'", j.to_string().replace('\'', "''")),
     }
 }
 
@@ -1509,6 +1570,112 @@ fn shortcut_entry(accel: &str, title: &str) -> gtk::ShortcutsShortcut {
 impl App {
     fn on_show_shortcuts(&self) {
         build_shortcuts_window(&self.window).present();
+    }
+
+    fn on_copy_to_clipboard(&self, text: String) {
+        self.window.clipboard().set_text(&text);
+        self.show_toast("Copied to clipboard");
+    }
+
+    fn on_set_cell_null(&mut self, table: String, row_position: u32, col_index: usize, sender: ComponentSender<Self>) {
+        if self.current_table.as_deref() != Some(&table) {
+            return;
+        }
+        let (Some(driver_id), Some(result)) = (self.current_driver_id.clone(), self.current_result.clone()) else {
+            return;
+        };
+        let Some(row) = result.rows.get(row_position as usize).cloned() else {
+            return;
+        };
+        if col_index >= self.current_columns.len() {
+            return;
+        }
+        let (sql, params) = match crate::sql_dialect::build_single_cell_update(
+            &driver_id,
+            &table,
+            &self.current_columns,
+            &row,
+            col_index,
+            Value::Null,
+        ) {
+            Ok(t) => t,
+            Err(e) => {
+                self.show_error_alert("Cannot set NULL", &super::error_text::build_sql_message(&e));
+                return;
+            }
+        };
+        execute_then_refetch(sender, sql, params);
+    }
+
+    fn on_delete_row_at(&mut self, table: String, row_position: u32, sender: ComponentSender<Self>) {
+        if self.current_table.as_deref() != Some(&table) {
+            return;
+        }
+        let Some(result) = self.current_result.clone() else {
+            return;
+        };
+        let pk_indexes: Vec<usize> = self
+            .current_columns
+            .iter()
+            .enumerate()
+            .filter(|(_, c)| c.primary_key)
+            .map(|(i, _)| i)
+            .collect();
+        if pk_indexes.is_empty() {
+            self.show_error_alert(
+                "Cannot delete",
+                &super::error_text::build_sql_message(&crate::sql_dialect::BuildSqlError::NoPrimaryKey),
+            );
+            return;
+        }
+        let driver_id = self.current_driver_id.clone().unwrap_or_else(|| "postgres".to_string());
+        let preview = result
+            .rows
+            .get(row_position as usize)
+            .map(|r| {
+                format!(
+                    "Delete row where {}?",
+                    preview_pk(&self.current_columns, &pk_indexes, r)
+                )
+            })
+            .unwrap_or_else(|| "Delete row?".into());
+        self.confirm_and_execute_many(
+            sender,
+            &table,
+            &driver_id,
+            &pk_indexes,
+            &[row_position],
+            &result.rows,
+            &preview,
+            "Delete",
+        );
+    }
+
+    fn on_copy_row_as_insert(&self, row_position: u32) {
+        let Some(result) = self.current_result.as_ref() else {
+            return;
+        };
+        let Some(table) = self.current_table.as_ref() else {
+            return;
+        };
+        let Some(row) = result.rows.get(row_position as usize) else {
+            return;
+        };
+        let driver_id = self.current_driver_id.clone().unwrap_or_else(|| "postgres".to_string());
+        let cols: Vec<String> = self
+            .current_columns
+            .iter()
+            .map(|c| crate::sql_dialect::quote_ident(&driver_id, &c.name))
+            .collect();
+        let values: Vec<String> = row.iter().map(value_to_sql_literal).collect();
+        let sql = format!(
+            "INSERT INTO {} ({}) VALUES ({});",
+            crate::sql_dialect::quote_ident(&driver_id, table),
+            cols.join(", "),
+            values.join(", "),
+        );
+        self.window.clipboard().set_text(&sql);
+        self.show_toast("INSERT statement copied");
     }
 
     fn on_export(&self, format: ExportFormat) {
