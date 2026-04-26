@@ -19,3 +19,8 @@ serde_json.workspace = true
 sqlx = { workspace = true, features = ["mysql"] }
 tokio.workspace = true
 uuid.workspace = true
+
+[dev-dependencies]
+testcontainers.workspace = true
+testcontainers-modules = { workspace = true, features = ["mysql"] }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }

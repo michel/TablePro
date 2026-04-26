@@ -45,3 +45,30 @@ jobs:
         run: cargo build --workspace
       - name: Unit tests
         run: cargo test --workspace --lib
+
+  integration:
+    name: Driver integration tests (docker)
+    runs-on: ubuntu-24.04
+    needs: fast
+    defaults:
+      run:
+        working-directory: linux
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            pkg-config \
+            libssl-dev
+      - uses: dtolnay/rust-toolchain@1.93
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: linux
+      - name: Verify docker is available
+        run: docker version
+      - name: Postgres integration tests
+        run: cargo test --test integration -p tablepro-driver-postgres -- --include-ignored --test-threads=1
+      - name: MySQL integration tests
+        run: cargo test --test integration -p tablepro-driver-mysql -- --include-ignored --test-threads=1

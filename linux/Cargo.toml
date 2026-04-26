@@ -34,6 +34,8 @@ sourceview5 = { version = "0.11", features = ["v5_12"] }
 glib = "0.22"
 uuid = { version = "1", features = ["v4", "serde"] }
 tempfile = "3"
+testcontainers = "0.27"
+testcontainers-modules = "0.15"
 oo7 = { version = "0.6", default-features = false, features = ["tokio", "native_crypto"] }
 relm4 = { version = "0.11", default-features = false, features = ["macros", "libadwaita", "gnome_46"] }
 
