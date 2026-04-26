@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use relm4::adw::prelude::*;
+use relm4::factory::FactoryVecDeque;
 use relm4::gtk::{gio, glib};
 use relm4::prelude::*;
 use relm4::{ComponentController, Controller, adw, gtk};
@@ -10,6 +11,7 @@ use tablepro_storage::SavedConnection;
 use uuid::Uuid;
 
 use super::connect_dialog::{ConnectDialog, ConnectDialogInit, ConnectDialogOutput};
+use super::connection_row::{ConnectionRow, ConnectionRowOutput};
 use super::edit_dialog::{EditDialog, EditDialogInit, EditDialogOutput};
 use super::editor::SqlEditor;
 use super::grid::build_column_view;
@@ -28,7 +30,7 @@ pub struct App {
     content_holder: adw::ToolbarView,
     toast_overlay: adw::ToastOverlay,
     reconnect_banner: adw::Banner,
-    connections_listbox: gtk::ListBox,
+    connections_factory: FactoryVecDeque<ConnectionRow>,
     connections_popover: gtk::Popover,
     edit_button: gtk::Button,
     health_pill: gtk::Label,
@@ -320,8 +322,17 @@ impl SimpleComponent for App {
             listbox_for_invalidate.invalidate_filter();
         });
 
-        let connections_listbox = gtk::ListBox::builder().selection_mode(gtk::SelectionMode::None).build();
-        connections_listbox.add_css_class("boxed-list");
+        let connections_factory: FactoryVecDeque<ConnectionRow> = FactoryVecDeque::builder()
+            .launch(
+                gtk::ListBox::builder()
+                    .selection_mode(gtk::SelectionMode::None)
+                    .css_classes(["boxed-list"])
+                    .build(),
+            )
+            .forward(sender.input_sender(), |out| match out {
+                ConnectionRowOutput::Open(saved) => AppMsg::OpenSaved(saved),
+                ConnectionRowOutput::Delete(id) => AppMsg::DeleteConnection(id),
+            });
 
         let popover_content = gtk::Box::builder()
             .orientation(gtk::Orientation::Vertical)
@@ -339,7 +350,7 @@ impl SimpleComponent for App {
         popover_content.append(&header);
 
         let scroll = gtk::ScrolledWindow::builder()
-            .child(&connections_listbox)
+            .child(connections_factory.widget())
             .min_content_width(320)
             .min_content_height(120)
             .max_content_height(400)
@@ -474,7 +485,7 @@ impl SimpleComponent for App {
             content_holder: widgets.content_holder.clone(),
             toast_overlay: widgets.toast_overlay.clone(),
             reconnect_banner: widgets.reconnect_banner.clone(),
-            connections_listbox,
+            connections_factory,
             connections_popover: widgets.connections_popover.clone(),
             edit_button: widgets.edit_button.clone(),
             health_pill: widgets.health_pill.clone(),
@@ -1077,12 +1088,12 @@ impl App {
 
     fn on_connections_loaded(&mut self, connections: &[SavedConnection], sender: ComponentSender<Self>) {
         self.saved_connections = connections.to_vec();
-        rebuild_connections_listbox(
-            &self.connections_listbox,
-            connections,
-            sender.clone(),
-            self.connections_popover.clone(),
-        );
+        let mut guard = self.connections_factory.guard();
+        guard.clear();
+        for saved in connections {
+            guard.push_back(saved.clone());
+        }
+        drop(guard);
         if !self.connected {
             self.show_welcome_page(sender);
         }
@@ -1722,60 +1733,6 @@ fn qualified_label(schema: Option<&str>, table: &str) -> String {
     match schema {
         Some(s) => format!("{s}.{table}"),
         None => table.to_string(),
-    }
-}
-
-fn rebuild_connections_listbox(
-    listbox: &gtk::ListBox,
-    saved: &[SavedConnection],
-    sender: ComponentSender<App>,
-    popover: gtk::Popover,
-) {
-    while let Some(child) = listbox.first_child() {
-        listbox.remove(&child);
-    }
-    if saved.is_empty() {
-        let empty = adw::ActionRow::builder()
-            .title("No saved connections")
-            .subtitle("Open a connection to save it here.")
-            .activatable(false)
-            .build();
-        listbox.append(&empty);
-        return;
-    }
-    for s in saved {
-        let subtitle = if s.driver_id == "sqlite" {
-            format!("sqlite · {}", s.database)
-        } else {
-            format!("{} · {}@{}:{}", s.driver_id, s.username, s.host, s.port)
-        };
-        let row = adw::ActionRow::builder()
-            .title(&s.name)
-            .subtitle(&subtitle)
-            .activatable(true)
-            .build();
-
-        let delete = gtk::Button::builder()
-            .icon_name("user-trash-symbolic")
-            .valign(gtk::Align::Center)
-            .tooltip_text("Remove connection")
-            .build();
-        delete.add_css_class("flat");
-        let saved_id = s.id;
-        let sender_for_delete = sender.clone();
-        delete.connect_clicked(move |_| {
-            sender_for_delete.input(AppMsg::DeleteConnection(saved_id));
-        });
-        row.add_suffix(&delete);
-
-        let saved_clone = s.clone();
-        let sender_for_row = sender.clone();
-        let popover_for_row = popover.clone();
-        row.connect_activated(move |_| {
-            sender_for_row.input(AppMsg::OpenSaved(saved_clone.clone()));
-            popover_for_row.popdown();
-        });
-        listbox.append(&row);
     }
 }
 

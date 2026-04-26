@@ -1,5 +1,6 @@
 mod app;
 mod connect_dialog;
+mod connection_row;
 mod edit_dialog;
 mod editor;
 mod error_text;
