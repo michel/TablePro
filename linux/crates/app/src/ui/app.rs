@@ -442,12 +442,13 @@ impl SimpleComponent for App {
                 tracing::info!(table = %table, offset, rows = n_rows, cols = n_cols, "rows loaded");
 
                 clear_box(&self.grid_holder);
-                let (column_view, selection) = build_column_view(
-                    &result,
-                    &self.current_columns,
-                    &table,
-                    Some(sender.input_sender().clone()),
-                );
+                let read_only = database_service::instance().is_active_read_only();
+                let edit_sender = if read_only {
+                    None
+                } else {
+                    Some(sender.input_sender().clone())
+                };
+                let (column_view, selection) = build_column_view(&result, &self.current_columns, &table, edit_sender);
                 self.current_selection = Some(selection);
                 self.current_result = Some(result.clone());
                 let scrolled = gtk::ScrolledWindow::builder()
@@ -754,6 +755,13 @@ impl App {
     }
 
     fn refresh_crud_buttons(&self) {
+        let read_only = database_service::instance().is_active_read_only();
+        self.insert_button.set_visible(!read_only);
+        self.edit_row_button.set_visible(!read_only);
+        self.delete_button.set_visible(!read_only);
+        if read_only {
+            return;
+        }
         let has_table = self.current_table.is_some() && !self.current_columns.is_empty();
         let has_row = has_table && self.current_result.is_some();
         self.insert_button.set_sensitive(has_table);

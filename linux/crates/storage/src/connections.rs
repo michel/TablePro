@@ -17,6 +17,8 @@ pub struct SavedConnection {
     pub database: String,
     pub username: String,
     pub use_tls: bool,
+    #[serde(default)]
+    pub read_only: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub ssh: Option<SavedSshConfig>,
 }
@@ -119,6 +121,7 @@ mod tests {
             database: "postgres".into(),
             username: "postgres".into(),
             use_tls: false,
+            read_only: false,
             ssh: None,
         }
     }

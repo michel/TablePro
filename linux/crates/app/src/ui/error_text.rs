@@ -24,6 +24,9 @@ pub fn driver_message(error: &DriverError) -> String {
         } => format!("Query failed (SQLSTATE {s}): {message}"),
         DriverError::Query { message, .. } => format!("Query failed: {message}"),
         DriverError::Disconnected => "The connection was closed. Try reconnecting.".into(),
+        DriverError::ReadOnly => {
+            "This connection is read-only. Reopen it without read-only mode to make changes.".into()
+        }
         DriverError::Internal(detail) => format!("Internal driver error: {detail}"),
     }
 }

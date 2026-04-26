@@ -14,6 +14,7 @@ pub fn instance() -> &'static DatabaseService {
 
 struct Entry {
     connection: Arc<dyn Connection>,
+    read_only: bool,
     _tunnel: Option<SshTunnel>,
 }
 
@@ -30,10 +31,11 @@ impl DatabaseService {
         }
     }
 
-    pub fn add(&self, id: Uuid, connection: Box<dyn Connection>, tunnel: Option<SshTunnel>) {
+    pub fn add(&self, id: Uuid, connection: Box<dyn Connection>, tunnel: Option<SshTunnel>, read_only: bool) {
         let arc: Arc<dyn Connection> = Arc::from(connection);
         let entry = Entry {
             connection: arc,
+            read_only,
             _tunnel: tunnel,
         };
         self.connections
@@ -41,6 +43,19 @@ impl DatabaseService {
             .expect("database_service lock")
             .insert(id, entry);
         *self.active.lock().expect("database_service lock") = Some(id);
+    }
+
+    pub fn is_active_read_only(&self) -> bool {
+        let id = match self.active_id() {
+            Some(id) => id,
+            None => return false,
+        };
+        self.connections
+            .lock()
+            .expect("database_service lock")
+            .get(&id)
+            .map(|e| e.read_only)
+            .unwrap_or(false)
     }
 
     pub fn get(&self, id: Uuid) -> Option<Arc<dyn Connection>> {

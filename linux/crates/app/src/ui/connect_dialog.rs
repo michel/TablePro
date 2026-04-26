@@ -28,6 +28,7 @@ pub struct ConnectDialog {
     username: adw::EntryRow,
     password: adw::PasswordEntryRow,
     use_tls: adw::SwitchRow,
+    read_only: adw::SwitchRow,
     ssh_enable: adw::SwitchRow,
     ssh_group: adw::PreferencesGroup,
     ssh_host: adw::EntryRow,
@@ -110,6 +111,7 @@ impl Component for ConnectDialog {
                             add: &model.username,
                             add: &model.password,
                             add: &model.use_tls,
+                            add: &model.read_only,
                             add: &model.ssh_enable,
                         },
 
@@ -152,6 +154,12 @@ impl Component for ConnectDialog {
         let use_tls = adw::SwitchRow::builder()
             .title("Use TLS")
             .subtitle("Require encrypted connection")
+            .active(false)
+            .build();
+
+        let read_only = adw::SwitchRow::builder()
+            .title("Read-only mode")
+            .subtitle("Block INSERT, UPDATE, DELETE, and DDL on this connection")
             .active(false)
             .build();
 
@@ -222,6 +230,7 @@ impl Component for ConnectDialog {
             username,
             password,
             use_tls,
+            read_only,
             ssh_enable,
             ssh_group,
             ssh_host,
@@ -337,11 +346,13 @@ impl Component for ConnectDialog {
                 } else {
                     None
                 };
+                let read_only = self.read_only.is_active();
 
                 sender.command(move |out, shutdown| {
                     shutdown
                         .register(async move {
-                            let result = run_connect(driver.clone(), driver_id, label, opts, ssh_inputs).await;
+                            let result =
+                                run_connect(driver.clone(), driver_id, label, opts, ssh_inputs, read_only).await;
                             out.send(ConnectDialogCmd::Result(result)).ok();
                         })
                         .drop_on_shutdown()
@@ -459,12 +470,14 @@ async fn run_connect(
     label: String,
     opts: ConnectOptions,
     ssh: Option<SshInputs>,
+    read_only: bool,
 ) -> Result<(SavedConnection, Vec<TableInfo>), String> {
     let stored_password = opts.password.clone();
     let ssh_for_establish = ssh.as_ref().map(|s| s.cfg.clone());
     let opts_clone = opts.clone();
 
-    let (conn, tunnel) = connection_service::establish(driver.as_ref(), opts.clone(), ssh_for_establish).await?;
+    let (conn, tunnel) =
+        connection_service::establish(driver.as_ref(), opts.clone(), ssh_for_establish, read_only).await?;
     let tables = conn.list_tables().await.map_err(|e| format!("list_tables: {e}"))?;
 
     let id = match find_existing_id(&driver_id, &opts_clone, ssh.as_ref()).await {
@@ -481,6 +494,7 @@ async fn run_connect(
         database: opts_clone.database.clone(),
         username: opts_clone.username.clone(),
         use_tls: opts_clone.use_tls,
+        read_only,
         ssh: ssh.as_ref().map(|s| s.saved.clone()),
     };
 
@@ -498,7 +512,7 @@ async fn run_connect(
         }
     }
 
-    database_service::instance().add(saved.id, conn, tunnel);
+    database_service::instance().add(saved.id, conn, tunnel, read_only);
     Ok((saved, tables))
 }
 

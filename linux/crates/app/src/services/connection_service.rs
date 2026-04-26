@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use tablepro_core::{ConnectOptions, Connection, DriverRegistry, TableInfo};
+use tablepro_core::{ConnectOptions, Connection, DriverRegistry, ReadOnlyConnection, TableInfo};
 use tablepro_ssh::{SshConfig, SshTunnel};
 use tablepro_storage::{SavedConnection, SavedSshAuth, load_password, load_ssh_passphrase, load_ssh_password};
 
@@ -27,9 +27,9 @@ pub async fn open_saved(registry: Arc<DriverRegistry>, saved: SavedConnection) -
         use_tls: saved.use_tls,
     };
 
-    let (conn, tunnel) = establish(&*driver, opts, ssh_cfg).await?;
+    let (conn, tunnel) = establish(&*driver, opts, ssh_cfg, saved.read_only).await?;
     let tables = conn.list_tables().await.map_err(|e| format!("list_tables: {e}"))?;
-    database_service::instance().add(id, conn, tunnel);
+    database_service::instance().add(id, conn, tunnel, saved.read_only);
     Ok(tables)
 }
 
@@ -37,6 +37,7 @@ pub async fn establish(
     driver: &dyn tablepro_core::DatabaseDriver,
     mut opts: ConnectOptions,
     ssh: Option<SshConfig>,
+    read_only: bool,
 ) -> Result<(Box<dyn Connection>, Option<SshTunnel>), String> {
     let tunnel = if let Some(cfg) = ssh {
         let remote_host = std::mem::take(&mut opts.host);
@@ -50,7 +51,8 @@ pub async fn establish(
     } else {
         None
     };
-    let conn = driver.connect(opts).await.map_err(|e| format!("connect: {e}"))?;
+    let raw = driver.connect(opts).await.map_err(|e| format!("connect: {e}"))?;
+    let conn = if read_only { ReadOnlyConnection::wrap(raw) } else { raw };
     Ok((conn, tunnel))
 }
 

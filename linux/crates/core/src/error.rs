@@ -17,6 +17,9 @@ pub enum DriverError {
     #[error("connection closed unexpectedly")]
     Disconnected,
 
+    #[error("connection is read-only; mutations are not permitted")]
+    ReadOnly,
+
     #[error("driver internal error: {0}")]
     Internal(String),
 }
