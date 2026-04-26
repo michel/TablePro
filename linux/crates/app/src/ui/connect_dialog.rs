@@ -19,6 +19,7 @@ pub struct ConnectDialog {
     database: adw::EntryRow,
     username: adw::EntryRow,
     password: adw::PasswordEntryRow,
+    use_tls: adw::SwitchRow,
     submit: gtk::Button,
     status: gtk::Label,
 }
@@ -85,6 +86,7 @@ impl Component for ConnectDialog {
                         add: &model.database,
                         add: &model.username,
                         add: &model.password,
+                        add: &model.use_tls,
                     },
 
                     append: &model.submit,
@@ -121,6 +123,11 @@ impl Component for ConnectDialog {
         let username = adw::EntryRow::builder().title("Username").text("postgres").build();
         let password = adw::PasswordEntryRow::builder().title("Password").build();
         password.set_text("test");
+        let use_tls = adw::SwitchRow::builder()
+            .title("Use TLS")
+            .subtitle("Require encrypted connection")
+            .active(false)
+            .build();
 
         let submit = gtk::Button::builder()
             .label("Connect")
@@ -146,6 +153,7 @@ impl Component for ConnectDialog {
             database,
             username,
             password,
+            use_tls,
             submit,
             status,
         };
@@ -160,6 +168,7 @@ impl Component for ConnectDialog {
                     &model.database,
                     &model.username,
                     &model.password,
+                    &model.use_tls,
                 );
             }
             root.set_title(&format!("Connect to {}", first.display_name));
@@ -182,6 +191,7 @@ impl Component for ConnectDialog {
                         &self.database,
                         &self.username,
                         &self.password,
+                        &self.use_tls,
                     );
                 }
                 root.set_title(&format!("Connect to {}", entry.display_name));
@@ -213,7 +223,7 @@ impl Component for ConnectDialog {
                     database: self.database.text().to_string(),
                     username: self.username.text().to_string(),
                     password: self.password.text().to_string(),
-                    use_tls: false,
+                    use_tls: self.use_tls.is_active(),
                 };
                 let label = if entry.id == "sqlite" {
                     opts.database.clone()
@@ -294,12 +304,14 @@ fn apply_form_visibility(
     database: &adw::EntryRow,
     username: &adw::EntryRow,
     password: &adw::PasswordEntryRow,
+    use_tls: &adw::SwitchRow,
 ) {
     let file_based = driver.is_file_based();
     host.set_visible(!file_based);
     port.set_visible(!file_based);
     username.set_visible(!file_based);
     password.set_visible(!file_based);
+    use_tls.set_visible(!file_based);
     database.set_title(if file_based { "File path" } else { "Database" });
 }
 

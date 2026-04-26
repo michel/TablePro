@@ -34,6 +34,11 @@ impl DatabaseDriver for MysqlDriver {
             opts.username, opts.password, opts.host, opts.port, opts.database,
         );
         let mysql_opts = MySqlConnectOptions::from_str(&url).map_err(map_sqlx_error)?;
+        let mysql_opts = if opts.use_tls {
+            mysql_opts.ssl_mode(sqlx::mysql::MySqlSslMode::Required)
+        } else {
+            mysql_opts.ssl_mode(sqlx::mysql::MySqlSslMode::Preferred)
+        };
         let pool = MySqlPoolOptions::new()
             .max_connections(4)
             .acquire_timeout(Duration::from_secs(5))

@@ -29,9 +29,10 @@ impl DatabaseDriver for PgDriver {
     }
 
     async fn connect(&self, opts: ConnectOptions) -> Result<Box<dyn Connection>, DriverError> {
+        let sslmode = if opts.use_tls { "require" } else { "prefer" };
         let url = format!(
-            "postgres://{}:{}@{}:{}/{}",
-            opts.username, opts.password, opts.host, opts.port, opts.database,
+            "postgres://{}:{}@{}:{}/{}?sslmode={}",
+            opts.username, opts.password, opts.host, opts.port, opts.database, sslmode,
         );
         let pg_opts = PgConnectOptions::from_str(&url).map_err(map_sqlx_error)?;
         let pool = PgPoolOptions::new()
