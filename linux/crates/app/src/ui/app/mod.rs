@@ -250,7 +250,6 @@ impl SimpleComponent for App {
             set_default_width: 1200,
             set_default_height: 760,
 
-            #[name = "toolbar_view"]
             adw::ToolbarView {
                 #[name = "header_bar"]
                 add_top_bar = &adw::HeaderBar {
@@ -639,12 +638,16 @@ impl SimpleComponent for App {
         );
         let _ = browse_page;
 
-        // ViewSwitcherBar lives below the headerbar and is revealed only
-        // while connected. Keeping the WindowTitle in the headerbar slot
-        // (rather than replacing it with the switcher) preserves the
-        // connection-name subtitle promised by C3.
+        // ViewSwitcherBar lives inside content_holder (the ToolbarView on
+        // the right side of the OverlaySplitView), not on the outer
+        // toolbar_view — that way it sits only above the content column,
+        // not above the sidebar. Sidebar runs full-height alongside, the
+        // multi-pane layout used by Files / Builder / Music.
+        //
+        // Keeping the WindowTitle in the headerbar's title slot preserves
+        // the connection-name subtitle (C3) instead of swapping it out.
         let view_switcher_bar = adw::ViewSwitcherBar::builder().stack(&view_stack).reveal(false).build();
-        widgets.toolbar_view.add_top_bar(&view_switcher_bar);
+        widgets.content_holder.add_top_bar(&view_switcher_bar);
 
         let disconnect_action = install_window_actions(&widgets.window, sender.clone());
         install_window_shortcuts(&widgets.window);
