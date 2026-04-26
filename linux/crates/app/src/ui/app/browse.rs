@@ -8,7 +8,7 @@ use crate::services::database_service;
 use crate::ui::editor::update_schema_buffer;
 use crate::ui::grid::build_column_view;
 
-use super::{App, AppMsg, ExportFormat, clear_box, qualified_label, render_csv, render_json};
+use super::{App, AppMsg, ExportFormat, StatusKind, clear_box, qualified_label, render_csv, render_json};
 
 impl App {
     pub(super) fn on_select_table(&mut self, schema: Option<String>, name: String, sender: ComponentSender<Self>) {
@@ -33,7 +33,7 @@ impl App {
         let Some(conn) = database_service::instance().active() else {
             return;
         };
-        let driver_id = self.current_driver_id.clone().unwrap_or_else(|| "postgres".to_string());
+        let driver_id = self.driver_id().to_string();
         let table_for_async = table.clone();
         let sender_clone = sender.clone();
         sender.command(move |_, shutdown| {
@@ -206,7 +206,7 @@ impl App {
     pub(super) fn on_load_failed(&self, msg: String) {
         tracing::warn!(error = %msg, "load failed");
         self.set_row_op_in_flight(false);
-        self.set_status_page(&crate::tr!("Failed"), &msg);
+        self.set_status_page(StatusKind::Error, &crate::tr!("Failed"), &msg);
     }
 
     pub(super) fn fetch_current_page(&self, sender: ComponentSender<App>) {
@@ -220,7 +220,7 @@ impl App {
             sender.input(AppMsg::LoadFailed("no active connection".into()));
             return;
         };
-        let driver_id = self.current_driver_id.clone().unwrap_or_else(|| "postgres".to_string());
+        let driver_id = self.driver_id().to_string();
         let order_by = self.current_sort.and_then(|(idx, asc)| {
             self.current_columns.get(idx).map(|c| {
                 let name = tablepro_core::sql_dialect::quote_ident(&driver_id, &c.name);

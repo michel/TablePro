@@ -187,6 +187,46 @@ pub struct UndoBatch {
     pub statements: Vec<(String, Vec<Value>)>,
 }
 
+/// Determines which icon and styling adw::StatusPage uses.
+///
+/// Replaces the previous title-string sniffing in `set_status_page`,
+/// which broke the moment a translation used different vocabulary
+/// for "Failed" / "Error" / "No connection".
+#[derive(Debug, Clone, Copy)]
+pub(super) enum StatusKind {
+    Info,
+    Error,
+    Disconnected,
+}
+
+impl StatusKind {
+    fn icon(self) -> &'static str {
+        match self {
+            StatusKind::Info => "view-grid-symbolic",
+            StatusKind::Error => "dialog-error-symbolic",
+            StatusKind::Disconnected => "network-server-symbolic",
+        }
+    }
+}
+
+impl App {
+    /// The active driver id, or "postgres" if no connection is active.
+    ///
+    /// Single fallback site (was duplicated at 7 call sites). The
+    /// tracing::warn! makes the latent bug visible if anything ever
+    /// asks for the driver id without an active connection — today
+    /// that would silently corrupt SQL quoting on non-Postgres drivers.
+    pub(super) fn driver_id(&self) -> &str {
+        match self.current_driver_id.as_deref() {
+            Some(id) => id,
+            None => {
+                tracing::warn!("driver_id called without active connection; falling back to postgres");
+                "postgres"
+            }
+        }
+    }
+}
+
 #[relm4::component(pub)]
 impl SimpleComponent for App {
     type Init = Arc<DriverRegistry>;

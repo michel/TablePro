@@ -31,7 +31,7 @@ impl App {
         if self.current_columns.is_empty() {
             return;
         }
-        let driver_id = self.current_driver_id.clone().unwrap_or_else(|| "postgres".to_string());
+        let driver_id = self.driver_id().to_string();
         let dialog = InsertDialog::builder()
             .launch(InsertDialogInit {
                 table: table.clone(),
@@ -74,7 +74,7 @@ impl App {
             return;
         }
         let row = result.rows[position].clone();
-        let driver_id = self.current_driver_id.clone().unwrap_or_else(|| "postgres".to_string());
+        let driver_id = self.driver_id().to_string();
         let dialog = EditDialog::builder()
             .launch(EditDialogInit {
                 table,
@@ -123,7 +123,7 @@ impl App {
             );
             return;
         }
-        let driver_id = self.current_driver_id.clone().unwrap_or_else(|| "postgres".to_string());
+        let driver_id = self.driver_id().to_string();
 
         let preview = if positions.len() == 1 {
             let row = &result.rows[positions[0] as usize];
@@ -383,7 +383,7 @@ impl App {
             );
             return;
         }
-        let driver_id = self.current_driver_id.clone().unwrap_or_else(|| "postgres".to_string());
+        let driver_id = self.driver_id().to_string();
         let preview = result
             .rows
             .get(row_position as usize)
@@ -413,7 +413,7 @@ impl App {
         let Some(row) = result.rows.get(row_position as usize) else {
             return;
         };
-        let driver_id = self.current_driver_id.clone().unwrap_or_else(|| "postgres".to_string());
+        let driver_id = self.driver_id().to_string();
         let cols: Vec<String> = self
             .current_columns
             .iter()

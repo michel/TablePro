@@ -9,7 +9,7 @@ use crate::services::database_service::ConnectionHealth;
 use crate::services::{connection_service, database_service};
 use crate::ui::connect_dialog::{ConnectDialog, ConnectDialogInit, ConnectDialogOutput};
 
-use super::{App, AppMsg, qualified_label};
+use super::{App, AppMsg, StatusKind, qualified_label};
 
 impl App {
     pub(super) fn on_open_connect(&mut self, sender: ComponentSender<Self>) {
@@ -41,6 +41,7 @@ impl App {
         self.push_schema_words();
         self.refresh_window_title();
         self.set_status_page(
+            StatusKind::Info,
             &crate::tr!("Select a table"),
             &crate::tr!("Connected to {driver}. Pick a table from the left to load up to 100,000 rows.")
                 .replace("{driver}", &driver_id),

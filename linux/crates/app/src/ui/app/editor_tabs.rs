@@ -8,12 +8,13 @@ use crate::services::database_service;
 use crate::ui::editor::{SqlEditorInput, derive_tab_label};
 use crate::ui::history_dialog::{HistoryDialog, HistoryDialogInit, HistoryDialogOutput};
 
-use super::{App, AppMsg, create_editor_tab_slot, default_tab_label, read_tab_id};
+use super::{App, AppMsg, StatusKind, create_editor_tab_slot, default_tab_label, read_tab_id};
 
 impl App {
     pub(super) fn on_open_editor(&mut self, sender: ComponentSender<Self>) {
         if database_service::instance().active().is_none() {
             self.set_status_page(
+                StatusKind::Disconnected,
                 &crate::tr!("No connection"),
                 &crate::tr!("Connect to a database first to run SQL."),
             );
@@ -191,6 +192,7 @@ impl App {
     pub(super) fn show_welcome_or_grid_after_editor_close(&mut self, sender: ComponentSender<Self>) {
         if self.connected {
             self.set_status_page(
+                StatusKind::Info,
                 &crate::tr!("Select a table"),
                 &crate::tr!("Pick a table from the left to load rows."),
             );

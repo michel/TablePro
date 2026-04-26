@@ -1,7 +1,7 @@
 use relm4::adw::prelude::*;
 use relm4::{ComponentController, ComponentSender, adw, gtk};
 
-use super::{App, AppMsg, UndoBatch, build_shortcuts_window};
+use super::{App, AppMsg, StatusKind, UndoBatch, build_shortcuts_window};
 
 impl App {
     pub(super) fn show_welcome_page(&self, _sender: ComponentSender<Self>) {
@@ -39,18 +39,11 @@ impl App {
         self.content_holder.set_content(Some(&outer));
     }
 
-    pub(super) fn set_status_page(&self, title: &str, description: &str) {
-        let icon = if title.eq_ignore_ascii_case("failed") || title.to_lowercase().contains("error") {
-            "dialog-error-symbolic"
-        } else if title.contains("No connection") {
-            "network-server-symbolic"
-        } else {
-            "view-grid-symbolic"
-        };
+    pub(super) fn set_status_page(&self, kind: StatusKind, title: &str, description: &str) {
         let page = adw::StatusPage::builder()
             .title(title)
             .description(description)
-            .icon_name(icon)
+            .icon_name(kind.icon())
             .build();
         self.content_holder.set_content(Some(&page));
     }
