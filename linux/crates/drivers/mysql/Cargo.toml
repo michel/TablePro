@@ -1,0 +1,16 @@
+[package]
+name = "tablepro-driver-mysql"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+
+[lib]
+name = "drivers_mysql"
+path = "src/lib.rs"
+
+[dependencies]
+tablepro-core = { path = "../../core" }
+async-trait.workspace = true
+sqlx = { workspace = true, features = ["mysql"] }
+tokio.workspace = true

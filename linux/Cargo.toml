@@ -4,6 +4,7 @@ members = [
     "crates/app",
     "crates/core",
     "crates/storage",
+    "crates/drivers/mysql",
     "crates/drivers/postgres",
     "crates/drivers/sqlite",
 ]
