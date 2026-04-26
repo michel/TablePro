@@ -1,5 +1,6 @@
 mod connections;
 mod error;
+pub mod query_history;
 mod secrets;
 
 pub use connections::{

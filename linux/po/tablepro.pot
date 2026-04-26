@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: tablepro 0.1.0\n"
 "Report-Msgid-Bugs-To: https://github.com/TableProApp/TablePro/issues\n"
-"POT-Creation-Date: 2026-04-26 12:27+0000\n"
+"POT-Creation-Date: 2026-04-26 14:28+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,387 +17,395 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: crates/app/src/ui/app.rs:195 crates/app/src/ui/app.rs:1509 crates/app/src/ui/app.rs:1577
+#: crates/app/src/ui/app.rs:200 crates/app/src/ui/app.rs:1519 crates/app/src/ui/app.rs:1587
 msgid "New connection"
 msgstr ""
 
-#: crates/app/src/ui/app.rs:202
+#: crates/app/src/ui/app.rs:207
 msgid "Open saved connection"
 msgstr ""
 
-#: crates/app/src/ui/app.rs:213
+#: crates/app/src/ui/app.rs:218
 msgid "Read-only"
 msgstr ""
 
-#: crates/app/src/ui/app.rs:229 crates/app/src/ui/edit_dialog.rs:162
+#: crates/app/src/ui/app.rs:234 crates/app/src/ui/edit_dialog.rs:162
 msgid "Saving…"
 msgstr ""
 
-#: crates/app/src/ui/app.rs:235 crates/app/src/ui/app.rs:2207 crates/app/src/ui/preferences.rs:45
+#: crates/app/src/ui/app.rs:240 crates/app/src/ui/app.rs:2241 crates/app/src/ui/preferences.rs:124
 msgid "SQL editor"
 msgstr ""
 
-#: crates/app/src/ui/app.rs:244
+#: crates/app/src/ui/app.rs:249
 msgid "Main menu"
 msgstr ""
 
-#: crates/app/src/ui/app.rs:261
+#: crates/app/src/ui/app.rs:266
 msgid "Filter tables…"
 msgstr ""
 
-#: crates/app/src/ui/app.rs:285
+#: crates/app/src/ui/app.rs:290
 msgid "Retry"
 msgstr ""
 
-#: crates/app/src/ui/app.rs:291 crates/app/src/ui/app.rs:1505
+#: crates/app/src/ui/app.rs:296 crates/app/src/ui/app.rs:1515
 msgid "Connect to a database"
 msgstr ""
 
-#: crates/app/src/ui/app.rs:292
+#: crates/app/src/ui/app.rs:297
 msgid "Click the server icon for a new connection or the folder icon to open a saved one."
 msgstr ""
 
-#: crates/app/src/ui/app.rs:422
+#: crates/app/src/ui/app.rs:427
 msgid "Saved Connections"
 msgstr ""
 
-#: crates/app/src/ui/app.rs:441
+#: crates/app/src/ui/app.rs:446
 msgid "Previous page"
 msgstr ""
 
-#: crates/app/src/ui/app.rs:446
+#: crates/app/src/ui/app.rs:451
 msgid "Next page"
 msgstr ""
 
-#: crates/app/src/ui/app.rs:470
+#: crates/app/src/ui/app.rs:475
 msgid "Rows per page"
 msgstr ""
 
-#: crates/app/src/ui/app.rs:486
+#: crates/app/src/ui/app.rs:491
 msgid "Insert row"
 msgstr ""
 
-#: crates/app/src/ui/app.rs:491
+#: crates/app/src/ui/app.rs:496
 msgid "Edit selected row"
 msgstr ""
 
-#: crates/app/src/ui/app.rs:496
+#: crates/app/src/ui/app.rs:501
 msgid "Delete selected row"
 msgstr ""
 
-#: crates/app/src/ui/app.rs:518
+#: crates/app/src/ui/app.rs:523
 msgid "Export as CSV…"
 msgstr ""
 
-#: crates/app/src/ui/app.rs:519
+#: crates/app/src/ui/app.rs:524
 msgid "Export as JSON…"
 msgstr ""
 
-#: crates/app/src/ui/app.rs:522
+#: crates/app/src/ui/app.rs:527
 msgid "Export results"
 msgstr ""
 
-#: crates/app/src/ui/app.rs:543 crates/app/src/ui/app.rs:2196
+#: crates/app/src/ui/app.rs:548 crates/app/src/ui/app.rs:2229
 msgid "Find in results"
 msgstr ""
 
-#: crates/app/src/ui/app.rs:667
+#: crates/app/src/ui/app.rs:683
 msgid "Rows updated"
 msgstr ""
 
-#: crates/app/src/ui/app.rs:678
+#: crates/app/src/ui/app.rs:694
 msgid "Undoing…"
 msgstr ""
 
-#: crates/app/src/ui/app.rs:753 crates/app/src/ui/app.rs:1383
+#: crates/app/src/ui/app.rs:775 crates/app/src/ui/app.rs:1395
 msgid "Select a table"
 msgstr ""
 
-#: crates/app/src/ui/app.rs:754
+#: crates/app/src/ui/app.rs:776
 msgid "Connected to {driver}. Pick a table from the left to load up to 100,000 rows."
 msgstr ""
 
-#: crates/app/src/ui/app.rs:800
+#: crates/app/src/ui/app.rs:823
 msgid "Loading…"
 msgstr ""
 
-#: crates/app/src/ui/app.rs:801
+#: crates/app/src/ui/app.rs:824
 msgid "Fetching rows from {table}"
 msgstr ""
 
-#: crates/app/src/ui/app.rs:914
+#: crates/app/src/ui/app.rs:937
 msgid "No rows at offset {n}"
 msgstr ""
 
-#: crates/app/src/ui/app.rs:920
+#: crates/app/src/ui/app.rs:943
 msgid "Rows {start} – {end} of {total}"
 msgstr ""
 
-#: crates/app/src/ui/app.rs:924
+#: crates/app/src/ui/app.rs:947
 msgid "Rows {start} – {end}"
 msgstr ""
 
-#: crates/app/src/ui/app.rs:984
+#: crates/app/src/ui/app.rs:1007 crates/app/src/ui/history_dialog.rs:110
 msgid "Failed"
 msgstr ""
 
-#: crates/app/src/ui/app.rs:1019
+#: crates/app/src/ui/app.rs:1042
 msgid "Row inserted"
 msgstr ""
 
-#: crates/app/src/ui/app.rs:1036
+#: crates/app/src/ui/app.rs:1059
 msgid "Cannot edit"
 msgstr ""
 
-#: crates/app/src/ui/app.rs:1037
+#: crates/app/src/ui/app.rs:1060
 msgid "Select exactly one row to edit."
 msgstr ""
 
-#: crates/app/src/ui/app.rs:1063
+#: crates/app/src/ui/app.rs:1086
 msgid "Row updated"
 msgstr ""
 
-#: crates/app/src/ui/app.rs:1090 crates/app/src/ui/app.rs:2305
+#: crates/app/src/ui/app.rs:1113 crates/app/src/ui/app.rs:2342
 msgid "Cannot delete"
 msgstr ""
 
-#: crates/app/src/ui/app.rs:1099 crates/app/src/ui/app.rs:2315
+#: crates/app/src/ui/app.rs:1122 crates/app/src/ui/app.rs:2352
 msgid "Delete row where {pk}?"
 msgstr ""
 
-#: crates/app/src/ui/app.rs:1101 crates/app/src/ui/app.rs:1790
+#: crates/app/src/ui/app.rs:1124 crates/app/src/ui/app.rs:1800
 msgid "Delete {n} rows?"
 msgstr ""
 
-#: crates/app/src/ui/app.rs:1104 crates/app/src/ui/app.rs:2326
+#: crates/app/src/ui/app.rs:1127 crates/app/src/ui/app.rs:2363 crates/app/src/ui/history_dialog.rs:653 crates/app/src/ui/history_dialog.rs:675
 msgid "Delete"
 msgstr ""
 
-#: crates/app/src/ui/app.rs:1106
+#: crates/app/src/ui/app.rs:1129
 msgid "Delete {n}"
 msgstr ""
 
-#: crates/app/src/ui/app.rs:1160
+#: crates/app/src/ui/app.rs:1183
 msgid "Cannot update cell"
 msgstr ""
 
-#: crates/app/src/ui/app.rs:1176
+#: crates/app/src/ui/app.rs:1199
 msgid "Cell updated"
 msgstr ""
 
-#: crates/app/src/ui/app.rs:1212
+#: crates/app/src/ui/app.rs:1235
 msgid "No connection"
 msgstr ""
 
-#: crates/app/src/ui/app.rs:1213
+#: crates/app/src/ui/app.rs:1236
 msgid "Connect to a database first to run SQL."
 msgstr ""
 
-#: crates/app/src/ui/app.rs:1236
+#: crates/app/src/ui/app.rs:1259
 msgid "New tab"
 msgstr ""
 
-#: crates/app/src/ui/app.rs:1343
+#: crates/app/src/ui/app.rs:1355
 msgid "Query {n}"
 msgstr ""
 
-#: crates/app/src/ui/app.rs:1384
+#: crates/app/src/ui/app.rs:1396
 msgid "Pick a table from the left to load rows."
 msgstr ""
 
-#: crates/app/src/ui/app.rs:1407 crates/app/src/ui/editor.rs:516
+#: crates/app/src/ui/app.rs:1419 crates/app/src/ui/editor.rs:574 crates/app/src/ui/history_dialog.rs:832
 msgid "Empty query"
 msgstr ""
 
-#: crates/app/src/ui/app.rs:1468 crates/app/src/ui/connect_dialog.rs:273
+#: crates/app/src/ui/app.rs:1478 crates/app/src/ui/connect_dialog.rs:273
 msgid "Connecting…"
 msgstr ""
 
-#: crates/app/src/ui/app.rs:1469
+#: crates/app/src/ui/app.rs:1479
 msgid "Opening {name}"
 msgstr ""
 
-#: crates/app/src/ui/app.rs:1506
+#: crates/app/src/ui/app.rs:1516
 msgid "Add a connection to get started."
 msgstr ""
 
-#: crates/app/src/ui/app.rs:1540
+#: crates/app/src/ui/app.rs:1550
 msgid "Saved connections"
 msgstr ""
 
-#: crates/app/src/ui/app.rs:1558 crates/app/src/ui/connection_row.rs:44
+#: crates/app/src/ui/app.rs:1568 crates/app/src/ui/connection_row.rs:44
 msgid "Remove connection"
 msgstr ""
 
-#: crates/app/src/ui/app.rs:1693
+#: crates/app/src/ui/app.rs:1703
 msgid "Connected"
 msgstr ""
 
-#: crates/app/src/ui/app.rs:1699
+#: crates/app/src/ui/app.rs:1709
 msgid "Reconnecting · attempt {n} · retrying"
 msgstr ""
 
-#: crates/app/src/ui/app.rs:1707
+#: crates/app/src/ui/app.rs:1717
 msgid "Connection lost — reconnecting (attempt {n}, will keep retrying)"
 msgstr ""
 
-#: crates/app/src/ui/app.rs:1768
+#: crates/app/src/ui/app.rs:1778
 msgid "1 row deleted"
 msgstr ""
 
-#: crates/app/src/ui/app.rs:1770
+#: crates/app/src/ui/app.rs:1780
 msgid "{n} rows deleted"
 msgstr ""
 
-#: crates/app/src/ui/app.rs:1788 crates/app/src/ui/app.rs:2317
+#: crates/app/src/ui/app.rs:1798 crates/app/src/ui/app.rs:2354
 msgid "Delete row?"
 msgstr ""
 
-#: crates/app/src/ui/app.rs:1793 crates/app/src/ui/editor.rs:91
+#: crates/app/src/ui/app.rs:1803 crates/app/src/ui/editor.rs:98 crates/app/src/ui/history_dialog.rs:438 crates/app/src/ui/preferences.rs:70
 msgid "Cancel"
 msgstr ""
 
-#: crates/app/src/ui/app.rs:1835
+#: crates/app/src/ui/app.rs:1845
 msgid "Undo"
 msgstr ""
 
-#: crates/app/src/ui/app.rs:2076
+#: crates/app/src/ui/app.rs:2093
 msgid "Disconnect"
 msgstr ""
 
-#: crates/app/src/ui/app.rs:2081 crates/app/src/ui/preferences.rs:8
+#: crates/app/src/ui/app.rs:2098 crates/app/src/ui/history_dialog.rs:79 crates/app/src/ui/history_dialog.rs:88
+msgid "Query History"
+msgstr ""
+
+#: crates/app/src/ui/app.rs:2101 crates/app/src/ui/preferences.rs:9
 msgid "Preferences"
 msgstr ""
 
-#: crates/app/src/ui/app.rs:2084
+#: crates/app/src/ui/app.rs:2104
 msgid "Keyboard Shortcuts"
 msgstr ""
 
-#: crates/app/src/ui/app.rs:2085
+#: crates/app/src/ui/app.rs:2105
 msgid "About TablePro"
 msgstr ""
 
-#: crates/app/src/ui/app.rs:2086 crates/app/src/ui/app.rs:2203
+#: crates/app/src/ui/app.rs:2106 crates/app/src/ui/app.rs:2237
 msgid "Quit"
 msgstr ""
 
-#: crates/app/src/ui/app.rs:2194 crates/app/src/ui/preferences.rs:12
+#: crates/app/src/ui/app.rs:2227 crates/app/src/ui/preferences.rs:13
 msgid "General"
 msgstr ""
 
-#: crates/app/src/ui/app.rs:2195
+#: crates/app/src/ui/app.rs:2228
 msgid "Open SQL editor"
 msgstr ""
 
-#: crates/app/src/ui/app.rs:2197
+#: crates/app/src/ui/app.rs:2230
 msgid "Refresh table"
 msgstr ""
 
-#: crates/app/src/ui/app.rs:2198
+#: crates/app/src/ui/app.rs:2231
 msgid "Open Preferences"
 msgstr ""
 
-#: crates/app/src/ui/app.rs:2201
+#: crates/app/src/ui/app.rs:2232
+msgid "Open Query History"
+msgstr ""
+
+#: crates/app/src/ui/app.rs:2235
 msgid "Show keyboard shortcuts"
 msgstr ""
 
-#: crates/app/src/ui/app.rs:2204
+#: crates/app/src/ui/app.rs:2238
 msgid "Close window"
 msgstr ""
 
-#: crates/app/src/ui/app.rs:2208
+#: crates/app/src/ui/app.rs:2242
 msgid "Run query"
 msgstr ""
 
-#: crates/app/src/ui/app.rs:2209
+#: crates/app/src/ui/app.rs:2243
 msgid "Cancel running query"
 msgstr ""
 
-#: crates/app/src/ui/app.rs:2210
+#: crates/app/src/ui/app.rs:2244
 msgid "New editor tab"
 msgstr ""
 
-#: crates/app/src/ui/app.rs:2211
+#: crates/app/src/ui/app.rs:2245
 msgid "Close editor tab"
 msgstr ""
 
-#: crates/app/src/ui/app.rs:2212
+#: crates/app/src/ui/app.rs:2246
 msgid "Next editor tab"
 msgstr ""
 
-#: crates/app/src/ui/app.rs:2213
+#: crates/app/src/ui/app.rs:2249
 msgid "Previous editor tab"
 msgstr ""
 
-#: crates/app/src/ui/app.rs:2216
+#: crates/app/src/ui/app.rs:2253
 msgid "Dialogs"
 msgstr ""
 
-#: crates/app/src/ui/app.rs:2217
+#: crates/app/src/ui/app.rs:2254
 msgid "Close dialog"
 msgstr ""
 
-#: crates/app/src/ui/app.rs:2238
+#: crates/app/src/ui/app.rs:2275
 msgid "Copied to clipboard"
 msgstr ""
 
-#: crates/app/src/ui/app.rs:2266
+#: crates/app/src/ui/app.rs:2303
 msgid "Cannot set NULL"
 msgstr ""
 
-#: crates/app/src/ui/app.rs:2282
+#: crates/app/src/ui/app.rs:2319
 msgid "Cell cleared"
 msgstr ""
 
-#: crates/app/src/ui/app.rs:2354
+#: crates/app/src/ui/app.rs:2391
 msgid "INSERT statement copied"
 msgstr ""
 
-#: crates/app/src/ui/app.rs:2359
+#: crates/app/src/ui/app.rs:2396
 msgid "Nothing to export"
 msgstr ""
 
-#: crates/app/src/ui/app.rs:2369
+#: crates/app/src/ui/app.rs:2406 crates/app/src/ui/history_dialog.rs:781
 msgid "CSV files"
 msgstr ""
 
-#: crates/app/src/ui/app.rs:2374
+#: crates/app/src/ui/app.rs:2411
 msgid "JSON files"
 msgstr ""
 
-#: crates/app/src/ui/app.rs:2383
+#: crates/app/src/ui/app.rs:2420
 msgid "Export as CSV"
 msgstr ""
 
-#: crates/app/src/ui/app.rs:2384
+#: crates/app/src/ui/app.rs:2421
 msgid "Export as JSON"
 msgstr ""
 
-#: crates/app/src/ui/app.rs:2402
+#: crates/app/src/ui/app.rs:2439
 msgid "Exported to {path}"
 msgstr ""
 
-#: crates/app/src/ui/app.rs:2405
+#: crates/app/src/ui/app.rs:2442
 msgid "Export failed: {error}"
 msgstr ""
 
-#: crates/app/src/ui/app.rs:2420
+#: crates/app/src/ui/app.rs:2487
 msgid "TablePro"
 msgstr ""
 
-#: crates/app/src/ui/app.rs:2422
+#: crates/app/src/ui/app.rs:2489
 msgid "TablePro Authors"
 msgstr ""
 
-#: crates/app/src/ui/app.rs:2427
+#: crates/app/src/ui/app.rs:2494
 msgid "© 2025–2026 TablePro Authors"
 msgstr ""
 
-#: crates/app/src/ui/app.rs:2430
+#: crates/app/src/ui/app.rs:2497
 msgid "A native Linux database client built with GTK4 + libadwaita."
 msgstr ""
 
-#: crates/app/src/ui/app.rs:2434
+#: crates/app/src/ui/app.rs:2501
 msgid "translator-credits"
 msgstr ""
 
@@ -493,55 +501,55 @@ msgstr ""
 msgid "Edit row in {table}"
 msgstr ""
 
-#: crates/app/src/ui/edit_dialog.rs:129 crates/app/src/ui/editor.rs:248 crates/app/src/ui/insert_dialog.rs:119
+#: crates/app/src/ui/edit_dialog.rs:129 crates/app/src/ui/editor.rs:258 crates/app/src/ui/insert_dialog.rs:119
 msgid "no active connection"
 msgstr ""
 
-#: crates/app/src/ui/editor.rs:99
+#: crates/app/src/ui/editor.rs:106
 msgid "Run"
 msgstr ""
 
-#: crates/app/src/ui/editor.rs:241
+#: crates/app/src/ui/editor.rs:251
 msgid "empty query"
 msgstr ""
 
-#: crates/app/src/ui/editor.rs:262
+#: crates/app/src/ui/editor.rs:272
 msgid "Running…"
 msgstr ""
 
-#: crates/app/src/ui/editor.rs:314
+#: crates/app/src/ui/editor.rs:329
 msgid "{n} row(s) in {ms} ms (truncated)"
 msgstr ""
 
-#: crates/app/src/ui/editor.rs:318
+#: crates/app/src/ui/editor.rs:333
 msgid "{n} row(s) in {ms} ms"
 msgstr ""
 
-#: crates/app/src/ui/editor.rs:326
+#: crates/app/src/ui/editor.rs:341
 msgid "No rows"
 msgstr ""
 
-#: crates/app/src/ui/editor.rs:327
+#: crates/app/src/ui/editor.rs:342
 msgid "Query returned no rows."
 msgstr ""
 
-#: crates/app/src/ui/editor.rs:350
+#: crates/app/src/ui/editor.rs:371
 msgid "error"
 msgstr ""
 
-#: crates/app/src/ui/editor.rs:353
+#: crates/app/src/ui/editor.rs:374
 msgid "Query failed"
 msgstr ""
 
-#: crates/app/src/ui/editor.rs:367
+#: crates/app/src/ui/editor.rs:394 crates/app/src/ui/history_dialog.rs:845
 msgid "cancelled"
 msgstr ""
 
-#: crates/app/src/ui/editor.rs:370
+#: crates/app/src/ui/editor.rs:397
 msgid "Query cancelled"
 msgstr ""
 
-#: crates/app/src/ui/editor.rs:371
+#: crates/app/src/ui/editor.rs:398
 msgid "The running query was stopped."
 msgstr ""
 
@@ -605,6 +613,170 @@ msgstr ""
 msgid "Delete row"
 msgstr ""
 
+#: crates/app/src/ui/history_dialog.rs:92
+msgid "Filter"
+msgstr ""
+
+#: crates/app/src/ui/history_dialog.rs:98
+msgid "All connections"
+msgstr ""
+
+#: crates/app/src/ui/history_dialog.rs:103
+msgid "Connection"
+msgstr ""
+
+#: crates/app/src/ui/history_dialog.rs:108
+msgid "Any"
+msgstr ""
+
+#: crates/app/src/ui/history_dialog.rs:109
+msgid "Successful"
+msgstr ""
+
+#: crates/app/src/ui/history_dialog.rs:111
+msgid "Cancelled"
+msgstr ""
+
+#: crates/app/src/ui/history_dialog.rs:115
+msgid "Status"
+msgstr ""
+
+#: crates/app/src/ui/history_dialog.rs:120
+msgid "Any time"
+msgstr ""
+
+#: crates/app/src/ui/history_dialog.rs:121
+msgid "Last 24 hours"
+msgstr ""
+
+#: crates/app/src/ui/history_dialog.rs:122
+msgid "Last 7 days"
+msgstr ""
+
+#: crates/app/src/ui/history_dialog.rs:123
+msgid "Last 30 days"
+msgstr ""
+
+#: crates/app/src/ui/history_dialog.rs:127
+msgid "Time window"
+msgstr ""
+
+#: crates/app/src/ui/history_dialog.rs:174
+msgid "Export selected as SQL"
+msgstr ""
+
+#: crates/app/src/ui/history_dialog.rs:175
+msgid "Export selected as CSV"
+msgstr ""
+
+#: crates/app/src/ui/history_dialog.rs:176
+msgid "Delete selected"
+msgstr ""
+
+#: crates/app/src/ui/history_dialog.rs:179
+msgid "Clear all history…"
+msgstr ""
+
+#: crates/app/src/ui/history_dialog.rs:182
+msgid "Show storage location"
+msgstr ""
+
+#: crates/app/src/ui/history_dialog.rs:187
+msgid "More actions"
+msgstr ""
+
+#: crates/app/src/ui/history_dialog.rs:215
+msgid "Search queries…"
+msgstr ""
+
+#: crates/app/src/ui/history_dialog.rs:232
+msgid "Pinned"
+msgstr ""
+
+#: crates/app/src/ui/history_dialog.rs:252
+msgid "All queries"
+msgstr ""
+
+#: crates/app/src/ui/history_dialog.rs:283 crates/app/src/ui/history_dialog.rs:571
+msgid "No queries yet"
+msgstr ""
+
+#: crates/app/src/ui/history_dialog.rs:284 crates/app/src/ui/history_dialog.rs:573
+msgid "Run a query in the SQL editor and it will appear here."
+msgstr ""
+
+#: crates/app/src/ui/history_dialog.rs:433 crates/app/src/ui/preferences.rs:65
+msgid "Clear all query history?"
+msgstr ""
+
+#: crates/app/src/ui/history_dialog.rs:435 crates/app/src/ui/preferences.rs:67
+msgid "This permanently deletes every saved query, including pinned ones."
+msgstr ""
+
+#: crates/app/src/ui/history_dialog.rs:439 crates/app/src/ui/preferences.rs:71
+msgid "Clear"
+msgstr ""
+
+#: crates/app/src/ui/history_dialog.rs:566
+msgid "No matches"
+msgstr ""
+
+#: crates/app/src/ui/history_dialog.rs:568
+msgid "Try a different search term or change the filters."
+msgstr ""
+
+#: crates/app/src/ui/history_dialog.rs:636 crates/app/src/ui/history_dialog.rs:668
+msgid "Unpin"
+msgstr ""
+
+#: crates/app/src/ui/history_dialog.rs:638 crates/app/src/ui/history_dialog.rs:670
+msgid "Pin"
+msgstr ""
+
+#: crates/app/src/ui/history_dialog.rs:664
+msgid "Open in new tab"
+msgstr ""
+
+#: crates/app/src/ui/history_dialog.rs:665
+msgid "Replace current tab"
+msgstr ""
+
+#: crates/app/src/ui/history_dialog.rs:674
+msgid "Copy SQL"
+msgstr ""
+
+#: crates/app/src/ui/history_dialog.rs:743
+msgid "{n} selected"
+msgstr ""
+
+#: crates/app/src/ui/history_dialog.rs:777
+msgid "SQL files"
+msgstr ""
+
+#: crates/app/src/ui/history_dialog.rs:788
+msgid "Export query history"
+msgstr ""
+
+#: crates/app/src/ui/history_dialog.rs:854
+msgid "{n} row(s)"
+msgstr ""
+
+#: crates/app/src/ui/history_dialog.rs:864
+msgid "just now"
+msgstr ""
+
+#: crates/app/src/ui/history_dialog.rs:867
+msgid "{n} min ago"
+msgstr ""
+
+#: crates/app/src/ui/history_dialog.rs:870
+msgid "{n} h ago"
+msgstr ""
+
+#: crates/app/src/ui/history_dialog.rs:873
+msgid "{n} d ago"
+msgstr ""
+
 #: crates/app/src/ui/insert_dialog.rs:85
 msgid "Insert"
 msgstr ""
@@ -617,35 +789,71 @@ msgstr ""
 msgid "Inserting…"
 msgstr ""
 
-#: crates/app/src/ui/preferences.rs:17
+#: crates/app/src/ui/preferences.rs:18
 msgid "Data browser"
 msgstr ""
 
-#: crates/app/src/ui/preferences.rs:19
+#: crates/app/src/ui/preferences.rs:20
 msgid "Tunes the row paginator and destructive-action confirmation."
 msgstr ""
 
-#: crates/app/src/ui/preferences.rs:26
+#: crates/app/src/ui/preferences.rs:27
 msgid "Default page size"
 msgstr ""
 
-#: crates/app/src/ui/preferences.rs:27
+#: crates/app/src/ui/preferences.rs:28
 msgid "Rows fetched per request when browsing a table"
 msgstr ""
 
-#: crates/app/src/ui/preferences.rs:31
+#: crates/app/src/ui/preferences.rs:32
 msgid "Confirm before deleting rows"
 msgstr ""
 
-#: crates/app/src/ui/preferences.rs:32
+#: crates/app/src/ui/preferences.rs:33
 msgid "Show a confirmation dialog before each destructive action"
 msgstr ""
 
-#: crates/app/src/ui/preferences.rs:41
-msgid "Editor"
+#: crates/app/src/ui/preferences.rs:42
+msgid "Query history"
+msgstr ""
+
+#: crates/app/src/ui/preferences.rs:43
+msgid "Persistent record of every SQL query you run."
+msgstr ""
+
+#: crates/app/src/ui/preferences.rs:47
+msgid "Retention (days)"
 msgstr ""
 
 #: crates/app/src/ui/preferences.rs:48
+msgid "0 keeps history forever; pinned entries are never pruned."
+msgstr ""
+
+#: crates/app/src/ui/preferences.rs:53
+msgid "Clear now"
+msgstr ""
+
+#: crates/app/src/ui/preferences.rs:58
+msgid "Clear history now"
+msgstr ""
+
+#: crates/app/src/ui/preferences.rs:59
+msgid "Removes every saved query, including pinned ones."
+msgstr ""
+
+#: crates/app/src/ui/preferences.rs:90
+msgid "Show in Files"
+msgstr ""
+
+#: crates/app/src/ui/preferences.rs:98
+msgid "Storage location"
+msgstr ""
+
+#: crates/app/src/ui/preferences.rs:120
+msgid "Editor"
+msgstr ""
+
+#: crates/app/src/ui/preferences.rs:127
 msgid "Editor font size"
 msgstr ""
 

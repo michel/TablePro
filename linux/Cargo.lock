@@ -4429,15 +4429,18 @@ dependencies = [
 name = "tablepro-storage"
 version = "0.1.0"
 dependencies = [
+ "chrono",
  "oo7",
  "secrecy",
  "serde",
  "serde_json",
+ "sqlx",
  "tablepro-core",
  "tablepro-ssh",
  "tempfile",
  "thiserror 2.0.18",
  "tokio",
+ "tracing",
  "uuid",
 ]
 

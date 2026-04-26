@@ -537,7 +537,12 @@ async fn run_connect(
         ssh: ssh.as_ref().map(|s| s.cfg.clone()),
         read_only,
     };
-    database_service::instance().add(saved.id, conn, tunnel, read_only, params);
+    let metadata = crate::services::database_service::ConnectionMetadata {
+        id: saved.id,
+        name: saved.name.clone(),
+        driver_id: saved.driver_id.clone(),
+    };
+    database_service::instance().add(saved.id, metadata, conn, tunnel, read_only, params);
     Ok((saved, tables))
 }
 

@@ -5,7 +5,7 @@ use tablepro_core::{ConnectOptions, Connection, DriverRegistry, ReadOnlyConnecti
 use tablepro_ssh::{SshConfig, SshTunnel};
 use tablepro_storage::{SavedConnection, SavedSshAuth, load_password, load_ssh_passphrase, load_ssh_password};
 
-use super::database_service::{self, ReconnectParams};
+use super::database_service::{self, ConnectionMetadata, ReconnectParams};
 
 pub async fn open_saved(registry: Arc<DriverRegistry>, saved: SavedConnection) -> Result<Vec<TableInfo>, String> {
     let driver = registry
@@ -34,13 +34,18 @@ pub async fn open_saved(registry: Arc<DriverRegistry>, saved: SavedConnection) -
 
     let (conn, tunnel) = establish(&*driver, opts.clone(), ssh_cfg.clone(), saved.read_only).await?;
     let tables = conn.list_tables().await.map_err(|e| format!("list_tables: {e}"))?;
+    let metadata = ConnectionMetadata {
+        id,
+        name: saved.name.clone(),
+        driver_id: saved.driver_id.clone(),
+    };
     let params = ReconnectParams {
         driver,
         opts,
         ssh: ssh_cfg,
         read_only: saved.read_only,
     };
-    database_service::instance().add(id, conn, tunnel, saved.read_only, params);
+    database_service::instance().add(id, metadata, conn, tunnel, saved.read_only, params);
     Ok(tables)
 }
 

@@ -17,6 +17,7 @@ use super::editor::{
     SqlEditor, SqlEditorInit, SqlEditorOutput, build_schema_buffer, derive_tab_label, update_schema_buffer,
 };
 use super::grid::build_column_view;
+use super::history_dialog::{HistoryDialog, HistoryDialogInit, HistoryDialogOutput};
 use super::insert_dialog::{InsertDialog, InsertDialogInit, InsertDialogOutput};
 use super::sidebar_row::{SidebarRow, SidebarRowOutput};
 use crate::services::database_service::ConnectionHealth;
@@ -64,6 +65,7 @@ pub struct App {
     schema_buffer: gtk::TextBuffer,
     insert_dialog: Option<Controller<InsertDialog>>,
     edit_dialog: Option<Controller<EditDialog>>,
+    history_dialog: Option<Controller<HistoryDialog>>,
     current_table: Option<String>,
     current_schema: Option<String>,
     current_offset: u64,
@@ -129,6 +131,9 @@ pub enum AppMsg {
     EditorTabClosed(Uuid),
     EditorTabRunStateChanged(Uuid, bool),
     EditorTabQueryChanged(Uuid, String),
+    ShowHistory,
+    OpenHistoryQuery(String),
+    ReplaceActiveTabQuery(String),
     Disconnect,
     PollHealth,
     RefreshPage,
@@ -598,6 +603,7 @@ impl SimpleComponent for App {
             schema_buffer: build_schema_buffer(),
             insert_dialog: None,
             edit_dialog: None,
+            history_dialog: None,
             current_table: None,
             current_schema: None,
             current_offset: 0,
@@ -636,6 +642,16 @@ impl SimpleComponent for App {
         let poll_sender = sender.clone();
         glib::timeout_add_seconds_local(1, move || {
             poll_sender.input(AppMsg::PollHealth);
+            glib::ControlFlow::Continue
+        });
+
+        glib::timeout_add_seconds_local(3600, || {
+            let retention = crate::services::preferences::load().history_retention_days;
+            relm4::spawn(async move {
+                if let Err(e) = tablepro_storage::query_history::prune_older_than(retention).await {
+                    tracing::warn!(error = %e, "history prune failed");
+                }
+            });
             glib::ControlFlow::Continue
         });
 
@@ -695,6 +711,12 @@ impl SimpleComponent for App {
             AppMsg::EditorTabClosed(id) => self.close_editor_tab_by_id(id, sender),
             AppMsg::EditorTabRunStateChanged(id, running) => self.on_editor_tab_run_state_changed(id, running),
             AppMsg::EditorTabQueryChanged(id, text) => self.on_editor_tab_query_changed(id, text),
+            AppMsg::ShowHistory => self.on_show_history(sender),
+            AppMsg::OpenHistoryQuery(text) => {
+                self.on_open_editor(sender.clone());
+                self.append_editor_tab(Some(text), sender);
+            }
+            AppMsg::ReplaceActiveTabQuery(text) => self.on_replace_active_tab_query(text),
             AppMsg::PollHealth => self.on_poll_health(),
             AppMsg::RefreshPage => self.fetch_current_page(sender),
             AppMsg::ShowShortcuts => self.on_show_shortcuts(),
@@ -2072,6 +2094,9 @@ fn primary_menu_model() -> gio::Menu {
     disconnect_item.set_attribute_value("hidden-when", Some(&"action-disabled".to_variant()));
     connection_section.append_item(&disconnect_item);
     menu.append_section(None, &connection_section);
+    let history_section = gio::Menu::new();
+    history_section.append(Some(&crate::tr!("Query History")), Some("win.show-history"));
+    menu.append_section(None, &history_section);
     let prefs_section = gio::Menu::new();
     prefs_section.append(Some(&crate::tr!("Preferences")), Some("win.preferences"));
     menu.append_section(None, &prefs_section);
@@ -2121,6 +2146,11 @@ fn install_window_actions(window: &adw::ApplicationWindow, sender: ComponentSend
         .activate(move |_, _, _| prefs_sender.input(AppMsg::ShowPreferences))
         .build();
 
+    let history_sender = sender.clone();
+    let show_history = gio::ActionEntry::builder("show-history")
+        .activate(move |_, _, _| history_sender.input(AppMsg::ShowHistory))
+        .build();
+
     let refresh_sender = sender.clone();
     let refresh = gio::ActionEntry::builder("refresh-page")
         .activate(move |_, _, _| refresh_sender.input(AppMsg::RefreshPage))
@@ -2149,6 +2179,7 @@ fn install_window_actions(window: &adw::ApplicationWindow, sender: ComponentSend
         disconnect,
         close_current,
         preferences,
+        show_history,
         refresh,
         find,
         export_csv,
@@ -2175,6 +2206,7 @@ fn install_window_shortcuts(window: &adw::ApplicationWindow) {
     controller.add_shortcut(make_shortcut("F5", "win.refresh-page"));
     controller.add_shortcut(make_shortcut("<Primary>f", "win.find-in-results"));
     controller.add_shortcut(make_shortcut("<Primary>comma", "win.preferences"));
+    controller.add_shortcut(make_shortcut("<Primary>h", "win.show-history"));
     window.add_controller(controller);
 }
 
@@ -2197,6 +2229,7 @@ fn build_shortcuts_window(parent: &adw::ApplicationWindow) -> gtk::ShortcutsWind
     general.append(&shortcut_entry("<Primary>f", &crate::tr!("Find in results")));
     general.append(&shortcut_entry("F5", &crate::tr!("Refresh table")));
     general.append(&shortcut_entry("<Primary>comma", &crate::tr!("Open Preferences")));
+    general.append(&shortcut_entry("<Primary>h", &crate::tr!("Open Query History")));
     general.append(&shortcut_entry(
         "<Primary>question",
         &crate::tr!("Show keyboard shortcuts"),
@@ -2417,6 +2450,36 @@ impl App {
             self.grid_search_bar.set_search_mode(true);
         }
         self.grid_search.grab_focus();
+    }
+
+    fn on_show_history(&mut self, sender: ComponentSender<Self>) {
+        let dialog =
+            HistoryDialog::builder()
+                .launch(HistoryDialogInit)
+                .forward(sender.input_sender(), |out| match out {
+                    HistoryDialogOutput::OpenInNewTab(text) => AppMsg::OpenHistoryQuery(text),
+                    HistoryDialogOutput::ReplaceCurrentTabQuery(text) => AppMsg::ReplaceActiveTabQuery(text),
+                });
+        dialog.model().dialog().present(Some(&self.window));
+        self.history_dialog = Some(dialog);
+    }
+
+    fn on_replace_active_tab_query(&mut self, text: String) {
+        let Some(tab_view) = self.editor_tab_view.as_ref() else {
+            return;
+        };
+        let Some(active_page) = tab_view.selected_page() else {
+            return;
+        };
+        let Some(id) = read_tab_id(&active_page) else {
+            return;
+        };
+        if let Some(slot) = self.editor_tabs.iter().find(|s| s.id == id) {
+            let _ = slot
+                .controller
+                .sender()
+                .send(super::editor::SqlEditorInput::ReplaceQuery(text));
+        }
     }
 
     fn on_show_about(&self) {

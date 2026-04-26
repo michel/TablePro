@@ -1,4 +1,5 @@
 use relm4::adw::prelude::*;
+use relm4::gtk::gio;
 use relm4::{adw, gtk};
 
 use crate::services::preferences::{self, Preferences};
@@ -37,6 +38,84 @@ pub fn present(parent: &impl IsA<gtk::Widget>) {
     browse_group.add(&confirm_row);
     general.add(&browse_group);
 
+    let history_group = adw::PreferencesGroup::builder()
+        .title(crate::tr!("Query history"))
+        .description(crate::tr!("Persistent record of every SQL query you run."))
+        .build();
+
+    let retention_row = adw::SpinRow::with_range(0.0, 365.0, 1.0);
+    retention_row.set_title(&crate::tr!("Retention (days)"));
+    retention_row.set_subtitle(&crate::tr!("0 keeps history forever; pinned entries are never pruned."));
+    retention_row.set_value(current.history_retention_days as f64);
+    history_group.add(&retention_row);
+
+    let clear_button = gtk::Button::builder()
+        .label(crate::tr!("Clear now"))
+        .valign(gtk::Align::Center)
+        .build();
+    clear_button.add_css_class("destructive-action");
+    let clear_row = adw::ActionRow::builder()
+        .title(crate::tr!("Clear history now"))
+        .subtitle(crate::tr!("Removes every saved query, including pinned ones."))
+        .build();
+    clear_row.add_suffix(&clear_button);
+    let dialog_root = window.clone();
+    clear_button.connect_clicked(move |_| {
+        let alert = adw::AlertDialog::new(
+            Some(&crate::tr!("Clear all query history?")),
+            Some(&crate::tr!(
+                "This permanently deletes every saved query, including pinned ones."
+            )),
+        );
+        alert.add_response("cancel", &crate::tr!("Cancel"));
+        alert.add_response("clear", &crate::tr!("Clear"));
+        alert.set_response_appearance("clear", adw::ResponseAppearance::Destructive);
+        alert.set_default_response(Some("cancel"));
+        alert.set_close_response("cancel");
+        alert.connect_response(None, move |dlg, response| {
+            dlg.close();
+            if response == "clear" {
+                relm4::spawn(async move {
+                    if let Err(e) = tablepro_storage::query_history::clear_all().await {
+                        tracing::warn!(error = %e, "history clear_all failed");
+                    }
+                });
+            }
+        });
+        alert.present(Some(&dialog_root));
+    });
+    history_group.add(&clear_row);
+
+    let storage_button = gtk::Button::builder()
+        .label(crate::tr!("Show in Files"))
+        .valign(gtk::Align::Center)
+        .build();
+    storage_button.add_css_class("flat");
+    let storage_subtitle = tablepro_storage::query_history::db_path()
+        .map(|p| p.display().to_string())
+        .unwrap_or_else(|| "$XDG_CONFIG_HOME/tablepro/history.db".to_string());
+    let storage_row = adw::ActionRow::builder()
+        .title(crate::tr!("Storage location"))
+        .subtitle(&storage_subtitle)
+        .build();
+    storage_row.add_suffix(&storage_button);
+    let parent_for_launcher = window.clone();
+    storage_button.connect_clicked(move |_| {
+        let Some(path) = tablepro_storage::query_history::db_path() else {
+            return;
+        };
+        let parent = path.parent().map(|p| p.to_path_buf()).unwrap_or(path);
+        let file = gio::File::for_path(&parent);
+        let launcher = gtk::FileLauncher::new(Some(&file));
+        let parent_window = parent_for_launcher
+            .root()
+            .and_then(|r| r.downcast::<gtk::Window>().ok());
+        launcher.launch(parent_window.as_ref(), gio::Cancellable::NONE, |_| {});
+    });
+    history_group.add(&storage_row);
+
+    general.add(&history_group);
+
     let editor = adw::PreferencesPage::builder()
         .title(crate::tr!("Editor"))
         .icon_name("text-editor-symbolic")
@@ -57,11 +136,13 @@ pub fn present(parent: &impl IsA<gtk::Widget>) {
     let page_size_for_save = page_size_row.clone();
     let confirm_for_save = confirm_row.clone();
     let font_size_for_save = font_size_row.clone();
+    let retention_for_save = retention_row.clone();
     window.connect_closed(move |_| {
         let prefs = Preferences {
             default_page_size: page_size_for_save.value() as u64,
             confirm_destructive: confirm_for_save.is_active(),
             editor_font_size: font_size_for_save.value() as u32,
+            history_retention_days: retention_for_save.value() as u32,
         };
         preferences::save(&prefs);
     });

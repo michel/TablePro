@@ -21,6 +21,13 @@ pub(super) struct EntryInner {
     pub(super) health: ConnectionHealth,
 }
 
+#[derive(Debug, Clone)]
+pub struct ConnectionMetadata {
+    pub id: Uuid,
+    pub name: String,
+    pub driver_id: String,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ConnectionHealth {
     Healthy,
@@ -36,6 +43,7 @@ pub struct ReconnectParams {
 
 struct Entry {
     inner: Arc<Mutex<EntryInner>>,
+    metadata: ConnectionMetadata,
     read_only: bool,
     cancel: CancellationToken,
     _monitor: tokio::task::JoinHandle<()>,
@@ -57,6 +65,7 @@ impl DatabaseService {
     pub fn add(
         &self,
         id: Uuid,
+        metadata: ConnectionMetadata,
         connection: Box<dyn Connection>,
         tunnel: Option<SshTunnel>,
         read_only: bool,
@@ -72,6 +81,7 @@ impl DatabaseService {
         let monitor = tokio::spawn(connection_monitor::run(inner.clone(), params, cancel.clone()));
         let entry = Entry {
             inner,
+            metadata,
             read_only,
             cancel,
             _monitor: monitor,
@@ -81,6 +91,19 @@ impl DatabaseService {
             .expect("database_service lock")
             .insert(id, entry);
         *self.active.lock().expect("database_service lock") = Some(id);
+    }
+
+    pub fn active_metadata(&self) -> Option<ConnectionMetadata> {
+        let id = self.active_id()?;
+        let entries = self.connections.lock().expect("database_service lock");
+        entries.get(&id).map(|e| e.metadata.clone())
+    }
+
+    pub fn all_connections(&self) -> Vec<ConnectionMetadata> {
+        let entries = self.connections.lock().expect("database_service lock");
+        let mut out: Vec<_> = entries.values().map(|e| e.metadata.clone()).collect();
+        out.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+        out
     }
 
     pub fn get(&self, id: Uuid) -> Option<Arc<dyn Connection>> {

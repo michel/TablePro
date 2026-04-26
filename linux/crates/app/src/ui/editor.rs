@@ -1,3 +1,5 @@
+use std::time::SystemTime;
+
 use relm4::adw::prelude::*;
 use relm4::gtk::glib;
 use relm4::prelude::*;
@@ -6,9 +8,10 @@ use sourceview5::prelude::*;
 use tokio_util::sync::CancellationToken;
 
 use tablepro_core::QueryResult;
+use tablepro_storage::query_history::{self, NewEntry, Outcome};
 
 use super::grid::build_column_view;
-use crate::services::database_service;
+use crate::services::database_service::{self, ConnectionMetadata};
 
 pub struct SqlEditor {
     source_view: sourceview5::View,
@@ -18,6 +21,9 @@ pub struct SqlEditor {
     results_holder: gtk::Box,
     status: gtk::Label,
     cancel_token: Option<CancellationToken>,
+    executing_sql: Option<String>,
+    executing_metadata: Option<ConnectionMetadata>,
+    executing_started_at: Option<SystemTime>,
 }
 
 pub struct SqlEditorInit {
@@ -32,6 +38,7 @@ pub enum SqlEditorInput {
     ShowResult(QueryResult, u128),
     ShowError(String),
     ShowCancelled,
+    ReplaceQuery(String),
 }
 
 #[derive(Debug)]
@@ -226,6 +233,9 @@ impl SimpleComponent for SqlEditor {
             results_holder: widgets.results_holder.clone(),
             status: widgets.status.clone(),
             cancel_token: None,
+            executing_sql: None,
+            executing_metadata: None,
+            executing_started_at: None,
         };
         ComponentParts { model, widgets }
     }
@@ -262,6 +272,10 @@ impl SimpleComponent for SqlEditor {
                 self.status.set_label(&crate::tr!("Running…"));
                 clear_box(&self.results_holder);
                 let _ = sender.output(SqlEditorOutput::RunStateChanged(true));
+
+                self.executing_sql = Some(trimmed.clone());
+                self.executing_metadata = database_service::instance().active_metadata();
+                self.executing_started_at = Some(SystemTime::now());
 
                 let started = std::time::Instant::now();
                 let sender_clone = sender.clone();
@@ -308,6 +322,7 @@ impl SimpleComponent for SqlEditor {
                 self.cancel_button.set_visible(false);
                 self.running_spinner.set_visible(false);
                 let _ = sender.output(SqlEditorOutput::RunStateChanged(false));
+                self.record_history(elapsed_ms as i64, Some(result.rows.len() as i64), Outcome::Success);
                 let n = result.rows.len().to_string();
                 let ms = elapsed_ms.to_string();
                 let label = if result.truncated {
@@ -347,6 +362,12 @@ impl SimpleComponent for SqlEditor {
                 self.cancel_button.set_visible(false);
                 self.running_spinner.set_visible(false);
                 let _ = sender.output(SqlEditorOutput::RunStateChanged(false));
+                let elapsed = self
+                    .executing_started_at
+                    .and_then(|t| SystemTime::now().duration_since(t).ok())
+                    .map(|d| d.as_millis() as i64)
+                    .unwrap_or(0);
+                self.record_history(elapsed, None, Outcome::Error(msg.clone()));
                 self.status.set_label(&crate::tr!("error"));
                 clear_box(&self.results_holder);
                 let err_page = adw::StatusPage::builder()
@@ -364,6 +385,12 @@ impl SimpleComponent for SqlEditor {
                 self.cancel_button.set_visible(false);
                 self.running_spinner.set_visible(false);
                 let _ = sender.output(SqlEditorOutput::RunStateChanged(false));
+                let elapsed = self
+                    .executing_started_at
+                    .and_then(|t| SystemTime::now().duration_since(t).ok())
+                    .map(|d| d.as_millis() as i64)
+                    .unwrap_or(0);
+                self.record_history(elapsed, None, Outcome::Cancelled);
                 self.status.set_label(&crate::tr!("cancelled"));
                 clear_box(&self.results_holder);
                 let cancelled_page = adw::StatusPage::builder()
@@ -374,7 +401,38 @@ impl SimpleComponent for SqlEditor {
                     .build();
                 self.results_holder.append(&cancelled_page);
             }
+
+            SqlEditorInput::ReplaceQuery(text) => {
+                self.source_view.buffer().set_text(&text);
+            }
         }
+    }
+}
+
+impl SqlEditor {
+    fn record_history(&mut self, duration_ms: i64, rows_affected: Option<i64>, outcome: Outcome) {
+        let (Some(query), Some(metadata), Some(started_at)) = (
+            self.executing_sql.take(),
+            self.executing_metadata.take(),
+            self.executing_started_at.take(),
+        ) else {
+            return;
+        };
+        let entry = NewEntry {
+            query,
+            driver_id: metadata.driver_id,
+            connection_id: metadata.id,
+            connection_name: metadata.name,
+            executed_at: started_at,
+            duration_ms: Some(duration_ms),
+            rows_affected,
+            outcome,
+        };
+        relm4::spawn(async move {
+            if let Err(e) = query_history::record(entry).await {
+                tracing::warn!(error = %e, "history record failed");
+            }
+        });
     }
 }
 

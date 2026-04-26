@@ -19,6 +19,20 @@ fn main() {
 
     i18n::init();
 
+    let prefs = services::preferences::load();
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .expect("history runtime");
+    runtime.block_on(async {
+        if let Err(e) = tablepro_storage::query_history::init().await {
+            tracing::warn!(error = %e, "history init failed; feature disabled");
+        } else if let Err(e) = tablepro_storage::query_history::prune_older_than(prefs.history_retention_days).await {
+            tracing::warn!(error = %e, "history prune failed");
+        }
+    });
+    drop(runtime);
+
     let registry = Arc::new(build_registry());
     tracing::info!(drivers = registry.len(), "starting tablepro-app");
 

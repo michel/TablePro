@@ -7,6 +7,12 @@ pub struct Preferences {
     pub default_page_size: u64,
     pub confirm_destructive: bool,
     pub editor_font_size: u32,
+    #[serde(default = "default_history_retention_days")]
+    pub history_retention_days: u32,
+}
+
+fn default_history_retention_days() -> u32 {
+    30
 }
 
 impl Default for Preferences {
@@ -15,6 +21,7 @@ impl Default for Preferences {
             default_page_size: 1_000,
             confirm_destructive: true,
             editor_font_size: 12,
+            history_retention_days: default_history_retention_days(),
         }
     }
 }
