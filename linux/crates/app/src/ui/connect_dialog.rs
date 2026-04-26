@@ -12,6 +12,8 @@ use crate::services::connection_holder;
 
 pub struct ConnectDialog {
     registry: Arc<DriverRegistry>,
+    drivers: Vec<DriverEntry>,
+    driver_combo: adw::ComboRow,
     host: adw::EntryRow,
     port: adw::EntryRow,
     database: adw::EntryRow,
@@ -21,12 +23,19 @@ pub struct ConnectDialog {
     status: gtk::Label,
 }
 
+#[derive(Debug, Clone)]
+struct DriverEntry {
+    id: String,
+    display_name: String,
+}
+
 pub struct ConnectDialogInit {
     pub registry: Arc<DriverRegistry>,
 }
 
 #[derive(Debug)]
 pub enum ConnectDialogInput {
+    DriverChanged(u32),
     Submit,
     Closed,
 }
@@ -51,7 +60,7 @@ impl Component for ConnectDialog {
 
     view! {
         adw::Dialog {
-            set_title: "Connect to PostgreSQL",
+            set_title: "Connect",
             set_content_width: 480,
 
             connect_closed => ConnectDialogInput::Closed,
@@ -70,6 +79,7 @@ impl Component for ConnectDialog {
                     set_margin_end: 24,
 
                     adw::PreferencesGroup {
+                        add: &model.driver_combo,
                         add: &model.host,
                         add: &model.port,
                         add: &model.database,
@@ -85,6 +95,26 @@ impl Component for ConnectDialog {
     }
 
     fn init(init: Self::Init, root: Self::Root, sender: ComponentSender<Self>) -> ComponentParts<Self> {
+        let mut drivers: Vec<DriverEntry> = init
+            .registry
+            .iter()
+            .map(|d| DriverEntry {
+                id: d.id().to_string(),
+                display_name: d.display_name().to_string(),
+            })
+            .collect();
+        drivers.sort_by(|a, b| a.display_name.cmp(&b.display_name));
+
+        let names: Vec<String> = drivers.iter().map(|d| d.display_name.clone()).collect();
+        let names_ref: Vec<&str> = names.iter().map(String::as_str).collect();
+        let driver_model = gtk::StringList::new(&names_ref);
+
+        let driver_combo = adw::ComboRow::builder().title("Driver").model(&driver_model).build();
+        let sender_for_combo = sender.clone();
+        driver_combo.connect_selected_notify(move |row| {
+            sender_for_combo.input(ConnectDialogInput::DriverChanged(row.selected()));
+        });
+
         let host = adw::EntryRow::builder().title("Host").text("localhost").build();
         let port = adw::EntryRow::builder().title("Port").text("5432").build();
         let database = adw::EntryRow::builder().title("Database").text("postgres").build();
@@ -109,6 +139,8 @@ impl Component for ConnectDialog {
 
         let model = ConnectDialog {
             registry: init.registry,
+            drivers: drivers.clone(),
+            driver_combo,
             host,
             port,
             database,
@@ -118,19 +150,54 @@ impl Component for ConnectDialog {
             status,
         };
         let widgets = view_output!();
+
+        if let Some(first) = drivers.first() {
+            apply_form_visibility(
+                &first.id,
+                &model.host,
+                &model.port,
+                &model.database,
+                &model.username,
+                &model.password,
+            );
+            root.set_title(&format!("Connect to {}", first.display_name));
+        }
+
         ComponentParts { model, widgets }
     }
 
-    fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>, _root: &Self::Root) {
+    fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>, root: &Self::Root) {
         match msg {
+            ConnectDialogInput::DriverChanged(idx) => {
+                let Some(entry) = self.drivers.get(idx as usize) else {
+                    return;
+                };
+                apply_form_visibility(
+                    &entry.id,
+                    &self.host,
+                    &self.port,
+                    &self.database,
+                    &self.username,
+                    &self.password,
+                );
+                root.set_title(&format!("Connect to {}", entry.display_name));
+            }
+
             ConnectDialogInput::Submit => {
                 self.submit.set_sensitive(false);
                 self.status.set_label("Connecting…");
 
-                let driver = match self.registry.get("postgres") {
+                let idx = self.driver_combo.selected() as usize;
+                let Some(entry) = self.drivers.get(idx).cloned() else {
+                    self.status.set_label("no driver selected");
+                    self.submit.set_sensitive(true);
+                    return;
+                };
+
+                let driver = match self.registry.get(&entry.id) {
                     Some(d) => d,
                     None => {
-                        self.status.set_label("postgres driver not registered");
+                        self.status.set_label(&format!("driver {} not registered", entry.id));
                         self.submit.set_sensitive(true);
                         return;
                     }
@@ -138,13 +205,18 @@ impl Component for ConnectDialog {
 
                 let opts = ConnectOptions {
                     host: self.host.text().to_string(),
-                    port: self.port.text().parse().unwrap_or(5432),
+                    port: self.port.text().parse().unwrap_or_else(|_| driver.default_port()),
                     database: self.database.text().to_string(),
                     username: self.username.text().to_string(),
                     password: self.password.text().to_string(),
                     use_tls: false,
                 };
-                let label = format!("{}@{}", opts.username, opts.host);
+                let label = if entry.id == "sqlite" {
+                    opts.database.clone()
+                } else {
+                    format!("{}@{}", opts.username, opts.host)
+                };
+                let driver_id = entry.id.clone();
 
                 sender.command(move |out, shutdown| {
                     shutdown
@@ -155,7 +227,7 @@ impl Component for ConnectDialog {
                                         let saved = SavedConnection {
                                             id: Uuid::new_v4(),
                                             name: label.clone(),
-                                            driver_id: driver.id().to_string(),
+                                            driver_id: driver_id.clone(),
                                             host: opts.host.clone(),
                                             port: opts.port,
                                             database: opts.database.clone(),
@@ -180,6 +252,7 @@ impl Component for ConnectDialog {
                         .drop_on_shutdown()
                 });
             }
+
             ConnectDialogInput::Closed => {
                 let _ = sender.output(ConnectDialogOutput::Closed);
             }
@@ -204,6 +277,22 @@ impl Component for ConnectDialog {
             }
         }
     }
+}
+
+fn apply_form_visibility(
+    driver_id: &str,
+    host: &adw::EntryRow,
+    port: &adw::EntryRow,
+    database: &adw::EntryRow,
+    username: &adw::EntryRow,
+    password: &adw::PasswordEntryRow,
+) {
+    let is_file_based = driver_id == "sqlite";
+    host.set_visible(!is_file_based);
+    port.set_visible(!is_file_based);
+    username.set_visible(!is_file_based);
+    password.set_visible(!is_file_based);
+    database.set_title(if is_file_based { "File path" } else { "Database" });
 }
 
 async fn save_one(connection: &SavedConnection) -> Result<(), tablepro_storage::StorageError> {
