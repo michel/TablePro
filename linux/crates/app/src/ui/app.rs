@@ -21,9 +21,12 @@ pub struct App {
     content_holder: adw::ToolbarView,
     connections_listbox: gtk::ListBox,
     connections_popover: gtk::Popover,
+    edit_button: gtk::Button,
+    disconnect_button: gtk::Button,
     dialog: Option<Controller<ConnectDialog>>,
     editor: Option<Controller<SqlEditor>>,
     selected: Option<String>,
+    connected: bool,
 }
 
 #[derive(Debug)]
@@ -39,6 +42,7 @@ pub enum AppMsg {
     OpenSaved(SavedConnection),
     DeleteConnection(Uuid),
     OpenEditor,
+    Disconnect,
 }
 
 #[relm4::component(pub)]
@@ -73,10 +77,20 @@ impl SimpleComponent for App {
                         set_popover = &gtk::Popover {},
                     },
 
+                    #[name = "edit_button"]
                     pack_end = &gtk::Button {
                         set_icon_name: "edit-symbolic",
                         set_tooltip_text: Some("SQL editor"),
+                        set_sensitive: false,
                         connect_clicked => AppMsg::OpenEditor,
+                    },
+
+                    #[name = "disconnect_button"]
+                    pack_end = &gtk::Button {
+                        set_icon_name: "media-eject-symbolic",
+                        set_tooltip_text: Some("Disconnect"),
+                        set_visible: false,
+                        connect_clicked => AppMsg::Disconnect,
                     },
                 },
 
@@ -160,9 +174,12 @@ impl SimpleComponent for App {
             content_holder: widgets.content_holder.clone(),
             connections_listbox,
             connections_popover: widgets.connections_popover.clone(),
+            edit_button: widgets.edit_button.clone(),
+            disconnect_button: widgets.disconnect_button.clone(),
             dialog: None,
             editor: None,
             selected: None,
+            connected: false,
         };
         sender.input(AppMsg::ReloadConnections);
         ComponentParts { model, widgets }
@@ -185,6 +202,9 @@ impl SimpleComponent for App {
 
             AppMsg::Connected { tables, driver_id } => {
                 self.dialog = None;
+                self.connected = true;
+                self.edit_button.set_sensitive(true);
+                self.disconnect_button.set_visible(true);
                 tracing::info!(driver = %driver_id, table_count = tables.len(), "workspace ready");
                 rebuild_sidebar(&self.sidebar, &tables, sender.clone());
                 self.set_status_page(
@@ -192,6 +212,23 @@ impl SimpleComponent for App {
                     &format!("Connected to {driver_id}. Pick a table from the left to load up to 100,000 rows."),
                 );
                 sender.input(AppMsg::ReloadConnections);
+            }
+
+            AppMsg::Disconnect => {
+                connection_holder::clear();
+                self.editor = None;
+                self.selected = None;
+                self.connected = false;
+                self.edit_button.set_sensitive(false);
+                self.disconnect_button.set_visible(false);
+                while let Some(child) = self.sidebar.first_child() {
+                    self.sidebar.remove(&child);
+                }
+                self.set_status_page(
+                    "Connect to a database",
+                    "Click the server icon for a new connection or the folder icon to open a saved one.",
+                );
+                tracing::info!("disconnected");
             }
 
             AppMsg::DialogClosed => {

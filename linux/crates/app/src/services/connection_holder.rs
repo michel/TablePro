@@ -15,3 +15,7 @@ pub fn set(connection: Box<dyn Connection>) {
 pub fn get() -> Option<Arc<dyn Connection>> {
     cell().read().expect("connection_holder read").clone()
 }
+
+pub fn clear() {
+    *cell().write().expect("connection_holder write") = None;
+}
