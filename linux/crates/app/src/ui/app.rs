@@ -87,7 +87,8 @@ pub enum AppMsg {
     EditSelectedRow,
     EditCommitted,
     DeleteSelectedRow,
-    RowOperationCommitted,
+    RowOperationCommitted(Option<UndoBatch>),
+    ExecuteUndo(UndoBatch),
     CellEdited {
         table: String,
         row_position: u32,
@@ -129,6 +130,12 @@ pub enum AppMsg {
 enum ExportFormat {
     Csv,
     Json,
+}
+
+#[derive(Debug, Clone)]
+pub struct UndoBatch {
+    pub label: String,
+    pub statements: Vec<(String, Vec<Value>)>,
 }
 
 #[relm4::component(pub)]
@@ -554,9 +561,21 @@ impl SimpleComponent for App {
             AppMsg::EditSelectedRow => self.on_edit_selected_row(sender),
             AppMsg::EditCommitted => self.on_edit_committed(sender),
             AppMsg::DeleteSelectedRow => self.on_delete_selected_row(sender),
-            AppMsg::RowOperationCommitted => {
-                self.show_toast("Rows updated");
+            AppMsg::RowOperationCommitted(undo) => {
+                let label = undo
+                    .as_ref()
+                    .map(|u| u.label.clone())
+                    .unwrap_or_else(|| "Rows updated".to_string());
+                if let Some(u) = undo {
+                    self.show_undoable_toast(&label, u, sender.clone());
+                } else {
+                    self.show_toast(&label);
+                }
                 self.fetch_current_page(sender);
+            }
+            AppMsg::ExecuteUndo(batch) => {
+                self.show_toast("Undoing…");
+                run_undo_batch(sender, batch);
             }
             AppMsg::CellEdited {
                 table,
@@ -997,6 +1016,7 @@ impl App {
         } else {
             Value::Text(new_value)
         };
+        let original_value = row[col_index].clone();
         let (sql, params) = match crate::sql_dialect::build_single_cell_update(
             &driver_id,
             &table,
@@ -1011,7 +1031,20 @@ impl App {
                 return;
             }
         };
-        execute_then_refetch(sender, sql, params);
+        let undo = crate::sql_dialect::build_single_cell_update(
+            &driver_id,
+            &table,
+            &self.current_columns,
+            &row,
+            col_index,
+            original_value,
+        )
+        .ok()
+        .map(|(s, p)| UndoBatch {
+            label: "Cell updated".into(),
+            statements: vec![(s, p)],
+        });
+        execute_then_refetch(sender, sql, params, undo);
     }
 
     fn on_reload_connections(&self, sender: ComponentSender<Self>) {
@@ -1126,10 +1159,7 @@ impl App {
             .build();
         outer.set_size_request(560, -1);
 
-        let header = gtk::Label::builder()
-            .label("Saved connections")
-            .xalign(0.0)
-            .build();
+        let header = gtk::Label::builder().label("Saved connections").xalign(0.0).build();
         header.add_css_class("title-2");
         outer.append(&header);
 
@@ -1328,12 +1358,28 @@ impl App {
         let sql = format!("DELETE FROM {} WHERE {}", quote_ident(driver_id, table), where_clause);
 
         let mut batches: Vec<Vec<Value>> = Vec::with_capacity(positions.len());
+        let mut undo_statements: Vec<(String, Vec<Value>)> = Vec::with_capacity(positions.len());
         for pos in positions {
             let Some(row) = rows.get(*pos as usize) else {
                 continue;
             };
             batches.push(pk_indexes.iter().map(|i| row[*i].clone()).collect());
+            undo_statements.push(build_insert_for_row(driver_id, table, &self.current_columns, row));
         }
+
+        let undo_label = if positions.len() == 1 {
+            "1 row deleted".to_string()
+        } else {
+            format!("{} rows deleted", positions.len())
+        };
+        let undo = if undo_statements.is_empty() {
+            None
+        } else {
+            Some(UndoBatch {
+                label: undo_label,
+                statements: undo_statements,
+            })
+        };
 
         let alert_title = if positions.len() == 1 {
             "Delete row?".to_string()
@@ -1355,7 +1401,8 @@ impl App {
             }
             let sql = sql.clone();
             let batches = batches.clone();
-            execute_many_then_refetch(sender_clone.clone(), sql, batches);
+            let undo = undo.clone();
+            execute_many_then_refetch(sender_clone.clone(), sql, batches, undo);
         });
         dialog.present(Some(&self.window));
     }
@@ -1374,6 +1421,21 @@ impl App {
 
     fn show_toast(&self, msg: &str) {
         self.toast_overlay.add_toast(adw::Toast::new(msg));
+    }
+
+    fn show_undoable_toast(&self, msg: &str, batch: UndoBatch, sender: ComponentSender<Self>) {
+        let toast = adw::Toast::builder()
+            .title(msg)
+            .timeout(10)
+            .button_label("Undo")
+            .build();
+        let s = sender;
+        let batch_clone = batch;
+        toast.connect_button_clicked(move |t| {
+            s.input(AppMsg::ExecuteUndo(batch_clone.clone()));
+            t.dismiss();
+        });
+        self.toast_overlay.add_toast(toast);
     }
 
     fn show_error_alert(&self, title: &str, message: &str) {
@@ -1473,7 +1535,12 @@ fn selected_positions(selection: &gtk::MultiSelection) -> Vec<u32> {
     out
 }
 
-fn execute_many_then_refetch(sender: ComponentSender<App>, sql: String, batches: Vec<Vec<Value>>) {
+fn execute_many_then_refetch(
+    sender: ComponentSender<App>,
+    sql: String,
+    batches: Vec<Vec<Value>>,
+    undo: Option<UndoBatch>,
+) {
     let Some(conn) = database_service::instance().active() else {
         sender.input(AppMsg::LoadFailed("no active connection".into()));
         return;
@@ -1494,13 +1561,13 @@ fn execute_many_then_refetch(sender: ComponentSender<App>, sql: String, batches:
                     }
                 }
                 tracing::info!(rows = total, "multi-execute ok");
-                sender_clone.input(AppMsg::RowOperationCommitted);
+                sender_clone.input(AppMsg::RowOperationCommitted(undo));
             })
             .drop_on_shutdown()
     });
 }
 
-fn execute_then_refetch(sender: ComponentSender<App>, sql: String, params: Vec<Value>) {
+fn execute_then_refetch(sender: ComponentSender<App>, sql: String, params: Vec<Value>, undo: Option<UndoBatch>) {
     let Some(conn) = database_service::instance().active() else {
         sender.input(AppMsg::LoadFailed("no active connection".into()));
         return;
@@ -1512,7 +1579,7 @@ fn execute_then_refetch(sender: ComponentSender<App>, sql: String, params: Vec<V
                 match conn.execute_params(&sql, &params).await {
                     Ok(exec) => {
                         tracing::info!(rows = exec.rows_affected, "execute ok");
-                        sender_clone.input(AppMsg::RowOperationCommitted);
+                        sender_clone.input(AppMsg::RowOperationCommitted(undo));
                     }
                     Err(e) => {
                         tracing::warn!(error = %e, "execute failed");
@@ -1522,6 +1589,41 @@ fn execute_then_refetch(sender: ComponentSender<App>, sql: String, params: Vec<V
             })
             .drop_on_shutdown()
     });
+}
+
+fn run_undo_batch(sender: ComponentSender<App>, batch: UndoBatch) {
+    let Some(conn) = database_service::instance().active() else {
+        sender.input(AppMsg::LoadFailed("no active connection".into()));
+        return;
+    };
+    let sender_clone = sender.clone();
+    sender.command(move |_, shutdown| {
+        shutdown
+            .register(async move {
+                for (sql, params) in batch.statements.iter() {
+                    if let Err(e) = conn.execute_params(sql, params).await {
+                        tracing::warn!(error = %e, "undo failed");
+                        sender_clone.input(AppMsg::LoadFailed(super::error_text::driver_message(&e)));
+                        return;
+                    }
+                }
+                tracing::info!(count = batch.statements.len(), "undo ok");
+                sender_clone.input(AppMsg::RowOperationCommitted(None));
+            })
+            .drop_on_shutdown()
+    });
+}
+
+fn build_insert_for_row(driver_id: &str, table: &str, columns: &[ColumnInfo], row: &[Value]) -> (String, Vec<Value>) {
+    let cols: Vec<String> = columns.iter().map(|c| quote_ident(driver_id, &c.name)).collect();
+    let placeholders: Vec<String> = (0..columns.len()).map(|i| placeholder_for(driver_id, i)).collect();
+    let sql = format!(
+        "INSERT INTO {} ({}) VALUES ({})",
+        quote_ident(driver_id, table),
+        cols.join(", "),
+        placeholders.join(", "),
+    );
+    (sql, row.to_vec())
 }
 
 fn preview_pk(columns: &[ColumnInfo], pk_indexes: &[usize], row: &[Value]) -> String {
@@ -1798,6 +1900,7 @@ impl App {
         if col_index >= self.current_columns.len() {
             return;
         }
+        let original_value = row[col_index].clone();
         let (sql, params) = match crate::sql_dialect::build_single_cell_update(
             &driver_id,
             &table,
@@ -1812,7 +1915,20 @@ impl App {
                 return;
             }
         };
-        execute_then_refetch(sender, sql, params);
+        let undo = crate::sql_dialect::build_single_cell_update(
+            &driver_id,
+            &table,
+            &self.current_columns,
+            &row,
+            col_index,
+            original_value,
+        )
+        .ok()
+        .map(|(s, p)| UndoBatch {
+            label: "Cell cleared".into(),
+            statements: vec![(s, p)],
+        });
+        execute_then_refetch(sender, sql, params, undo);
     }
 
     fn on_delete_row_at(&mut self, table: String, row_position: u32, sender: ComponentSender<Self>) {
