@@ -765,6 +765,7 @@ impl App {
             svc.clear_all();
         }
         self.cancel_all_editor_runs();
+        self.schema_buffer.set_text(super::editor::SQL_KEYWORDS);
         self.current_table = None;
         self.current_schema = None;
         self.current_offset = 0;
@@ -1253,16 +1254,6 @@ impl App {
         root.append(&tab_bar);
         root.append(&tab_view);
 
-        let close_tab_shortcut = gtk::Shortcut::builder()
-            .trigger(&gtk::ShortcutTrigger::parse_string("<Primary>w").expect("valid trigger"))
-            .action(&gtk::CallbackAction::new({
-                let s = sender.clone();
-                move |_, _| {
-                    s.input(AppMsg::CloseActiveEditorTab);
-                    glib::Propagation::Stop
-                }
-            }))
-            .build();
         let new_tab_shortcut = gtk::Shortcut::builder()
             .trigger(&gtk::ShortcutTrigger::parse_string("<Primary>t").expect("valid trigger"))
             .action(&gtk::CallbackAction::new({
@@ -1275,7 +1266,6 @@ impl App {
             .build();
         let controller = gtk::ShortcutController::new();
         controller.set_scope(gtk::ShortcutScope::Local);
-        controller.add_shortcut(close_tab_shortcut);
         controller.add_shortcut(new_tab_shortcut);
         root.add_controller(controller);
 
@@ -1417,12 +1407,10 @@ impl App {
     }
 
     fn persist_editor_state(&self) {
-        let Some(tab_view) = self.editor_tab_view.as_ref() else {
-            crate::services::editor_state::save(&crate::services::editor_state::EditorState::default());
-            return;
-        };
-        let active_idx = tab_view
-            .selected_page()
+        let active_idx = self
+            .editor_tab_view
+            .as_ref()
+            .and_then(|tv| tv.selected_page())
             .and_then(|p| read_tab_id(&p))
             .and_then(|id| self.editor_tabs.iter().position(|s| s.id == id))
             .unwrap_or(0) as u32;
@@ -2060,6 +2048,11 @@ fn qualified_label(schema: Option<&str>, table: &str) -> String {
     }
 }
 
+// SAFETY contract for EDITOR_TAB_ID_KEY: write_tab_id is the sole writer
+// and only stores values of type Uuid; read_tab_id is the sole reader and
+// only interprets the qdata as Uuid. The key is private to this module
+// (`pub(super)` would be a stricter encoding but the const itself is private),
+// so external code cannot corrupt the type association.
 fn write_tab_id(page: &adw::TabPage, id: Uuid) {
     unsafe {
         page.set_data(EDITOR_TAB_ID_KEY, id);
@@ -2067,6 +2060,8 @@ fn write_tab_id(page: &adw::TabPage, id: Uuid) {
 }
 
 fn read_tab_id(page: &adw::TabPage) -> Option<Uuid> {
+    // GObject returns null (Option::None here) for unknown qdata keys, so a
+    // foreign TabPage that was never tagged simply yields None.
     unsafe { page.data::<Uuid>(EDITOR_TAB_ID_KEY).map(|p| *p.as_ref()) }
 }
 
@@ -2116,6 +2111,11 @@ fn install_window_actions(window: &adw::ApplicationWindow, sender: ComponentSend
         .activate(move |_, _, _| disconnect_sender.input(AppMsg::Disconnect))
         .build();
 
+    let close_current_sender = sender.clone();
+    let close_current = gio::ActionEntry::builder("close-current")
+        .activate(move |_, _, _| close_current_sender.input(AppMsg::CloseActiveEditorTab))
+        .build();
+
     let prefs_sender = sender.clone();
     let preferences = gio::ActionEntry::builder("preferences")
         .activate(move |_, _, _| prefs_sender.input(AppMsg::ShowPreferences))
@@ -2147,6 +2147,7 @@ fn install_window_actions(window: &adw::ApplicationWindow, sender: ComponentSend
         quit,
         open_editor,
         disconnect,
+        close_current,
         preferences,
         refresh,
         find,
@@ -2169,7 +2170,7 @@ fn install_window_shortcuts(window: &adw::ApplicationWindow) {
     controller.add_shortcut(make_shortcut("<Primary>question", "win.shortcuts"));
     controller.add_shortcut(make_shortcut("<Primary>slash", "win.shortcuts"));
     controller.add_shortcut(make_shortcut("<Primary>q", "win.quit"));
-    controller.add_shortcut(make_shortcut("<Primary>w", "win.quit"));
+    controller.add_shortcut(make_shortcut("<Primary>w", "win.close-current"));
     controller.add_shortcut(make_shortcut("<Primary>e", "win.open-editor"));
     controller.add_shortcut(make_shortcut("F5", "win.refresh-page"));
     controller.add_shortcut(make_shortcut("<Primary>f", "win.find-in-results"));
