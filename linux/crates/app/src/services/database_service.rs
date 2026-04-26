@@ -1,10 +1,13 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, OnceLock};
 
+use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
 
-use tablepro_core::Connection;
-use tablepro_ssh::SshTunnel;
+use tablepro_core::{ConnectOptions, Connection, DatabaseDriver};
+use tablepro_ssh::{SshConfig, SshTunnel};
+
+use super::connection_monitor;
 
 static SERVICE: OnceLock<DatabaseService> = OnceLock::new();
 
@@ -12,10 +15,23 @@ pub fn instance() -> &'static DatabaseService {
     SERVICE.get_or_init(DatabaseService::new)
 }
 
+pub(super) struct EntryInner {
+    pub(super) connection: Arc<dyn Connection>,
+    pub(super) tunnel: Option<SshTunnel>,
+}
+
+pub struct ReconnectParams {
+    pub driver: Arc<dyn DatabaseDriver>,
+    pub opts: ConnectOptions,
+    pub ssh: Option<SshConfig>,
+    pub read_only: bool,
+}
+
 struct Entry {
-    connection: Arc<dyn Connection>,
+    inner: Arc<Mutex<EntryInner>>,
     read_only: bool,
-    _tunnel: Option<SshTunnel>,
+    cancel: CancellationToken,
+    _monitor: tokio::task::JoinHandle<()>,
 }
 
 pub struct DatabaseService {
@@ -31,18 +47,48 @@ impl DatabaseService {
         }
     }
 
-    pub fn add(&self, id: Uuid, connection: Box<dyn Connection>, tunnel: Option<SshTunnel>, read_only: bool) {
+    pub fn add(
+        &self,
+        id: Uuid,
+        connection: Box<dyn Connection>,
+        tunnel: Option<SshTunnel>,
+        read_only: bool,
+        params: ReconnectParams,
+    ) {
         let arc: Arc<dyn Connection> = Arc::from(connection);
-        let entry = Entry {
+        let inner = Arc::new(Mutex::new(EntryInner {
             connection: arc,
+            tunnel,
+        }));
+        let cancel = CancellationToken::new();
+        let monitor = tokio::spawn(connection_monitor::run(inner.clone(), params, cancel.clone()));
+        let entry = Entry {
+            inner,
             read_only,
-            _tunnel: tunnel,
+            cancel,
+            _monitor: monitor,
         };
         self.connections
             .lock()
             .expect("database_service lock")
             .insert(id, entry);
         *self.active.lock().expect("database_service lock") = Some(id);
+    }
+
+    pub fn get(&self, id: Uuid) -> Option<Arc<dyn Connection>> {
+        let entries = self.connections.lock().expect("database_service lock");
+        let entry = entries.get(&id)?;
+        let inner = entry.inner.lock().expect("entry inner lock");
+        Some(inner.connection.clone())
+    }
+
+    pub fn active(&self) -> Option<Arc<dyn Connection>> {
+        let id = self.active_id()?;
+        self.get(id)
+    }
+
+    pub fn active_id(&self) -> Option<Uuid> {
+        *self.active.lock().expect("database_service lock")
     }
 
     pub fn is_active_read_only(&self) -> bool {
@@ -58,25 +104,11 @@ impl DatabaseService {
             .unwrap_or(false)
     }
 
-    pub fn get(&self, id: Uuid) -> Option<Arc<dyn Connection>> {
-        self.connections
-            .lock()
-            .expect("database_service lock")
-            .get(&id)
-            .map(|e| e.connection.clone())
-    }
-
-    pub fn active(&self) -> Option<Arc<dyn Connection>> {
-        let id = self.active_id()?;
-        self.get(id)
-    }
-
-    pub fn active_id(&self) -> Option<Uuid> {
-        *self.active.lock().expect("database_service lock")
-    }
-
     pub fn remove(&self, id: Uuid) {
-        self.connections.lock().expect("database_service lock").remove(&id);
+        let mut entries = self.connections.lock().expect("database_service lock");
+        if let Some(entry) = entries.remove(&id) {
+            entry.cancel.cancel();
+        }
         let mut active = self.active.lock().expect("database_service lock");
         if *active == Some(id) {
             *active = None;
@@ -84,7 +116,10 @@ impl DatabaseService {
     }
 
     pub fn clear_all(&self) {
-        self.connections.lock().expect("database_service lock").clear();
+        let mut entries = self.connections.lock().expect("database_service lock");
+        for (_, entry) in entries.drain() {
+            entry.cancel.cancel();
+        }
         *self.active.lock().expect("database_service lock") = None;
     }
 }

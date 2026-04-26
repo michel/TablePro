@@ -13,7 +13,8 @@ use tablepro_storage::{
     store_ssh_password,
 };
 
-use crate::services::{connection_service, database_service};
+use crate::services::connection_service;
+use crate::services::database_service::{self, ReconnectParams};
 
 const SSH_AUTH_PASSWORD: u32 = 0;
 const SSH_AUTH_KEY: u32 = 1;
@@ -512,7 +513,13 @@ async fn run_connect(
         }
     }
 
-    database_service::instance().add(saved.id, conn, tunnel, read_only);
+    let params = ReconnectParams {
+        driver: driver.clone(),
+        opts: opts_clone,
+        ssh: ssh.as_ref().map(|s| s.cfg.clone()),
+        read_only,
+    };
+    database_service::instance().add(saved.id, conn, tunnel, read_only, params);
     Ok((saved, tables))
 }
 
