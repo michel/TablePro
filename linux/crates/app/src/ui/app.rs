@@ -31,7 +31,6 @@ pub struct App {
     connections_listbox: gtk::ListBox,
     connections_popover: gtk::Popover,
     edit_button: gtk::Button,
-    disconnect_button: gtk::Button,
     health_pill: gtk::Label,
     health_state: Option<ConnectionHealth>,
     row_op_spinner: gtk::Spinner,
@@ -202,14 +201,6 @@ impl SimpleComponent for App {
                         set_tooltip_text: Some("SQL editor"),
                         set_sensitive: false,
                         connect_clicked => AppMsg::OpenEditor,
-                    },
-
-                    #[name = "disconnect_button"]
-                    pack_end = &gtk::Button {
-                        set_icon_name: "media-eject-symbolic",
-                        set_tooltip_text: Some("Disconnect"),
-                        set_visible: false,
-                        connect_clicked => AppMsg::Disconnect,
                     },
 
                     #[name = "primary_menu_button"]
@@ -485,7 +476,6 @@ impl SimpleComponent for App {
             connections_listbox,
             connections_popover: widgets.connections_popover.clone(),
             edit_button: widgets.edit_button.clone(),
-            disconnect_button: widgets.disconnect_button.clone(),
             health_pill: widgets.health_pill.clone(),
             health_state: None,
             row_op_spinner: widgets.row_op_spinner.clone(),
@@ -531,9 +521,6 @@ impl SimpleComponent for App {
         widgets
             .edit_button
             .update_property(&[gtk::accessible::Property::Label("SQL editor")]);
-        widgets
-            .disconnect_button
-            .update_property(&[gtk::accessible::Property::Label("Disconnect")]);
         widgets
             .primary_menu_button
             .update_property(&[gtk::accessible::Property::Label("Main menu")]);
@@ -647,7 +634,7 @@ impl App {
         self.connected = true;
         self.current_driver_id = Some(driver_id.clone());
         self.edit_button.set_sensitive(true);
-        self.disconnect_button.set_visible(true);
+        self.window.action_set_enabled("win.disconnect", true);
         self.table_search.set_text("");
         self.table_names = tables.iter().map(|t| t.name.clone()).collect();
         tracing::info!(driver = %driver_id, table_count = tables.len(), "workspace ready");
@@ -678,7 +665,7 @@ impl App {
         self.current_driver_id = None;
         self.connected = false;
         self.edit_button.set_sensitive(false);
-        self.disconnect_button.set_visible(false);
+        self.window.action_set_enabled("win.disconnect", false);
         self.refresh_crud_buttons();
         self.refresh_window_title();
         self.table_search.set_text("");
@@ -1786,9 +1773,14 @@ fn rebuild_connections_listbox(
 
 fn primary_menu_model() -> gio::Menu {
     let menu = gio::Menu::new();
-    menu.append(Some("Keyboard Shortcuts"), Some("win.shortcuts"));
-    menu.append(Some("About TablePro"), Some("win.about"));
-    menu.append(Some("Quit"), Some("win.quit"));
+    let connection_section = gio::Menu::new();
+    connection_section.append(Some("Disconnect"), Some("win.disconnect"));
+    menu.append_section(None, &connection_section);
+    let app_section = gio::Menu::new();
+    app_section.append(Some("Keyboard Shortcuts"), Some("win.shortcuts"));
+    app_section.append(Some("About TablePro"), Some("win.about"));
+    app_section.append(Some("Quit"), Some("win.quit"));
+    menu.append_section(None, &app_section);
     menu
 }
 
@@ -1813,6 +1805,11 @@ fn install_window_actions(window: &adw::ApplicationWindow, sender: ComponentSend
     let editor_sender = sender.clone();
     let open_editor = gio::ActionEntry::builder("open-editor")
         .activate(move |_, _, _| editor_sender.input(AppMsg::OpenEditor))
+        .build();
+
+    let disconnect_sender = sender.clone();
+    let disconnect = gio::ActionEntry::builder("disconnect")
+        .activate(move |_, _, _| disconnect_sender.input(AppMsg::Disconnect))
         .build();
 
     let refresh_sender = sender.clone();
@@ -1840,12 +1837,14 @@ fn install_window_actions(window: &adw::ApplicationWindow, sender: ComponentSend
         about,
         quit,
         open_editor,
+        disconnect,
         refresh,
         find,
         export_csv,
         export_json,
     ]);
     window.insert_action_group("win", Some(&group));
+    window.action_set_enabled("win.disconnect", false);
 }
 
 fn install_window_shortcuts(window: &adw::ApplicationWindow) {
