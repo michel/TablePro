@@ -5,8 +5,11 @@ use async_trait::async_trait;
 use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions, SqliteRow};
 use sqlx::{Column, Pool, Row, Sqlite, TypeInfo};
 
+use futures::stream::StreamExt;
+
 use tablepro_core::{
-    ColumnInfo, ConnectOptions, Connection, DatabaseDriver, DriverError, ExecResult, QueryResult, TableInfo, Value,
+    ColumnInfo, ConnectOptions, Connection, DatabaseDriver, DriverError, ExecResult, MAX_QUERY_ROWS, QueryResult,
+    TableInfo, Value,
 };
 
 pub struct SqliteDriver;
@@ -90,32 +93,11 @@ impl Connection for SqliteConnection {
     async fn fetch_rows(&self, table: &str, offset: u64, limit: u64) -> Result<QueryResult, DriverError> {
         let safe = table.replace('"', "");
         let sql = format!("SELECT * FROM \"{safe}\" LIMIT {limit} OFFSET {offset}");
-        self.query(&sql).await
+        stream_into_result(&self.pool, &sql, limit as usize).await
     }
 
     async fn query(&self, sql: &str) -> Result<QueryResult, DriverError> {
-        let rows = sqlx::query(sql).fetch_all(&self.pool).await.map_err(map_sqlx_error)?;
-        if rows.is_empty() {
-            return Ok(QueryResult {
-                columns: Vec::new(),
-                rows: Vec::new(),
-            });
-        }
-        let columns: Vec<ColumnInfo> = rows[0]
-            .columns()
-            .iter()
-            .map(|c| ColumnInfo {
-                name: c.name().to_string(),
-                data_type: c.type_info().name().to_string(),
-                nullable: true,
-                primary_key: false,
-            })
-            .collect();
-        let data: Vec<Vec<Value>> = rows
-            .iter()
-            .map(|r| (0..columns.len()).map(|i| extract_value(r, i)).collect())
-            .collect();
-        Ok(QueryResult { columns, rows: data })
+        stream_into_result(&self.pool, sql, MAX_QUERY_ROWS).await
     }
 
     async fn execute(&self, sql: &str) -> Result<ExecResult, DriverError> {
@@ -162,6 +144,46 @@ impl Connection for SqliteConnection {
         self.pool.close().await;
         Ok(())
     }
+}
+
+async fn stream_into_result(pool: &Pool<Sqlite>, sql: &str, limit: usize) -> Result<QueryResult, DriverError> {
+    let mut stream = sqlx::query(sql).fetch(pool);
+    let mut collected: Vec<SqliteRow> = Vec::new();
+    let mut truncated = false;
+    while let Some(row_result) = stream.next().await {
+        let row = row_result.map_err(map_sqlx_error)?;
+        if collected.len() >= limit {
+            truncated = true;
+            break;
+        }
+        collected.push(row);
+    }
+    if collected.is_empty() {
+        return Ok(QueryResult {
+            columns: Vec::new(),
+            rows: Vec::new(),
+            truncated,
+        });
+    }
+    let columns: Vec<ColumnInfo> = collected[0]
+        .columns()
+        .iter()
+        .map(|c| ColumnInfo {
+            name: c.name().to_string(),
+            data_type: c.type_info().name().to_string(),
+            nullable: true,
+            primary_key: false,
+        })
+        .collect();
+    let data: Vec<Vec<Value>> = collected
+        .iter()
+        .map(|r| (0..columns.len()).map(|i| extract_value(r, i)).collect())
+        .collect();
+    Ok(QueryResult {
+        columns,
+        rows: data,
+        truncated,
+    })
 }
 
 fn extract_value(row: &SqliteRow, idx: usize) -> Value {

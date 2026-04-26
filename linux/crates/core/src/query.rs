@@ -34,10 +34,15 @@ pub enum Value {
     Json(serde_json::Value),
 }
 
+/// Default upper bound on rows materialized by an arbitrary SQL `query` call.
+/// Pagination via `fetch_rows` uses its caller-supplied `limit` and is not capped here.
+pub const MAX_QUERY_ROWS: usize = 10_000;
+
 #[derive(Debug, Clone)]
 pub struct QueryResult {
     pub columns: Vec<ColumnInfo>,
     pub rows: Vec<Vec<Value>>,
+    pub truncated: bool,
 }
 
 #[derive(Debug, Clone, Copy)]

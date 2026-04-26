@@ -173,7 +173,12 @@ impl SimpleComponent for SqlEditor {
 
             SqlEditorInput::ShowResult(result) => {
                 self.run_button.set_sensitive(true);
-                self.status.set_label(&format!("{} row(s)", result.rows.len()));
+                let label = if result.truncated {
+                    format!("{} row(s) (truncated)", result.rows.len())
+                } else {
+                    format!("{} row(s)", result.rows.len())
+                };
+                self.status.set_label(&label);
                 clear_box(&self.results_holder);
                 if result.rows.is_empty() {
                     let placeholder = adw::StatusPage::builder()
