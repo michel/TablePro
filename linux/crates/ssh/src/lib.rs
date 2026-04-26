@@ -1,5 +1,5 @@
-use std::path::PathBuf;
-use std::sync::Arc;
+use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex};
 
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -9,6 +9,8 @@ use tokio_util::sync::CancellationToken;
 
 use russh::ChannelMsg;
 use russh::client::{self, Config, Handle};
+use russh::keys::known_hosts::{check_known_hosts_path, learn_known_hosts_path};
+use russh::keys::ssh_key::{HashAlg, PublicKey};
 use russh::keys::{PrivateKeyWithHashAlg, load_secret_key};
 
 const LOCAL_BIND_HOST: &str = "127.0.0.1";
@@ -42,6 +44,20 @@ pub enum SshError {
     },
     #[error("local bind: {0}")]
     Bind(#[source] std::io::Error),
+    #[error(
+        "host key for {host}:{port} does not match {known_hosts}: stored fingerprint differs (line {line}). \
+         If the server was reinstalled, remove the old line; otherwise this may indicate a man-in-the-middle attack. \
+         New fingerprint: {new_fingerprint}"
+    )]
+    HostKeyMismatch {
+        host: String,
+        port: u16,
+        new_fingerprint: String,
+        line: usize,
+        known_hosts: PathBuf,
+    },
+    #[error("known_hosts: {0}")]
+    KnownHosts(String),
     #[error("ssh: {0}")]
     Ssh(#[from] russh::Error),
 }
@@ -98,28 +114,106 @@ impl Drop for SshTunnel {
     }
 }
 
-struct ClientHandler;
+#[derive(Debug, Clone)]
+enum HostKeyOutcome {
+    Trusted,
+    LearnedNew { fingerprint: String },
+    Changed { fingerprint: String, line: usize },
+    KnownHostsIo(String),
+}
+
+struct ClientHandler {
+    target_host: String,
+    target_port: u16,
+    known_hosts_path: PathBuf,
+    outcome: Arc<Mutex<Option<HostKeyOutcome>>>,
+}
 
 impl client::Handler for ClientHandler {
     type Error = russh::Error;
 
-    async fn check_server_key(&mut self, key: &russh::keys::ssh_key::PublicKey) -> Result<bool, Self::Error> {
-        tracing::warn!(
-            fingerprint = %key.fingerprint(russh::keys::ssh_key::HashAlg::Sha256),
-            "ssh: accepting any server host key (strict host-key checking not yet implemented)"
+    async fn check_server_key(&mut self, key: &PublicKey) -> Result<bool, Self::Error> {
+        let fingerprint = key.fingerprint(HashAlg::Sha256).to_string();
+        let outcome = verify_or_learn(
+            &self.target_host,
+            self.target_port,
+            key,
+            &self.known_hosts_path,
+            &fingerprint,
         );
-        Ok(true)
+        let allow = matches!(outcome, HostKeyOutcome::Trusted | HostKeyOutcome::LearnedNew { .. });
+        if let Ok(mut slot) = self.outcome.lock() {
+            *slot = Some(outcome);
+        }
+        Ok(allow)
     }
 }
 
+fn verify_or_learn(host: &str, port: u16, key: &PublicKey, known_hosts: &Path, fingerprint: &str) -> HostKeyOutcome {
+    match check_known_hosts_path(host, port, key, known_hosts) {
+        Ok(true) => HostKeyOutcome::Trusted,
+        Ok(false) => match ensure_parent_dir(known_hosts).and_then(|_| {
+            learn_known_hosts_path(host, port, key, known_hosts).map_err(|e| std::io::Error::other(format!("{e}")))
+        }) {
+            Ok(()) => HostKeyOutcome::LearnedNew {
+                fingerprint: fingerprint.to_string(),
+            },
+            Err(e) => HostKeyOutcome::KnownHostsIo(e.to_string()),
+        },
+        Err(russh::keys::Error::KeyChanged { line }) => HostKeyOutcome::Changed {
+            fingerprint: fingerprint.to_string(),
+            line,
+        },
+        Err(e) => HostKeyOutcome::KnownHostsIo(e.to_string()),
+    }
+}
+
+fn ensure_parent_dir(path: &Path) -> std::io::Result<()> {
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    Ok(())
+}
+
+pub fn default_known_hosts_path() -> Option<PathBuf> {
+    let base = std::env::var_os("XDG_CONFIG_HOME")
+        .map(PathBuf::from)
+        .or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".config")))?;
+    Some(base.join("tablepro").join("known_hosts"))
+}
+
 async fn connect_and_auth(cfg: &SshConfig) -> Result<Handle<ClientHandler>, SshError> {
+    let known_hosts_path = default_known_hosts_path()
+        .ok_or_else(|| SshError::KnownHosts("neither XDG_CONFIG_HOME nor HOME is set".into()))?;
+    let outcome = Arc::new(Mutex::new(None));
+    let handler = ClientHandler {
+        target_host: cfg.host.clone(),
+        target_port: cfg.port,
+        known_hosts_path: known_hosts_path.clone(),
+        outcome: outcome.clone(),
+    };
+
     let config = Arc::new(Config {
         nodelay: true,
         ..Default::default()
     });
-    let mut session = client::connect(config, (cfg.host.as_str(), cfg.port), ClientHandler)
-        .await
-        .map_err(|e| SshError::Connect(e.to_string()))?;
+    let mut session = match client::connect(config, (cfg.host.as_str(), cfg.port), handler).await {
+        Ok(s) => s,
+        Err(e) => return Err(map_connect_error(e, &cfg.host, cfg.port, &known_hosts_path, &outcome)),
+    };
+
+    match outcome.lock().ok().and_then(|s| s.clone()) {
+        Some(HostKeyOutcome::LearnedNew { fingerprint }) => tracing::info!(
+            host = %cfg.host,
+            port = cfg.port,
+            fingerprint = %fingerprint,
+            "ssh: learned new host key (TOFU)",
+        ),
+        Some(HostKeyOutcome::Trusted) => tracing::debug!(host = %cfg.host, "ssh: host key matches known_hosts"),
+        Some(HostKeyOutcome::KnownHostsIo(e)) => return Err(SshError::KnownHosts(e)),
+        Some(HostKeyOutcome::Changed { .. }) => unreachable!("connect should fail on key mismatch"),
+        None => {}
+    }
 
     let auth = match &cfg.auth {
         SshAuth::Password { password } => session.authenticate_password(&cfg.username, password).await?,
@@ -139,6 +233,28 @@ async fn connect_and_auth(cfg: &SshConfig) -> Result<Handle<ClientHandler>, SshE
         return Err(SshError::Auth);
     }
     Ok(session)
+}
+
+fn map_connect_error(
+    err: russh::Error,
+    host: &str,
+    port: u16,
+    known_hosts: &Path,
+    outcome: &Arc<Mutex<Option<HostKeyOutcome>>>,
+) -> SshError {
+    if let Some(HostKeyOutcome::Changed { fingerprint, line }) = outcome.lock().ok().and_then(|s| s.clone()) {
+        return SshError::HostKeyMismatch {
+            host: host.to_string(),
+            port,
+            new_fingerprint: fingerprint,
+            line,
+            known_hosts: known_hosts.to_path_buf(),
+        };
+    }
+    if let Some(HostKeyOutcome::KnownHostsIo(e)) = outcome.lock().ok().and_then(|s| s.clone()) {
+        return SshError::KnownHosts(e);
+    }
+    SshError::Connect(err.to_string())
 }
 
 async fn forwarder_loop(
@@ -253,5 +369,46 @@ mod tests {
         let json = serde_json::to_string(&original).unwrap();
         let parsed: SshAuth = serde_json::from_str(&json).unwrap();
         assert_eq!(parsed, original);
+    }
+
+    const KEY_A_BASE64: &str = "AAAAC3NzaC1lZDI1NTE5AAAAIGAdbe+Xv3hfmzwpfcGVeMHE/jfo5bmR1IgIpfuP4ypR";
+    const KEY_B_BASE64: &str = "AAAAC3NzaC1lZDI1NTE5AAAAIFvC8V+mh5lxNlOLorBehIwTS2R/nvw2ghab6N1SlSk6";
+
+    fn parse_key(base64: &str) -> PublicKey {
+        russh::keys::parse_public_key_base64(base64).expect("valid base64 public key")
+    }
+
+    #[test]
+    fn verify_or_learn_creates_known_hosts_on_first_use() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("nested").join("known_hosts");
+        let key = parse_key(KEY_A_BASE64);
+        let outcome = verify_or_learn("bastion.example.com", 22, &key, &path, "fp");
+        assert!(matches!(outcome, HostKeyOutcome::LearnedNew { .. }));
+        assert!(path.exists());
+    }
+
+    #[test]
+    fn verify_or_learn_trusts_recorded_key_on_repeat() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("known_hosts");
+        let key = parse_key(KEY_A_BASE64);
+        let _ = verify_or_learn("bastion.example.com", 22, &key, &path, "fp");
+        let outcome = verify_or_learn("bastion.example.com", 22, &key, &path, "fp");
+        assert!(matches!(outcome, HostKeyOutcome::Trusted));
+    }
+
+    #[test]
+    fn verify_or_learn_detects_key_mismatch() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("known_hosts");
+        let key_a = parse_key(KEY_A_BASE64);
+        let key_b = parse_key(KEY_B_BASE64);
+        let _ = verify_or_learn("bastion.example.com", 22, &key_a, &path, "fp_a");
+        let outcome = verify_or_learn("bastion.example.com", 22, &key_b, &path, "fp_b");
+        match outcome {
+            HostKeyOutcome::Changed { fingerprint, .. } => assert_eq!(fingerprint, "fp_b"),
+            other => panic!("expected Changed, got {other:?}"),
+        }
     }
 }
