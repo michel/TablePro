@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: tablepro 0.1.0\n"
 "Report-Msgid-Bugs-To: https://github.com/TableProApp/TablePro/issues\n"
-"POT-Creation-Date: 2026-04-26 14:28+0000\n"
+"POT-Creation-Date: 2026-04-26 14:53+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -137,7 +137,7 @@ msgstr ""
 msgid "Rows {start} – {end}"
 msgstr ""
 
-#: crates/app/src/ui/app.rs:1007 crates/app/src/ui/history_dialog.rs:110
+#: crates/app/src/ui/app.rs:1007 crates/app/src/ui/history_dialog.rs:117
 msgid "Failed"
 msgstr ""
 
@@ -169,7 +169,7 @@ msgstr ""
 msgid "Delete {n} rows?"
 msgstr ""
 
-#: crates/app/src/ui/app.rs:1127 crates/app/src/ui/app.rs:2363 crates/app/src/ui/history_dialog.rs:653 crates/app/src/ui/history_dialog.rs:675
+#: crates/app/src/ui/app.rs:1127 crates/app/src/ui/app.rs:2363 crates/app/src/ui/history_dialog.rs:676 crates/app/src/ui/history_dialog.rs:698
 msgid "Delete"
 msgstr ""
 
@@ -205,7 +205,7 @@ msgstr ""
 msgid "Pick a table from the left to load rows."
 msgstr ""
 
-#: crates/app/src/ui/app.rs:1419 crates/app/src/ui/editor.rs:574 crates/app/src/ui/history_dialog.rs:832
+#: crates/app/src/ui/app.rs:1419 crates/app/src/ui/editor.rs:574 crates/app/src/ui/history_dialog.rs:861
 msgid "Empty query"
 msgstr ""
 
@@ -253,7 +253,7 @@ msgstr ""
 msgid "Delete row?"
 msgstr ""
 
-#: crates/app/src/ui/app.rs:1803 crates/app/src/ui/editor.rs:98 crates/app/src/ui/history_dialog.rs:438 crates/app/src/ui/preferences.rs:70
+#: crates/app/src/ui/app.rs:1803 crates/app/src/ui/editor.rs:98 crates/app/src/ui/history_dialog.rs:442 crates/app/src/ui/preferences.rs:70
 msgid "Cancel"
 msgstr ""
 
@@ -265,7 +265,7 @@ msgstr ""
 msgid "Disconnect"
 msgstr ""
 
-#: crates/app/src/ui/app.rs:2098 crates/app/src/ui/history_dialog.rs:79 crates/app/src/ui/history_dialog.rs:88
+#: crates/app/src/ui/app.rs:2098 crates/app/src/ui/history_dialog.rs:83 crates/app/src/ui/history_dialog.rs:93
 msgid "Query History"
 msgstr ""
 
@@ -365,7 +365,7 @@ msgstr ""
 msgid "Nothing to export"
 msgstr ""
 
-#: crates/app/src/ui/app.rs:2406 crates/app/src/ui/history_dialog.rs:781
+#: crates/app/src/ui/app.rs:2406 crates/app/src/ui/history_dialog.rs:804
 msgid "CSV files"
 msgstr ""
 
@@ -541,7 +541,7 @@ msgstr ""
 msgid "Query failed"
 msgstr ""
 
-#: crates/app/src/ui/editor.rs:394 crates/app/src/ui/history_dialog.rs:845
+#: crates/app/src/ui/editor.rs:394 crates/app/src/ui/history_dialog.rs:874
 msgid "cancelled"
 msgstr ""
 
@@ -613,167 +613,179 @@ msgstr ""
 msgid "Delete row"
 msgstr ""
 
-#: crates/app/src/ui/history_dialog.rs:92
+#: crates/app/src/ui/history_dialog.rs:97
 msgid "Filter"
 msgstr ""
 
-#: crates/app/src/ui/history_dialog.rs:98
+#: crates/app/src/ui/history_dialog.rs:99
+msgid "Filter history"
+msgstr ""
+
+#: crates/app/src/ui/history_dialog.rs:105
 msgid "All connections"
 msgstr ""
 
-#: crates/app/src/ui/history_dialog.rs:103
+#: crates/app/src/ui/history_dialog.rs:110
 msgid "Connection"
 msgstr ""
 
-#: crates/app/src/ui/history_dialog.rs:108
+#: crates/app/src/ui/history_dialog.rs:115
 msgid "Any"
 msgstr ""
 
-#: crates/app/src/ui/history_dialog.rs:109
+#: crates/app/src/ui/history_dialog.rs:116
 msgid "Successful"
 msgstr ""
 
-#: crates/app/src/ui/history_dialog.rs:111
+#: crates/app/src/ui/history_dialog.rs:118
 msgid "Cancelled"
 msgstr ""
 
-#: crates/app/src/ui/history_dialog.rs:115
+#: crates/app/src/ui/history_dialog.rs:122
 msgid "Status"
 msgstr ""
 
-#: crates/app/src/ui/history_dialog.rs:120
+#: crates/app/src/ui/history_dialog.rs:127
 msgid "Any time"
 msgstr ""
 
-#: crates/app/src/ui/history_dialog.rs:121
+#: crates/app/src/ui/history_dialog.rs:128
 msgid "Last 24 hours"
 msgstr ""
 
-#: crates/app/src/ui/history_dialog.rs:122
+#: crates/app/src/ui/history_dialog.rs:129
 msgid "Last 7 days"
 msgstr ""
 
-#: crates/app/src/ui/history_dialog.rs:123
+#: crates/app/src/ui/history_dialog.rs:130
 msgid "Last 30 days"
 msgstr ""
 
-#: crates/app/src/ui/history_dialog.rs:127
+#: crates/app/src/ui/history_dialog.rs:134
 msgid "Time window"
 msgstr ""
 
-#: crates/app/src/ui/history_dialog.rs:174
+#: crates/app/src/ui/history_dialog.rs:157
+msgid "Select"
+msgstr ""
+
+#: crates/app/src/ui/history_dialog.rs:158
+msgid "Toggle multi-select"
+msgstr ""
+
+#: crates/app/src/ui/history_dialog.rs:168
 msgid "Export selected as SQL"
 msgstr ""
 
-#: crates/app/src/ui/history_dialog.rs:175
+#: crates/app/src/ui/history_dialog.rs:169
 msgid "Export selected as CSV"
 msgstr ""
 
-#: crates/app/src/ui/history_dialog.rs:176
+#: crates/app/src/ui/history_dialog.rs:170
 msgid "Delete selected"
 msgstr ""
 
-#: crates/app/src/ui/history_dialog.rs:179
+#: crates/app/src/ui/history_dialog.rs:173
 msgid "Clear all history…"
 msgstr ""
 
-#: crates/app/src/ui/history_dialog.rs:182
+#: crates/app/src/ui/history_dialog.rs:176
 msgid "Show storage location"
 msgstr ""
 
-#: crates/app/src/ui/history_dialog.rs:187
+#: crates/app/src/ui/history_dialog.rs:181
 msgid "More actions"
 msgstr ""
 
-#: crates/app/src/ui/history_dialog.rs:215
+#: crates/app/src/ui/history_dialog.rs:209
 msgid "Search queries…"
 msgstr ""
 
-#: crates/app/src/ui/history_dialog.rs:232
+#: crates/app/src/ui/history_dialog.rs:226
 msgid "Pinned"
 msgstr ""
 
-#: crates/app/src/ui/history_dialog.rs:252
+#: crates/app/src/ui/history_dialog.rs:246
 msgid "All queries"
 msgstr ""
 
-#: crates/app/src/ui/history_dialog.rs:283 crates/app/src/ui/history_dialog.rs:571
+#: crates/app/src/ui/history_dialog.rs:277 crates/app/src/ui/history_dialog.rs:583
 msgid "No queries yet"
 msgstr ""
 
-#: crates/app/src/ui/history_dialog.rs:284 crates/app/src/ui/history_dialog.rs:573
+#: crates/app/src/ui/history_dialog.rs:278 crates/app/src/ui/history_dialog.rs:585
 msgid "Run a query in the SQL editor and it will appear here."
 msgstr ""
 
-#: crates/app/src/ui/history_dialog.rs:433 crates/app/src/ui/preferences.rs:65
+#: crates/app/src/ui/history_dialog.rs:437 crates/app/src/ui/preferences.rs:65
 msgid "Clear all query history?"
 msgstr ""
 
-#: crates/app/src/ui/history_dialog.rs:435 crates/app/src/ui/preferences.rs:67
+#: crates/app/src/ui/history_dialog.rs:439 crates/app/src/ui/preferences.rs:67
 msgid "This permanently deletes every saved query, including pinned ones."
 msgstr ""
 
-#: crates/app/src/ui/history_dialog.rs:439 crates/app/src/ui/preferences.rs:71
+#: crates/app/src/ui/history_dialog.rs:443 crates/app/src/ui/preferences.rs:71
 msgid "Clear"
 msgstr ""
 
-#: crates/app/src/ui/history_dialog.rs:566
+#: crates/app/src/ui/history_dialog.rs:578
 msgid "No matches"
 msgstr ""
 
-#: crates/app/src/ui/history_dialog.rs:568
+#: crates/app/src/ui/history_dialog.rs:580
 msgid "Try a different search term or change the filters."
 msgstr ""
 
-#: crates/app/src/ui/history_dialog.rs:636 crates/app/src/ui/history_dialog.rs:668
+#: crates/app/src/ui/history_dialog.rs:659 crates/app/src/ui/history_dialog.rs:691
 msgid "Unpin"
 msgstr ""
 
-#: crates/app/src/ui/history_dialog.rs:638 crates/app/src/ui/history_dialog.rs:670
+#: crates/app/src/ui/history_dialog.rs:661 crates/app/src/ui/history_dialog.rs:693
 msgid "Pin"
 msgstr ""
 
-#: crates/app/src/ui/history_dialog.rs:664
+#: crates/app/src/ui/history_dialog.rs:687
 msgid "Open in new tab"
 msgstr ""
 
-#: crates/app/src/ui/history_dialog.rs:665
+#: crates/app/src/ui/history_dialog.rs:688
 msgid "Replace current tab"
 msgstr ""
 
-#: crates/app/src/ui/history_dialog.rs:674
+#: crates/app/src/ui/history_dialog.rs:697
 msgid "Copy SQL"
 msgstr ""
 
-#: crates/app/src/ui/history_dialog.rs:743
+#: crates/app/src/ui/history_dialog.rs:766
 msgid "{n} selected"
 msgstr ""
 
-#: crates/app/src/ui/history_dialog.rs:777
+#: crates/app/src/ui/history_dialog.rs:800
 msgid "SQL files"
 msgstr ""
 
-#: crates/app/src/ui/history_dialog.rs:788
+#: crates/app/src/ui/history_dialog.rs:811
 msgid "Export query history"
 msgstr ""
 
-#: crates/app/src/ui/history_dialog.rs:854
+#: crates/app/src/ui/history_dialog.rs:883
 msgid "{n} row(s)"
 msgstr ""
 
-#: crates/app/src/ui/history_dialog.rs:864
+#: crates/app/src/ui/history_dialog.rs:893
 msgid "just now"
 msgstr ""
 
-#: crates/app/src/ui/history_dialog.rs:867
+#: crates/app/src/ui/history_dialog.rs:896
 msgid "{n} min ago"
 msgstr ""
 
-#: crates/app/src/ui/history_dialog.rs:870
+#: crates/app/src/ui/history_dialog.rs:899
 msgid "{n} h ago"
 msgstr ""
 
-#: crates/app/src/ui/history_dialog.rs:873
+#: crates/app/src/ui/history_dialog.rs:902
 msgid "{n} d ago"
 msgstr ""
 

@@ -31,6 +31,8 @@ pub struct HistoryDialog {
     selected_ids: HashSet<i64>,
     entries: Vec<Entry>,
     row_popovers: Vec<gtk::PopoverMenu>,
+    row_checkboxes: Vec<gtk::CheckButton>,
+    select_mode: bool,
 }
 
 pub struct HistoryDialogInit;
@@ -44,6 +46,7 @@ pub enum HistoryDialogInput {
     ReplaceCurrent(i64),
     TogglePin(i64),
     Delete(i64),
+    ToggleSelectMode(bool),
     ToggleSelected(i64, bool),
     DeleteSelected,
     ExportSelectedSql,
@@ -80,6 +83,7 @@ impl Component for HistoryDialog {
             .title(crate::tr!("Query History"))
             .content_width(560)
             .content_height(640)
+            .follows_content_size(true)
             .build()
     }
 
@@ -88,11 +92,13 @@ impl Component for HistoryDialog {
         let header = adw::HeaderBar::builder().show_end_title_buttons(true).build();
         header.set_title_widget(Some(&adw::WindowTitle::new(&crate::tr!("Query History"), "")));
 
-        let filter_button = gtk::ToggleButton::builder()
-            .icon_name("funnel-symbolic")
-            .tooltip_text(crate::tr!("Filter"))
-            .build();
         let filter_popover = gtk::Popover::new();
+        let filter_button = gtk::MenuButton::builder()
+            .label(crate::tr!("Filter"))
+            .always_show_arrow(true)
+            .tooltip_text(crate::tr!("Filter history"))
+            .popover(&filter_popover)
+            .build();
 
         let connections = database_service::instance().all_connections();
 
@@ -139,27 +145,23 @@ impl Component for HistoryDialog {
         popover_group.add(&filter_status);
         popover_group.add(&filter_window);
         filter_popover.set_child(Some(&popover_group));
-        filter_popover.set_position(gtk::PositionType::Bottom);
-        filter_popover.set_parent(&filter_button);
 
-        let popover_for_toggle = filter_popover.clone();
-        filter_button.connect_toggled(move |btn| {
-            if btn.is_active() {
-                popover_for_toggle.popup();
-            } else {
-                popover_for_toggle.popdown();
-            }
-        });
-        let toggle_for_close = filter_button.clone();
-        filter_popover.connect_closed(move |_| {
-            toggle_for_close.set_active(false);
-        });
         for combo in [&filter_connection, &filter_status, &filter_window] {
             let s = sender.clone();
             combo.connect_selected_notify(move |_| s.input(HistoryDialogInput::FiltersChanged));
         }
 
         header.pack_start(&filter_button);
+
+        let select_button = gtk::ToggleButton::builder()
+            .label(crate::tr!("Select"))
+            .tooltip_text(crate::tr!("Toggle multi-select"))
+            .build();
+        let s_select = sender.clone();
+        select_button.connect_toggled(move |btn| {
+            s_select.input(HistoryDialogInput::ToggleSelectMode(btn.is_active()));
+        });
+        header.pack_start(&select_button);
 
         let menu = gio::Menu::new();
         let selection_section = gio::Menu::new();
@@ -324,6 +326,8 @@ impl Component for HistoryDialog {
             selected_ids: HashSet::new(),
             entries: Vec::new(),
             row_popovers: Vec::new(),
+            row_checkboxes: Vec::new(),
+            select_mode: false,
         };
 
         sender.input(HistoryDialogInput::Refresh);
@@ -394,6 +398,20 @@ impl Component for HistoryDialog {
                     self.selected_ids.insert(id);
                 } else {
                     self.selected_ids.remove(&id);
+                }
+                self.refresh_selection_bar();
+            }
+
+            HistoryDialogInput::ToggleSelectMode(on) => {
+                self.select_mode = on;
+                if !on {
+                    self.selected_ids.clear();
+                    for cb in &self.row_checkboxes {
+                        cb.set_active(false);
+                    }
+                }
+                for cb in &self.row_checkboxes {
+                    cb.set_visible(on);
                 }
                 self.refresh_selection_bar();
             }
@@ -540,6 +558,7 @@ impl HistoryDialog {
         for popover in self.row_popovers.drain(..) {
             popover.unparent();
         }
+        self.row_checkboxes.clear();
         clear_listbox(&self.pinned_listbox);
         clear_listbox(&self.listbox);
 
@@ -581,20 +600,26 @@ impl HistoryDialog {
         self.list_heading.set_visible(has_pinned && has_regular);
 
         for entry in &pinned {
-            let (row, popover) = self.build_row(entry, sender.clone());
+            let (row, popover, checkbox) = self.build_row(entry, sender.clone());
             self.pinned_listbox.append(&row);
             self.row_popovers.push(popover);
+            self.row_checkboxes.push(checkbox);
         }
         for entry in &regular {
-            let (row, popover) = self.build_row(entry, sender.clone());
+            let (row, popover, checkbox) = self.build_row(entry, sender.clone());
             self.listbox.append(&row);
             self.row_popovers.push(popover);
+            self.row_checkboxes.push(checkbox);
         }
 
         self.refresh_selection_bar();
     }
 
-    fn build_row(&self, entry: &Entry, sender: ComponentSender<Self>) -> (adw::ActionRow, gtk::PopoverMenu) {
+    fn build_row(
+        &self,
+        entry: &Entry,
+        sender: ComponentSender<Self>,
+    ) -> (adw::ActionRow, gtk::PopoverMenu, gtk::CheckButton) {
         let title = preview_title(&entry.query);
         let subtitle = format_subtitle(entry);
         let row = adw::ActionRow::builder()
@@ -615,7 +640,10 @@ impl HistoryDialog {
         icon.add_css_class("dim-label");
         row.add_prefix(&icon);
 
-        let select_check = gtk::CheckButton::builder().valign(gtk::Align::Center).build();
+        let select_check = gtk::CheckButton::builder()
+            .valign(gtk::Align::Center)
+            .visible(self.select_mode)
+            .build();
         select_check.set_active(self.selected_ids.contains(&entry.id));
         let id_for_check = entry.id;
         let s_check = sender.clone();
@@ -725,7 +753,7 @@ impl HistoryDialog {
         controller.add_shortcut(menu_shortcut);
         row.add_controller(controller);
 
-        (row, popover_menu)
+        (row, popover_menu, select_check)
     }
 
     fn refresh_selection_bar(&self) {
