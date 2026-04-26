@@ -143,3 +143,6 @@ build/
 Libs/*.a
 Libs/.downloaded
 Libs/ios/
+
+# Claude Code session data
+.claude/
