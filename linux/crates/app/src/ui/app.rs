@@ -211,7 +211,11 @@ impl SimpleComponent for App {
                 },
 
                 #[wrap(Some)]
+                #[name = "split_view"]
                 set_content = &adw::NavigationSplitView {
+                    set_min_sidebar_width: 220.0,
+                    set_max_sidebar_width: 360.0,
+
                     #[wrap(Some)]
                     set_sidebar = &adw::NavigationPage {
                         set_title: "Tables",
@@ -291,6 +295,14 @@ impl SimpleComponent for App {
             });
             glib::Propagation::Proceed
         });
+
+        let breakpoint = adw::Breakpoint::new(adw::BreakpointCondition::new_length(
+            adw::BreakpointConditionLengthType::MaxWidth,
+            600.0,
+            adw::LengthUnit::Sp,
+        ));
+        breakpoint.add_setter(&widgets.split_view, "collapsed", Some(&true.into()));
+        widgets.window.add_breakpoint(breakpoint);
 
         let search_for_filter = widgets.table_search.clone();
         widgets.sidebar.set_filter_func(move |row| {
