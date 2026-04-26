@@ -27,5 +27,6 @@ fn main() {
 fn build_registry() -> DriverRegistry {
     let mut r = DriverRegistry::new();
     r.register(Arc::new(drivers_postgres::PgDriver));
+    r.register(Arc::new(drivers_sqlite::SqliteDriver));
     r
 }

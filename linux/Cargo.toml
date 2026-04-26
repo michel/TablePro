@@ -5,6 +5,7 @@ members = [
     "crates/core",
     "crates/storage",
     "crates/drivers/postgres",
+    "crates/drivers/sqlite",
 ]
 
 [workspace.package]

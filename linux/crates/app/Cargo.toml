@@ -12,6 +12,7 @@ path = "src/main.rs"
 [dependencies]
 tablepro-core = { path = "../core" }
 tablepro-driver-postgres = { path = "../drivers/postgres" }
+tablepro-driver-sqlite = { path = "../drivers/sqlite" }
 tablepro-storage = { path = "../storage" }
 gtk4.workspace = true
 libadwaita.workspace = true
