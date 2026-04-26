@@ -26,6 +26,8 @@ pub struct App {
     window: adw::ApplicationWindow,
     sidebar: gtk::ListBox,
     content_holder: adw::ToolbarView,
+    toast_overlay: adw::ToastOverlay,
+    reconnect_banner: adw::Banner,
     connections_listbox: gtk::ListBox,
     connections_popover: gtk::Popover,
     edit_button: gtk::Button,
@@ -99,6 +101,14 @@ pub enum AppMsg {
     PageSizeChanged(u64),
     RowCountLoaded(String, u64),
     FindInResults,
+    ExportCsv,
+    ExportJson,
+}
+
+#[derive(Debug, Clone, Copy)]
+enum ExportFormat {
+    Csv,
+    Json,
 }
 
 #[relm4::component(pub)]
@@ -203,13 +213,23 @@ impl SimpleComponent for App {
                         set_title: "Data",
 
                         #[wrap(Some)]
-                        #[name = "content_holder"]
-                        set_child = &adw::ToolbarView {
+                        #[name = "toast_overlay"]
+                        set_child = &adw::ToastOverlay {
                             #[wrap(Some)]
-                            set_content = &adw::StatusPage {
-                                set_icon_name: Some("network-server-symbolic"),
-                                set_title: "Connect to a database",
-                                set_description: Some("Click the server icon for a new connection or the folder icon to open a saved one."),
+                            #[name = "content_holder"]
+                            set_child = &adw::ToolbarView {
+                                #[name = "reconnect_banner"]
+                                add_top_bar = &adw::Banner {
+                                    set_revealed: false,
+                                    set_button_label: Some("Retry"),
+                                },
+
+                                #[wrap(Some)]
+                                set_content = &adw::StatusPage {
+                                    set_icon_name: Some("network-server-symbolic"),
+                                    set_title: "Connect to a database",
+                                    set_description: Some("Click the server icon for a new connection or the folder icon to open a saved one."),
+                                },
                             },
                         },
                     },
@@ -342,11 +362,22 @@ impl SimpleComponent for App {
             .margin_start(12)
             .margin_end(12)
             .build();
+        let export_menu = gio::Menu::new();
+        export_menu.append(Some("Export as CSV…"), Some("win.export-csv"));
+        export_menu.append(Some("Export as JSON…"), Some("win.export-json"));
+        let export_button = gtk::MenuButton::builder()
+            .icon_name("document-save-symbolic")
+            .tooltip_text("Export results")
+            .menu_model(&export_menu)
+            .build();
+        export_button.add_css_class("flat");
+
         paginator_bar.append(&prev_button);
         paginator_bar.append(&next_button);
         paginator_bar.append(&paginator_label);
         paginator_bar.append(&spacer);
         paginator_bar.append(&page_size_combo);
+        paginator_bar.append(&export_button);
         paginator_bar.append(&insert_button);
         paginator_bar.append(&edit_row_button);
         paginator_bar.append(&delete_button);
@@ -386,6 +417,8 @@ impl SimpleComponent for App {
             window: root.clone(),
             sidebar: widgets.sidebar.clone(),
             content_holder: widgets.content_holder.clone(),
+            toast_overlay: widgets.toast_overlay.clone(),
+            reconnect_banner: widgets.reconnect_banner.clone(),
             connections_listbox,
             connections_popover: widgets.connections_popover.clone(),
             edit_button: widgets.edit_button.clone(),
@@ -440,6 +473,11 @@ impl SimpleComponent for App {
         install_window_actions(&widgets.window, sender.clone());
         install_window_shortcuts(&widgets.window);
 
+        let banner_sender = sender.clone();
+        widgets.reconnect_banner.connect_button_clicked(move |_| {
+            banner_sender.input(AppMsg::RefreshPage);
+        });
+
         let poll_sender = sender.clone();
         glib::timeout_add_seconds_local(1, move || {
             poll_sender.input(AppMsg::PollHealth);
@@ -466,7 +504,10 @@ impl SimpleComponent for App {
             AppMsg::EditSelectedRow => self.on_edit_selected_row(sender),
             AppMsg::EditCommitted => self.on_edit_committed(sender),
             AppMsg::DeleteSelectedRow => self.on_delete_selected_row(sender),
-            AppMsg::RowOperationCommitted => self.fetch_current_page(sender),
+            AppMsg::RowOperationCommitted => {
+                self.show_toast("Rows updated");
+                self.fetch_current_page(sender);
+            }
             AppMsg::CellEdited {
                 table,
                 row_position,
@@ -484,6 +525,8 @@ impl SimpleComponent for App {
             AppMsg::PageSizeChanged(size) => self.on_page_size_changed(size, sender),
             AppMsg::RowCountLoaded(table, count) => self.on_row_count_loaded(table, count),
             AppMsg::FindInResults => self.on_find_in_results(),
+            AppMsg::ExportCsv => self.on_export(ExportFormat::Csv),
+            AppMsg::ExportJson => self.on_export(ExportFormat::Json),
             AppMsg::DeleteConnection(id) => self.on_delete_connection(id, sender),
             AppMsg::OpenSaved(saved) => self.on_open_saved(saved, sender),
         }
@@ -737,6 +780,7 @@ impl App {
 
     fn on_insert_committed(&mut self, sender: ComponentSender<Self>) {
         self.insert_dialog = None;
+        self.show_toast("Row inserted");
         self.fetch_current_page(sender);
     }
 
@@ -777,6 +821,7 @@ impl App {
 
     fn on_edit_committed(&mut self, sender: ComponentSender<Self>) {
         self.edit_dialog = None;
+        self.show_toast("Row updated");
         self.fetch_current_page(sender);
     }
 
@@ -1025,7 +1070,7 @@ impl App {
         let pill = &self.health_pill;
         pill.remove_css_class("success");
         pill.remove_css_class("warning");
-        match health {
+        match &health {
             None => {
                 pill.set_visible(false);
             }
@@ -1039,6 +1084,14 @@ impl App {
                 pill.set_label(&format!("Reconnecting (attempt {attempt})"));
                 pill.add_css_class("warning");
             }
+        }
+        match health {
+            Some(ConnectionHealth::Reconnecting { attempt }) => {
+                self.reconnect_banner
+                    .set_title(&format!("Connection lost — reconnecting (attempt {attempt})"));
+                self.reconnect_banner.set_revealed(true);
+            }
+            _ => self.reconnect_banner.set_revealed(false),
         }
     }
 
@@ -1109,11 +1162,75 @@ impl App {
         dialog.present(Some(&self.window));
     }
 
+    fn show_toast(&self, msg: &str) {
+        self.toast_overlay.add_toast(adw::Toast::new(msg));
+    }
+
     fn show_error_alert(&self, title: &str, message: &str) {
         let dialog = adw::AlertDialog::new(Some(title), Some(message));
         dialog.add_response("ok", "OK");
         dialog.set_default_response(Some("ok"));
         dialog.present(Some(&self.window));
+    }
+}
+
+fn render_csv(result: &QueryResult) -> Vec<u8> {
+    let mut out = String::new();
+    let cols: Vec<&str> = result.columns.iter().map(|c| c.name.as_str()).collect();
+    out.push_str(&cols.iter().map(|c| csv_escape(c)).collect::<Vec<_>>().join(","));
+    out.push('\n');
+    for row in &result.rows {
+        let cells: Vec<String> = row
+            .iter()
+            .map(|v| csv_escape(&super::grid::value_to_display_text(v)))
+            .collect();
+        out.push_str(&cells.join(","));
+        out.push('\n');
+    }
+    out.into_bytes()
+}
+
+fn csv_escape(s: &str) -> String {
+    if s.contains(',') || s.contains('"') || s.contains('\n') || s.contains('\r') {
+        format!("\"{}\"", s.replace('"', "\"\""))
+    } else {
+        s.to_string()
+    }
+}
+
+fn render_json(result: &QueryResult) -> Vec<u8> {
+    let cols: Vec<&str> = result.columns.iter().map(|c| c.name.as_str()).collect();
+    let rows: Vec<serde_json::Value> = result
+        .rows
+        .iter()
+        .map(|row| {
+            let mut obj = serde_json::Map::new();
+            for (i, col) in cols.iter().enumerate() {
+                let v = row.get(i).cloned().unwrap_or(Value::Null);
+                obj.insert((*col).to_string(), value_to_json(&v));
+            }
+            serde_json::Value::Object(obj)
+        })
+        .collect();
+    serde_json::to_vec_pretty(&rows).unwrap_or_default()
+}
+
+fn value_to_json(v: &Value) -> serde_json::Value {
+    use serde_json::Value as J;
+    match v {
+        Value::Null => J::Null,
+        Value::Bool(b) => J::Bool(*b),
+        Value::Int(i) => J::from(*i),
+        Value::Float(f) => J::from(*f),
+        Value::Text(s) => J::String(s.clone()),
+        Value::Bytes(b) => J::String(format!("<{} bytes>", b.len())),
+        Value::Date(d) => J::String(d.to_string()),
+        Value::Time(t) => J::String(t.to_string()),
+        Value::DateTime(dt) => J::String(dt.to_string()),
+        Value::TimestampTz(ts) => J::String(ts.to_rfc3339()),
+        Value::Decimal(d) => J::String(d.to_string()),
+        Value::Uuid(u) => J::String(u.to_string()),
+        Value::Json(j) => j.clone(),
     }
 }
 
@@ -1305,12 +1422,31 @@ fn install_window_actions(window: &adw::ApplicationWindow, sender: ComponentSend
         .activate(move |_, _, _| refresh_sender.input(AppMsg::RefreshPage))
         .build();
 
-    let find_sender = sender;
+    let find_sender = sender.clone();
     let find = gio::ActionEntry::builder("find-in-results")
         .activate(move |_, _, _| find_sender.input(AppMsg::FindInResults))
         .build();
 
-    group.add_action_entries([shortcuts, about, quit, open_editor, refresh, find]);
+    let csv_sender = sender.clone();
+    let export_csv = gio::ActionEntry::builder("export-csv")
+        .activate(move |_, _, _| csv_sender.input(AppMsg::ExportCsv))
+        .build();
+
+    let json_sender = sender;
+    let export_json = gio::ActionEntry::builder("export-json")
+        .activate(move |_, _, _| json_sender.input(AppMsg::ExportJson))
+        .build();
+
+    group.add_action_entries([
+        shortcuts,
+        about,
+        quit,
+        open_editor,
+        refresh,
+        find,
+        export_csv,
+        export_json,
+    ]);
     window.insert_action_group("win", Some(&group));
 }
 
@@ -1373,6 +1509,39 @@ fn shortcut_entry(accel: &str, title: &str) -> gtk::ShortcutsShortcut {
 impl App {
     fn on_show_shortcuts(&self) {
         build_shortcuts_window(&self.window).present();
+    }
+
+    fn on_export(&self, format: ExportFormat) {
+        let Some(result) = self.current_result.clone() else {
+            self.show_toast("Nothing to export");
+            return;
+        };
+        let suggested = match format {
+            ExportFormat::Csv => "table.csv",
+            ExportFormat::Json => "table.json",
+        };
+        let dialog = gtk::FileDialog::builder()
+            .title(match format {
+                ExportFormat::Csv => "Export as CSV",
+                ExportFormat::Json => "Export as JSON",
+            })
+            .modal(true)
+            .initial_name(suggested)
+            .build();
+        let parent = self.window.clone();
+        let toast_overlay = self.toast_overlay.clone();
+        dialog.save(Some(&parent), gtk::gio::Cancellable::NONE, move |outcome| {
+            let Ok(file) = outcome else { return };
+            let Some(path) = file.path() else { return };
+            let bytes = match format {
+                ExportFormat::Csv => render_csv(&result),
+                ExportFormat::Json => render_json(&result),
+            };
+            match std::fs::write(&path, bytes) {
+                Ok(()) => toast_overlay.add_toast(adw::Toast::new(&format!("Exported to {}", path.display()))),
+                Err(e) => toast_overlay.add_toast(adw::Toast::new(&format!("Export failed: {e}"))),
+            }
+        });
     }
 
     fn on_find_in_results(&self) {

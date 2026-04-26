@@ -27,6 +27,7 @@ pub struct ConnectDialog {
     use_tls: adw::SwitchRow,
     read_only: adw::SwitchRow,
     ssh: SshSection,
+    test_button: gtk::Button,
     submit: gtk::Button,
     status: gtk::Label,
 }
@@ -47,6 +48,8 @@ pub enum ConnectDialogInput {
     SshToggled,
     SshAuthChanged,
     Submit,
+    TestConnection,
+    InputChanged,
     Closed,
 }
 
@@ -57,8 +60,10 @@ pub enum ConnectDialogOutput {
 }
 
 #[derive(Debug)]
+#[allow(clippy::large_enum_variant)]
 pub enum ConnectDialogCmd {
     Result(Result<(SavedConnection, Vec<TableInfo>), String>),
+    TestResult(Result<usize, String>),
 }
 
 #[relm4::component(pub)]
@@ -105,7 +110,17 @@ impl Component for ConnectDialog {
                         },
 
                         append: &model.ssh.group,
-                        append: &model.submit,
+
+                        gtk::Box {
+                            set_orientation: gtk::Orientation::Horizontal,
+                            set_spacing: 8,
+                            set_halign: gtk::Align::End,
+                            set_margin_top: 12,
+
+                            append: &model.test_button,
+                            append: &model.submit,
+                        },
+
                         append: &model.status,
                     },
                 },
@@ -160,11 +175,21 @@ impl Component for ConnectDialog {
             sender_for_auth.input(ConnectDialogInput::SshAuthChanged);
         });
 
-        let submit = gtk::Button::builder()
-            .label("Connect")
-            .halign(gtk::Align::End)
-            .margin_top(12)
-            .build();
+        for entry in [&host, &port, &database, &username] {
+            let s = sender.clone();
+            entry.connect_changed(move |_| s.input(ConnectDialogInput::InputChanged));
+        }
+        let s = sender.clone();
+        password.connect_changed(move |_| s.input(ConnectDialogInput::InputChanged));
+
+        let test_button = gtk::Button::builder().label("Test").build();
+        test_button.add_css_class("pill");
+        let sender_for_test = sender.clone();
+        test_button.connect_clicked(move |_| {
+            sender_for_test.input(ConnectDialogInput::TestConnection);
+        });
+
+        let submit = gtk::Button::builder().label("Connect").build();
         submit.add_css_class("suggested-action");
         submit.add_css_class("pill");
         let sender_for_submit = sender.clone();
@@ -187,6 +212,7 @@ impl Component for ConnectDialog {
             use_tls,
             read_only,
             ssh,
+            test_button,
             submit,
             status,
         };
@@ -198,6 +224,7 @@ impl Component for ConnectDialog {
             }
             root.set_title(&format!("Connect to {}", first.display_name));
         }
+        model.refresh_validity();
 
         ComponentParts { model, widgets }
     }
@@ -216,10 +243,16 @@ impl Component for ConnectDialog {
 
             ConnectDialogInput::SshToggled => {
                 self.ssh.set_section_visible(self.ssh.is_enabled());
+                self.refresh_validity();
             }
 
             ConnectDialogInput::SshAuthChanged => {
                 self.ssh.refresh_auth_visibility();
+                self.refresh_validity();
+            }
+
+            ConnectDialogInput::InputChanged => {
+                self.refresh_validity();
             }
 
             ConnectDialogInput::Submit => {
@@ -283,6 +316,63 @@ impl Component for ConnectDialog {
                 });
             }
 
+            ConnectDialogInput::TestConnection => {
+                self.test_button.set_sensitive(false);
+                self.submit.set_sensitive(false);
+                self.status.set_label("Testing…");
+
+                let idx = self.driver_combo.selected() as usize;
+                let Some(entry) = self.drivers.get(idx).cloned() else {
+                    self.status.set_label("no driver selected");
+                    self.test_button.set_sensitive(true);
+                    self.submit.set_sensitive(true);
+                    return;
+                };
+                let Some(driver) = self.registry.get(&entry.id) else {
+                    self.status.set_label(&format!("driver {} not registered", entry.id));
+                    self.test_button.set_sensitive(true);
+                    self.submit.set_sensitive(true);
+                    return;
+                };
+                let opts = ConnectOptions {
+                    host: self.host.text().to_string(),
+                    port: self.port.text().parse().unwrap_or_else(|_| driver.default_port()),
+                    database: self.database.text().to_string(),
+                    username: self.username.text().to_string(),
+                    password: SecretString::new(self.password.text().to_string().into()),
+                    use_tls: self.use_tls.is_active(),
+                };
+                let ssh_inputs = if self.ssh.is_enabled() {
+                    match self.ssh.collect() {
+                        Ok(inputs) => Some(inputs.cfg),
+                        Err(e) => {
+                            self.status.set_label(&e);
+                            self.test_button.set_sensitive(true);
+                            self.submit.set_sensitive(true);
+                            return;
+                        }
+                    }
+                } else {
+                    None
+                };
+
+                sender.command(move |out, shutdown| {
+                    shutdown
+                        .register(async move {
+                            let result =
+                                match connection_service::establish(driver.as_ref(), opts, ssh_inputs, false).await {
+                                    Ok((conn, _tunnel)) => match conn.list_tables().await {
+                                        Ok(tables) => Ok(tables.len()),
+                                        Err(e) => Err(format!("list_tables: {e}")),
+                                    },
+                                    Err(e) => Err(e),
+                                };
+                            out.send(ConnectDialogCmd::TestResult(result)).ok();
+                        })
+                        .drop_on_shutdown()
+                });
+            }
+
             ConnectDialogInput::Closed => {
                 let _ = sender.output(ConnectDialogOutput::Closed);
             }
@@ -290,10 +380,10 @@ impl Component for ConnectDialog {
     }
 
     fn update_cmd(&mut self, msg: Self::CommandOutput, sender: ComponentSender<Self>, root: &Self::Root) {
-        let ConnectDialogCmd::Result(result) = msg;
         self.submit.set_sensitive(true);
-        match result {
-            Ok((saved, tables)) => {
+        self.test_button.set_sensitive(true);
+        match msg {
+            ConnectDialogCmd::Result(Ok((saved, tables))) => {
                 tracing::info!(driver = %saved.driver_id, table_count = tables.len(), "connected");
                 let _ = sender.output(ConnectDialogOutput::Connected {
                     tables,
@@ -301,15 +391,46 @@ impl Component for ConnectDialog {
                 });
                 root.close();
             }
-            Err(e) => {
+            ConnectDialogCmd::Result(Err(e)) => {
                 tracing::warn!(error = %e, "connect failed");
                 self.status.set_label(&e);
+            }
+            ConnectDialogCmd::TestResult(Ok(table_count)) => {
+                self.status
+                    .set_label(&format!("Connection ok · {table_count} table(s) visible"));
+            }
+            ConnectDialogCmd::TestResult(Err(e)) => {
+                self.status.set_label(&format!("Test failed: {e}"));
             }
         }
     }
 }
 
 impl ConnectDialog {
+    fn refresh_validity(&self) {
+        let valid = self.is_form_valid();
+        self.submit.set_sensitive(valid);
+        self.test_button.set_sensitive(valid);
+    }
+
+    fn is_form_valid(&self) -> bool {
+        if self.database.text().trim().is_empty() {
+            return false;
+        }
+        if self.host.is_visible() {
+            if self.host.text().trim().is_empty() {
+                return false;
+            }
+            if self.username.text().trim().is_empty() {
+                return false;
+            }
+        }
+        if self.ssh.is_enabled() {
+            return self.ssh.collect().is_ok();
+        }
+        true
+    }
+
     fn apply_driver_form_visibility(&self, driver: &dyn tablepro_core::DatabaseDriver) {
         let file_based = driver.is_file_based();
         self.host.set_visible(!file_based);

@@ -23,7 +23,7 @@ pub struct SqlEditor {
 pub enum SqlEditorInput {
     Run,
     Cancel,
-    ShowResult(QueryResult),
+    ShowResult(QueryResult, u128),
     ShowError(String),
     ShowCancelled,
 }
@@ -198,7 +198,7 @@ impl SimpleComponent for SqlEditor {
                                                 elapsed_ms = elapsed.as_millis(),
                                                 "query ok"
                                             );
-                                            SqlEditorInput::ShowResult(query_result)
+                                            SqlEditorInput::ShowResult(query_result, elapsed.as_millis())
                                         }
                                         Err(e) => {
                                             tracing::warn!(error = %e, "query failed");
@@ -219,14 +219,14 @@ impl SimpleComponent for SqlEditor {
                 }
             }
 
-            SqlEditorInput::ShowResult(result) => {
+            SqlEditorInput::ShowResult(result, elapsed_ms) => {
                 self.cancel_token = None;
                 self.run_button.set_sensitive(true);
                 self.cancel_button.set_visible(false);
                 let label = if result.truncated {
-                    format!("{} row(s) (truncated)", result.rows.len())
+                    format!("{} row(s) in {} ms (truncated)", result.rows.len(), elapsed_ms)
                 } else {
-                    format!("{} row(s)", result.rows.len())
+                    format!("{} row(s) in {} ms", result.rows.len(), elapsed_ms)
                 };
                 self.status.set_label(&label);
                 clear_box(&self.results_holder);
