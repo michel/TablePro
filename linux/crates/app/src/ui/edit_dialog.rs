@@ -6,6 +6,7 @@ use tablepro_core::{ColumnInfo, Value};
 
 use crate::runtime;
 use crate::services::connection_holder;
+use crate::sql_dialect::build_full_row_update;
 
 pub struct EditDialog {
     table: String,
@@ -128,59 +129,33 @@ impl SimpleComponent for EditDialog {
                     return;
                 };
 
-                let pk_indexes: Vec<usize> = self
+                let new_values: Vec<Value> = self
                     .columns
                     .iter()
-                    .enumerate()
-                    .filter(|(_, c)| c.primary_key)
-                    .map(|(i, _)| i)
+                    .zip(self.rows.iter())
+                    .map(|(col, row)| {
+                        let entered = row.text().to_string();
+                        if entered.is_empty() && col.nullable {
+                            Value::Null
+                        } else {
+                            Value::Text(entered)
+                        }
+                    })
                     .collect();
-                if pk_indexes.is_empty() {
-                    self.status.set_label("table has no primary key");
-                    return;
-                }
 
-                let mut set_clauses = Vec::new();
-                let mut params: Vec<Value> = Vec::new();
-                let mut placeholder_idx = 0;
-                for (i, col) in self.columns.iter().enumerate() {
-                    if col.primary_key {
-                        continue;
+                let (sql, params) = match build_full_row_update(
+                    &self.driver_id,
+                    &self.table,
+                    &self.columns,
+                    &self.original,
+                    &new_values,
+                ) {
+                    Ok(t) => t,
+                    Err(e) => {
+                        self.status.set_label(&e.to_string());
+                        return;
                     }
-                    let entered = self.rows[i].text().to_string();
-                    let new_value = if entered.is_empty() && col.nullable {
-                        Value::Null
-                    } else {
-                        Value::Text(entered)
-                    };
-                    let placeholder = placeholder_for(&self.driver_id, placeholder_idx);
-                    placeholder_idx += 1;
-                    set_clauses.push(format!("{} = {}", quote_ident(&self.driver_id, &col.name), placeholder));
-                    params.push(new_value);
-                }
-                if set_clauses.is_empty() {
-                    self.status.set_label("nothing to update");
-                    return;
-                }
-
-                let mut where_clauses = Vec::new();
-                for col_idx in &pk_indexes {
-                    let placeholder = placeholder_for(&self.driver_id, placeholder_idx);
-                    placeholder_idx += 1;
-                    where_clauses.push(format!(
-                        "{} = {}",
-                        quote_ident(&self.driver_id, &self.columns[*col_idx].name),
-                        placeholder
-                    ));
-                    params.push(self.original[*col_idx].clone());
-                }
-
-                let sql = format!(
-                    "UPDATE {} SET {} WHERE {}",
-                    quote_ident(&self.driver_id, &self.table),
-                    set_clauses.join(", "),
-                    where_clauses.join(" AND ")
-                );
+                };
 
                 self.submit.set_sensitive(false);
                 self.status.set_label("Saving…");
@@ -212,22 +187,6 @@ impl SimpleComponent for EditDialog {
 
             EditDialogInput::Closed => {}
         }
-    }
-}
-
-fn quote_ident(driver_id: &str, name: &str) -> String {
-    if driver_id == "mysql" {
-        format!("`{}`", name.replace('`', ""))
-    } else {
-        format!("\"{}\"", name.replace('"', ""))
-    }
-}
-
-fn placeholder_for(driver_id: &str, index: usize) -> String {
-    if driver_id == "postgres" {
-        format!("${}", index + 1)
-    } else {
-        "?".to_string()
     }
 }
 

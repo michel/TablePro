@@ -6,6 +6,7 @@ use tablepro_core::{ColumnInfo, Value};
 
 use crate::runtime;
 use crate::services::connection_holder;
+use crate::sql_dialect::{placeholder_for, quote_ident};
 
 pub struct InsertDialog {
     table: String,
@@ -176,21 +177,5 @@ impl SimpleComponent for InsertDialog {
 
             InsertDialogInput::Closed => {}
         }
-    }
-}
-
-fn quote_ident(driver_id: &str, name: &str) -> String {
-    if driver_id == "mysql" {
-        format!("`{}`", name.replace('`', ""))
-    } else {
-        format!("\"{}\"", name.replace('"', ""))
-    }
-}
-
-fn placeholder_for(driver_id: &str, index: usize) -> String {
-    if driver_id == "postgres" {
-        format!("${}", index + 1)
-    } else {
-        "?".to_string()
     }
 }

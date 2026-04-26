@@ -6,6 +6,7 @@ use tablepro_core::DriverRegistry;
 
 mod runtime;
 mod services;
+mod sql_dialect;
 mod ui;
 
 const APP_ID: &str = "com.tablepro.Linux";

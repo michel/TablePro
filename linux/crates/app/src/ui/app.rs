@@ -15,6 +15,7 @@ use super::grid::build_column_view;
 use super::insert_dialog::{InsertDialog, InsertDialogInit, InsertDialogOutput};
 use crate::runtime;
 use crate::services::{connection_holder, connection_service};
+use crate::sql_dialect::{placeholder_for, quote_ident};
 
 const PAGE_SIZE: u64 = 1000;
 
@@ -52,7 +53,10 @@ pub struct App {
 #[derive(Debug)]
 pub enum AppMsg {
     OpenConnect,
-    Connected { tables: Vec<TableInfo>, driver_id: String },
+    Connected {
+        tables: Vec<TableInfo>,
+        driver_id: String,
+    },
     DialogClosed,
     SelectTable(String),
     ColumnsLoaded(String, Vec<ColumnInfo>),
@@ -66,6 +70,12 @@ pub enum AppMsg {
     EditCommitted,
     DeleteSelectedRow,
     RowOperationCommitted,
+    CellEdited {
+        table: String,
+        row_position: u32,
+        col_index: usize,
+        new_value: String,
+    },
     ReloadConnections,
     ConnectionsLoaded(Vec<SavedConnection>),
     OpenSaved(SavedConnection),
@@ -397,9 +407,13 @@ impl SimpleComponent for App {
             }
 
             AppMsg::ColumnsLoaded(table, columns) => {
-                if self.current_table.as_deref() == Some(&table) {
-                    self.current_columns = columns;
-                    self.refresh_crud_buttons();
+                if self.current_table.as_deref() != Some(&table) {
+                    return;
+                }
+                self.current_columns = columns;
+                self.refresh_crud_buttons();
+                if self.current_result.is_some() {
+                    self.fetch_current_page(sender.clone());
                 }
             }
 
@@ -416,12 +430,20 @@ impl SimpleComponent for App {
             }
 
             AppMsg::RowsLoaded(table, offset, result) => {
+                if self.current_table.as_deref() != Some(&table) {
+                    return;
+                }
                 let n_rows = result.rows.len();
                 let n_cols = result.columns.len();
                 tracing::info!(table = %table, offset, rows = n_rows, cols = n_cols, "rows loaded");
 
                 clear_box(&self.grid_holder);
-                let (column_view, selection) = build_column_view(&result);
+                let (column_view, selection) = build_column_view(
+                    &result,
+                    &self.current_columns,
+                    &table,
+                    Some(sender.input_sender().clone()),
+                );
                 self.current_selection = Some(selection);
                 self.current_result = Some(result.clone());
                 let scrolled = gtk::ScrolledWindow::builder()
@@ -565,6 +587,49 @@ impl SimpleComponent for App {
 
             AppMsg::RowOperationCommitted => {
                 self.fetch_current_page(sender.clone());
+            }
+
+            AppMsg::CellEdited {
+                table,
+                row_position,
+                col_index,
+                new_value,
+            } => {
+                if self.current_table.as_deref() != Some(&table) {
+                    return;
+                }
+                let (Some(driver_id), Some(result)) = (self.current_driver_id.clone(), self.current_result.clone())
+                else {
+                    return;
+                };
+                let Some(row) = result.rows.get(row_position as usize).cloned() else {
+                    return;
+                };
+                if col_index >= self.current_columns.len() {
+                    return;
+                }
+                let col = &self.current_columns[col_index];
+
+                let value = if new_value.is_empty() && col.nullable {
+                    Value::Null
+                } else {
+                    Value::Text(new_value)
+                };
+                let (sql, params) = match crate::sql_dialect::build_single_cell_update(
+                    &driver_id,
+                    &table,
+                    &self.current_columns,
+                    &row,
+                    col_index,
+                    value,
+                ) {
+                    Ok(t) => t,
+                    Err(e) => {
+                        self.show_error_alert("Cannot update cell", &e.to_string());
+                        return;
+                    }
+                };
+                self.run_execute_then_refetch(sender.clone(), sql, params);
             }
 
             AppMsg::ReloadConnections => {
@@ -713,6 +778,33 @@ impl App {
         dialog.present(Some(&self.window));
     }
 
+    fn run_execute_then_refetch(&self, sender: ComponentSender<App>, sql: String, params: Vec<Value>) {
+        let Some(conn) = connection_holder::get() else {
+            sender.input(AppMsg::LoadFailed("no active connection".into()));
+            return;
+        };
+        let (tx, rx) = async_channel::bounded(1);
+        runtime::handle().spawn(async move {
+            let result = conn.execute_params(&sql, &params).await;
+            let _ = tx.send(result).await;
+        });
+        let sender_recv = sender.clone();
+        glib::spawn_future_local(async move {
+            if let Ok(result) = rx.recv().await {
+                match result {
+                    Ok(exec) => {
+                        tracing::info!(rows = exec.rows_affected, "execute ok");
+                        sender_recv.input(AppMsg::RowOperationCommitted);
+                    }
+                    Err(e) => {
+                        tracing::warn!(error = %e, "execute failed");
+                        sender_recv.input(AppMsg::LoadFailed(format!("{e}")));
+                    }
+                }
+            }
+        });
+    }
+
     fn confirm_and_execute(
         &self,
         sender: ComponentSender<App>,
@@ -762,22 +854,6 @@ impl App {
             });
         });
         dialog.present(Some(&self.window));
-    }
-}
-
-fn quote_ident(driver_id: &str, name: &str) -> String {
-    if driver_id == "mysql" {
-        format!("`{}`", name.replace('`', ""))
-    } else {
-        format!("\"{}\"", name.replace('"', ""))
-    }
-}
-
-fn placeholder_for(driver_id: &str, index: usize) -> String {
-    if driver_id == "postgres" {
-        format!("${}", index + 1)
-    } else {
-        "?".to_string()
     }
 }
 

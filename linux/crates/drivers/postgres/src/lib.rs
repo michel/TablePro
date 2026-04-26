@@ -68,10 +68,26 @@ impl Connection for PgConnection {
 
     async fn fetch_columns(&self, table: &str) -> Result<Vec<ColumnInfo>, DriverError> {
         let rows = sqlx::query(
-            "SELECT column_name, data_type, is_nullable
-             FROM information_schema.columns
-             WHERE table_name = $1
-             ORDER BY ordinal_position",
+            "SELECT
+                c.column_name,
+                c.data_type,
+                c.is_nullable,
+                EXISTS (
+                    SELECT 1
+                    FROM information_schema.table_constraints tc
+                    JOIN information_schema.key_column_usage kcu
+                      ON tc.constraint_name = kcu.constraint_name
+                     AND tc.table_schema = kcu.table_schema
+                     AND tc.table_name = kcu.table_name
+                    WHERE tc.constraint_type = 'PRIMARY KEY'
+                      AND kcu.table_name = c.table_name
+                      AND kcu.table_schema = c.table_schema
+                      AND kcu.column_name = c.column_name
+                ) AS is_pk
+             FROM information_schema.columns c
+             WHERE c.table_name = $1
+               AND c.table_schema = current_schema()
+             ORDER BY c.ordinal_position",
         )
         .bind(table)
         .fetch_all(&self.pool)
@@ -83,7 +99,7 @@ impl Connection for PgConnection {
                 name: r.get::<String, _>(0),
                 data_type: r.get::<String, _>(1),
                 nullable: r.get::<String, _>(2) == "YES",
-                primary_key: false,
+                primary_key: r.get::<bool, _>(3),
             })
             .collect())
     }

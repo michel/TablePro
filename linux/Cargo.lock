@@ -2336,6 +2336,7 @@ dependencies = [
  "tablepro-driver-postgres",
  "tablepro-driver-sqlite",
  "tablepro-storage",
+ "thiserror",
  "tokio",
  "tracing",
  "tracing-subscriber",
