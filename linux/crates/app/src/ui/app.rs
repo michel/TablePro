@@ -1558,6 +1558,15 @@ impl App {
         let group = adw::PreferencesGroup::builder()
             .title(crate::tr!("Saved connections"))
             .build();
+        let header_new_btn = gtk::Button::builder()
+            .icon_name("list-add-symbolic")
+            .tooltip_text(crate::tr!("New connection"))
+            .valign(gtk::Align::Center)
+            .build();
+        header_new_btn.add_css_class("flat");
+        let s_header = sender.clone();
+        header_new_btn.connect_clicked(move |_| s_header.input(AppMsg::OpenConnect));
+        group.set_header_suffix(Some(&header_new_btn));
         let mut first_row: Option<adw::ActionRow> = None;
         for saved in &self.saved_connections {
             let subtitle = if saved.driver_id == "sqlite" {
