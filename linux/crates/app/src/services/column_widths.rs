@@ -29,7 +29,11 @@ pub fn save(connection_id: Uuid, table: &str, column: &str, width: i32) {
         .insert(column.to_string(), width);
     let snapshot = map.clone();
     drop(guard);
-    let _ = save_to_disk(&snapshot);
+    std::thread::spawn(move || {
+        if let Err(e) = save_to_disk(&snapshot) {
+            tracing::warn!(error = %e, "column_widths: persist failed");
+        }
+    });
 }
 
 fn load_from_disk() -> Connections {

@@ -53,6 +53,7 @@ pub struct App {
     grid_holder: gtk::Box,
     grid_search: gtk::SearchEntry,
     grid_search_bar: gtk::SearchBar,
+    grid_search_handler: Option<glib::SignalHandlerId>,
     browse_view: gtk::Box,
     dialog: Option<Controller<ConnectDialog>>,
     editor: Option<Controller<SqlEditor>>,
@@ -287,9 +288,14 @@ impl SimpleComponent for App {
             widgets.window.maximize();
         }
         widgets.window.connect_close_request(|w| {
+            let (width, height) = if w.is_maximized() {
+                (w.default_width(), w.default_height())
+            } else {
+                (w.width(), w.height())
+            };
             crate::services::window_state::save(crate::services::window_state::WindowState {
-                width: w.default_width(),
-                height: w.default_height(),
+                width,
+                height,
                 maximized: w.is_maximized(),
             });
             glib::Propagation::Proceed
@@ -564,6 +570,7 @@ impl SimpleComponent for App {
             grid_holder,
             grid_search,
             grid_search_bar,
+            grid_search_handler: None,
             browse_view,
             dialog: None,
             editor: None,
@@ -924,10 +931,14 @@ impl App {
             Some(sender.input_sender().clone()),
             database_service::instance().active_id(),
         );
+        if let Some(prev) = self.grid_search_handler.take() {
+            self.grid_search.disconnect(prev);
+        }
         let setter = filter_setter.clone();
-        self.grid_search.connect_search_changed(move |entry| {
+        let id = self.grid_search.connect_search_changed(move |entry| {
             setter(&entry.text());
         });
+        self.grid_search_handler = Some(id);
         filter_setter(&self.grid_search.text());
         self.current_selection = Some(selection);
         self.current_result = Some(result.clone());
@@ -1579,7 +1590,7 @@ impl App {
         let toast = adw::Toast::builder()
             .title(msg)
             .timeout(10)
-            .button_label("Undo")
+            .button_label(crate::tr!("Undo"))
             .build();
         let s = sender;
         let batch_clone = batch;
