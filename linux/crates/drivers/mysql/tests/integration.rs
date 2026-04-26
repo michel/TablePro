@@ -7,11 +7,16 @@ use serde_json::json;
 use drivers_mysql::MysqlDriver;
 use tablepro_core::{ConnectOptions, Connection, DatabaseDriver, Value};
 use testcontainers::ContainerAsync;
+use testcontainers::ImageExt;
 use testcontainers_modules::mysql::Mysql;
 use testcontainers_modules::testcontainers::runners::AsyncRunner;
 
 async fn start_mysql() -> (ContainerAsync<Mysql>, ConnectOptions) {
-    let container = Mysql::default().start().await.expect("start mysql container");
+    let container = Mysql::default()
+        .with_cmd(["--default-authentication-plugin=mysql_native_password"])
+        .start()
+        .await
+        .expect("start mysql container");
     let host = container.get_host().await.expect("host").to_string();
     let port = container.get_host_port_ipv4(3306).await.expect("port");
     let opts = ConnectOptions {
