@@ -59,7 +59,7 @@ pub struct App {
     grid_search_handler: Option<glib::SignalHandlerId>,
     browse_view: adw::ToolbarView,
     dialog: Option<Controller<ConnectDialog>>,
-    editor_root: Option<gtk::Box>,
+    editor_root: Option<adw::TabOverview>,
     editor_tab_view: Option<adw::TabView>,
     editor_tabs: Vec<EditorTabSlot>,
     schema_buffer: gtk::TextBuffer,
@@ -1263,6 +1263,14 @@ impl App {
             .expand_tabs(true)
             .build();
 
+        let overview_button = adw::TabButton::builder()
+            .view(&tab_view)
+            .action_name("overview.open")
+            .tooltip_text(crate::tr!("View open tabs"))
+            .valign(gtk::Align::Center)
+            .build();
+        tab_bar.set_start_action_widget(Some(&overview_button));
+
         let new_tab_button = gtk::Button::builder()
             .icon_name("tab-new-symbolic")
             .tooltip_text(crate::tr!("New tab"))
@@ -1281,9 +1289,22 @@ impl App {
             glib::Propagation::Stop
         });
 
-        let root = gtk::Box::builder().orientation(gtk::Orientation::Vertical).build();
-        root.append(&tab_bar);
-        root.append(&tab_view);
+        let inner = gtk::Box::builder().orientation(gtk::Orientation::Vertical).build();
+        inner.append(&tab_bar);
+        inner.append(&tab_view);
+
+        // TabOverview's enable_new_tab requires a synchronous TabPage
+        // factory in connect_create_tab; our tab construction is async
+        // (Controller<SqlEditor> launch + slot bookkeeping), so we keep
+        // that flag off and rely on the existing tab-bar "+" button. The
+        // overview still gives us thumbnail navigation across tabs and
+        // type-to-search across query text, which is the primary win.
+        let tab_overview = adw::TabOverview::builder()
+            .view(&tab_view)
+            .enable_new_tab(false)
+            .enable_search(true)
+            .child(&inner)
+            .build();
 
         let new_tab_shortcut = gtk::Shortcut::builder()
             .trigger(&gtk::ShortcutTrigger::parse_string("<Primary>t").expect("valid trigger"))
@@ -1298,9 +1319,9 @@ impl App {
         let controller = gtk::ShortcutController::new();
         controller.set_scope(gtk::ShortcutScope::Local);
         controller.add_shortcut(new_tab_shortcut);
-        root.add_controller(controller);
+        inner.add_controller(controller);
 
-        self.editor_root = Some(root);
+        self.editor_root = Some(tab_overview);
         self.editor_tab_view = Some(tab_view);
     }
 
