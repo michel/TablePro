@@ -1,4 +1,5 @@
 use relm4::adw::prelude::*;
+use relm4::gtk::glib;
 use relm4::prelude::*;
 use relm4::{adw, gtk};
 use sourceview5::prelude::*;
@@ -117,11 +118,25 @@ impl SimpleComponent for SqlEditor {
             buffer.set_text("SELECT 1;");
             widgets.source_view.set_buffer(Some(&buffer));
         }
-        if let Some(scheme) = sourceview5::StyleSchemeManager::default().scheme("Adwaita-dark")
-            && let Ok(buffer) = widgets.source_view.buffer().downcast::<sourceview5::Buffer>()
-        {
-            buffer.set_style_scheme(Some(&scheme));
-        }
+        apply_editor_scheme(&widgets.source_view);
+        let view_for_theme = widgets.source_view.clone();
+        adw::StyleManager::default().connect_dark_notify(move |_| {
+            apply_editor_scheme(&view_for_theme);
+        });
+
+        let run_shortcut = gtk::Shortcut::builder()
+            .trigger(&gtk::ShortcutTrigger::parse_string("<Primary>Return").expect("valid trigger"))
+            .action(&gtk::CallbackAction::new({
+                let sender = sender.clone();
+                move |_, _| {
+                    sender.input(SqlEditorInput::Run);
+                    glib::Propagation::Stop
+                }
+            }))
+            .build();
+        let controller = gtk::ShortcutController::new();
+        controller.add_shortcut(run_shortcut);
+        widgets.source_view.add_controller(controller);
 
         let model = SqlEditor {
             source_view: widgets.source_view.clone(),
@@ -270,5 +285,18 @@ impl SimpleComponent for SqlEditor {
 fn clear_box(b: &gtk::Box) {
     while let Some(child) = b.first_child() {
         b.remove(&child);
+    }
+}
+
+fn apply_editor_scheme(view: &sourceview5::View) {
+    let scheme_name = if adw::StyleManager::default().is_dark() {
+        "Adwaita-dark"
+    } else {
+        "Adwaita"
+    };
+    if let Some(scheme) = sourceview5::StyleSchemeManager::default().scheme(scheme_name)
+        && let Ok(buffer) = view.buffer().downcast::<sourceview5::Buffer>()
+    {
+        buffer.set_style_scheme(Some(&scheme));
     }
 }

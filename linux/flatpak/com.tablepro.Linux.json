@@ -29,7 +29,9 @@
             "build-commands": [
                 "cargo build --release -p tablepro-app",
                 "install -Dm755 target/release/tablepro-app /app/bin/tablepro-app",
-                "install -Dm644 flatpak/com.tablepro.Linux.desktop /app/share/applications/com.tablepro.Linux.desktop"
+                "install -Dm644 flatpak/com.tablepro.Linux.desktop /app/share/applications/com.tablepro.Linux.desktop",
+                "install -Dm644 flatpak/com.tablepro.Linux.metainfo.xml /app/share/metainfo/com.tablepro.Linux.metainfo.xml",
+                "install -Dm644 flatpak/icons/scalable/com.tablepro.Linux.svg /app/share/icons/hicolor/scalable/apps/com.tablepro.Linux.svg"
             ],
             "sources": [
                 {

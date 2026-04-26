@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use relm4::adw::prelude::*;
+use relm4::gtk::gio;
 use relm4::prelude::*;
 use relm4::{ComponentController, Controller, adw, gtk};
 
@@ -85,6 +86,9 @@ pub enum AppMsg {
     OpenEditor,
     Disconnect,
     PollHealth,
+    RefreshPage,
+    ShowShortcuts,
+    ShowAbout,
 }
 
 #[relm4::component(pub)]
@@ -104,12 +108,14 @@ impl SimpleComponent for App {
                 add_top_bar = &adw::HeaderBar {
                     set_title_widget: Some(&adw::WindowTitle::new("TablePro Linux", env!("CARGO_PKG_VERSION"))),
 
+                    #[name = "new_connection_button"]
                     pack_start = &gtk::Button {
                         set_icon_name: "network-server-symbolic",
                         set_tooltip_text: Some("New connection"),
                         connect_clicked => AppMsg::OpenConnect,
                     },
 
+                    #[name = "saved_connections_button"]
                     pack_start = &gtk::MenuButton {
                         set_icon_name: "folder-open-symbolic",
                         set_tooltip_text: Some("Open saved connection"),
@@ -139,6 +145,12 @@ impl SimpleComponent for App {
                         set_tooltip_text: Some("Disconnect"),
                         set_visible: false,
                         connect_clicked => AppMsg::Disconnect,
+                    },
+
+                    #[name = "primary_menu_button"]
+                    pack_end = &gtk::MenuButton {
+                        set_icon_name: "open-menu-symbolic",
+                        set_tooltip_text: Some("Main menu"),
                     },
                 },
 
@@ -346,6 +358,26 @@ impl SimpleComponent for App {
         };
         sender.input(AppMsg::ReloadConnections);
 
+        widgets
+            .new_connection_button
+            .update_property(&[gtk::accessible::Property::Label("New connection")]);
+        widgets
+            .saved_connections_button
+            .update_property(&[gtk::accessible::Property::Label("Open saved connection")]);
+        widgets
+            .edit_button
+            .update_property(&[gtk::accessible::Property::Label("SQL editor")]);
+        widgets
+            .disconnect_button
+            .update_property(&[gtk::accessible::Property::Label("Disconnect")]);
+        widgets
+            .primary_menu_button
+            .update_property(&[gtk::accessible::Property::Label("Main menu")]);
+
+        widgets.primary_menu_button.set_menu_model(Some(&primary_menu_model()));
+        install_window_actions(&widgets.window, sender.clone());
+        install_window_shortcuts(&widgets.window);
+
         let poll_sender = sender.clone();
         glib::timeout_add_seconds_local(1, move || {
             poll_sender.input(AppMsg::PollHealth);
@@ -383,6 +415,9 @@ impl SimpleComponent for App {
             AppMsg::ConnectionsLoaded(connections) => self.on_connections_loaded(&connections, sender),
             AppMsg::OpenEditor => self.on_open_editor(),
             AppMsg::PollHealth => self.on_poll_health(),
+            AppMsg::RefreshPage => self.fetch_current_page(sender),
+            AppMsg::ShowShortcuts => self.on_show_shortcuts(),
+            AppMsg::ShowAbout => self.on_show_about(),
             AppMsg::DeleteConnection(id) => self.on_delete_connection(id, sender),
             AppMsg::OpenSaved(saved) => self.on_open_saved(saved, sender),
         }
@@ -973,5 +1008,118 @@ fn rebuild_connections_listbox(
             popover_for_row.popdown();
         });
         listbox.append(&row);
+    }
+}
+
+fn primary_menu_model() -> gio::Menu {
+    let menu = gio::Menu::new();
+    menu.append(Some("Keyboard Shortcuts"), Some("win.shortcuts"));
+    menu.append(Some("About TablePro"), Some("win.about"));
+    menu.append(Some("Quit"), Some("win.quit"));
+    menu
+}
+
+fn install_window_actions(window: &adw::ApplicationWindow, sender: ComponentSender<App>) {
+    let group = gio::SimpleActionGroup::new();
+
+    let shortcuts_sender = sender.clone();
+    let shortcuts = gio::ActionEntry::builder("shortcuts")
+        .activate(move |_, _, _| shortcuts_sender.input(AppMsg::ShowShortcuts))
+        .build();
+
+    let about_sender = sender.clone();
+    let about = gio::ActionEntry::builder("about")
+        .activate(move |_, _, _| about_sender.input(AppMsg::ShowAbout))
+        .build();
+
+    let window_for_quit = window.clone();
+    let quit = gio::ActionEntry::builder("quit")
+        .activate(move |_, _, _| window_for_quit.close())
+        .build();
+
+    let editor_sender = sender.clone();
+    let open_editor = gio::ActionEntry::builder("open-editor")
+        .activate(move |_, _, _| editor_sender.input(AppMsg::OpenEditor))
+        .build();
+
+    let refresh_sender = sender;
+    let refresh = gio::ActionEntry::builder("refresh-page")
+        .activate(move |_, _, _| refresh_sender.input(AppMsg::RefreshPage))
+        .build();
+
+    group.add_action_entries([shortcuts, about, quit, open_editor, refresh]);
+    window.insert_action_group("win", Some(&group));
+}
+
+fn install_window_shortcuts(window: &adw::ApplicationWindow) {
+    let controller = gtk::ShortcutController::new();
+    controller.set_scope(gtk::ShortcutScope::Global);
+    controller.add_shortcut(make_shortcut("<Primary>question", "win.shortcuts"));
+    controller.add_shortcut(make_shortcut("<Primary>slash", "win.shortcuts"));
+    controller.add_shortcut(make_shortcut("<Primary>q", "win.quit"));
+    controller.add_shortcut(make_shortcut("<Primary>w", "win.quit"));
+    controller.add_shortcut(make_shortcut("<Primary>e", "win.open-editor"));
+    controller.add_shortcut(make_shortcut("F5", "win.refresh-page"));
+    window.add_controller(controller);
+}
+
+fn make_shortcut(trigger: &str, action: &str) -> gtk::Shortcut {
+    gtk::Shortcut::builder()
+        .trigger(&gtk::ShortcutTrigger::parse_string(trigger).expect("valid trigger"))
+        .action(&gtk::NamedAction::new(action))
+        .build()
+}
+
+fn build_shortcuts_window(parent: &adw::ApplicationWindow) -> gtk::ShortcutsWindow {
+    let window = gtk::ShortcutsWindow::builder()
+        .modal(true)
+        .transient_for(parent)
+        .build();
+    let section = gtk::ShortcutsSection::builder().section_name("application").build();
+
+    let general = gtk::ShortcutsGroup::builder().title("General").build();
+    general.append(&shortcut_entry("<Primary>e", "Open SQL editor"));
+    general.append(&shortcut_entry("F5", "Refresh table"));
+    general.append(&shortcut_entry("<Primary>question", "Show keyboard shortcuts"));
+    general.append(&shortcut_entry("<Primary>q", "Quit"));
+    general.append(&shortcut_entry("<Primary>w", "Close window"));
+    section.append(&general);
+
+    let editor = gtk::ShortcutsGroup::builder().title("SQL editor").build();
+    editor.append(&shortcut_entry("<Primary>Return", "Run query"));
+    editor.append(&shortcut_entry("Escape", "Cancel running query"));
+    section.append(&editor);
+
+    let dialogs = gtk::ShortcutsGroup::builder().title("Dialogs").build();
+    dialogs.append(&shortcut_entry("Escape", "Close dialog"));
+    section.append(&dialogs);
+
+    window.add_section(&section);
+    window
+}
+
+fn shortcut_entry(accel: &str, title: &str) -> gtk::ShortcutsShortcut {
+    gtk::ShortcutsShortcut::builder()
+        .accelerator(accel)
+        .title(title)
+        .build()
+}
+
+impl App {
+    fn on_show_shortcuts(&self) {
+        build_shortcuts_window(&self.window).present();
+    }
+
+    fn on_show_about(&self) {
+        let dialog = adw::AboutDialog::builder()
+            .application_name("TablePro Linux")
+            .application_icon("com.tablepro.Linux")
+            .developer_name("TablePro Authors")
+            .version(env!("CARGO_PKG_VERSION"))
+            .website("https://github.com/TableProApp/TablePro")
+            .issue_url("https://github.com/TableProApp/TablePro/issues")
+            .license_type(gtk::License::Custom)
+            .build();
+        dialog.present(Some(&self.window));
     }
 }
