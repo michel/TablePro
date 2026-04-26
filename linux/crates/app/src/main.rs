@@ -20,7 +20,8 @@ fn main() {
     i18n::init();
 
     let prefs = services::preferences::load();
-    let runtime = tokio::runtime::Builder::new_current_thread()
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(1)
         .enable_all()
         .build()
         .expect("history runtime");
@@ -31,7 +32,9 @@ fn main() {
             tracing::warn!(error = %e, "history prune failed");
         }
     });
-    drop(runtime);
+    // Keep the runtime alive for the process lifetime so the sqlx pool's
+    // background reaper task keeps running. Dropping here would cancel it.
+    std::mem::forget(runtime);
 
     let registry = Arc::new(build_registry());
     tracing::info!(drivers = registry.len(), "starting tablepro-app");

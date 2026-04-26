@@ -30,6 +30,7 @@ pub struct HistoryDialog {
     connections: Vec<ConnectionMetadata>,
     selected_ids: HashSet<i64>,
     entries: Vec<Entry>,
+    row_popovers: Vec<gtk::PopoverMenu>,
 }
 
 pub struct HistoryDialogInit;
@@ -141,15 +142,6 @@ impl Component for HistoryDialog {
         filter_popover.set_position(gtk::PositionType::Bottom);
         filter_popover.set_parent(&filter_button);
 
-        let s = sender.clone();
-        filter_button.connect_clicked(move |btn| {
-            if btn.is_active() {
-                if let Some(parent) = btn.parent() {
-                    let _ = parent;
-                }
-                let _ = s;
-            }
-        });
         let popover_for_toggle = filter_popover.clone();
         filter_button.connect_toggled(move |btn| {
             if btn.is_active() {
@@ -331,21 +323,12 @@ impl Component for HistoryDialog {
             connections,
             selected_ids: HashSet::new(),
             entries: Vec::new(),
+            row_popovers: Vec::new(),
         };
 
         sender.input(HistoryDialogInput::Refresh);
 
         ComponentParts { model, widgets: () }
-    }
-
-    fn update_with_view(
-        &mut self,
-        _widgets: &mut Self::Widgets,
-        msg: Self::Input,
-        sender: ComponentSender<Self>,
-        _root: &Self::Root,
-    ) {
-        self.update(msg, sender, _root);
     }
 
     fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>, _root: &Self::Root) {
@@ -385,6 +368,9 @@ impl Component for HistoryDialog {
 
             HistoryDialogInput::TogglePin(id) => {
                 let pinned = !self.is_pinned(id);
+                if let Some(entry) = self.entries.iter_mut().find(|e| e.id == id) {
+                    entry.pinned = pinned;
+                }
                 relm4::spawn(async move {
                     if let Err(e) = query_history::set_pinned(id, pinned).await {
                         tracing::warn!(error = %e, "history set_pinned failed");
@@ -547,6 +533,13 @@ impl HistoryDialog {
     }
 
     fn render_entries(&mut self, entries: Vec<Entry>, sender: &ComponentSender<Self>) {
+        // Unparent the previous round's row popovers explicitly so they drop
+        // along with their captured sender clones. Without this, set_parent's
+        // strong link from popover→row would keep both alive past the
+        // listbox.remove() call below.
+        for popover in self.row_popovers.drain(..) {
+            popover.unparent();
+        }
         clear_listbox(&self.pinned_listbox);
         clear_listbox(&self.listbox);
 
@@ -588,18 +581,20 @@ impl HistoryDialog {
         self.list_heading.set_visible(has_pinned && has_regular);
 
         for entry in &pinned {
-            let row = self.build_row(entry, sender.clone());
+            let (row, popover) = self.build_row(entry, sender.clone());
             self.pinned_listbox.append(&row);
+            self.row_popovers.push(popover);
         }
         for entry in &regular {
-            let row = self.build_row(entry, sender.clone());
+            let (row, popover) = self.build_row(entry, sender.clone());
             self.listbox.append(&row);
+            self.row_popovers.push(popover);
         }
 
         self.refresh_selection_bar();
     }
 
-    fn build_row(&self, entry: &Entry, sender: ComponentSender<Self>) -> adw::ActionRow {
+    fn build_row(&self, entry: &Entry, sender: ComponentSender<Self>) -> (adw::ActionRow, gtk::PopoverMenu) {
         let title = preview_title(&entry.query);
         let subtitle = format_subtitle(entry);
         let row = adw::ActionRow::builder()
@@ -730,7 +725,7 @@ impl HistoryDialog {
         controller.add_shortcut(menu_shortcut);
         row.add_controller(controller);
 
-        row
+        (row, popover_menu)
     }
 
     fn refresh_selection_bar(&self) {
@@ -811,12 +806,18 @@ impl HistoryDialog {
 }
 
 fn fts5_query(input: &str) -> String {
-    let trimmed = input.trim();
-    if trimmed.is_empty() {
-        return String::new();
-    }
-    let escaped = trimmed.replace('"', "\"\"");
-    format!("\"{escaped}\"")
+    // Tokenise on whitespace and quote each token. FTS5 then ANDs them by
+    // default ("SELECT users" → match rows containing both terms anywhere),
+    // matching what users expect from a search box. Quoting protects each
+    // token from FTS5's own operator chars (parens, AND, OR, NEAR, *).
+    input
+        .split_whitespace()
+        .map(|tok| {
+            let escaped = tok.replace('"', "\"\"");
+            format!("\"{escaped}\"")
+        })
+        .collect::<Vec<_>>()
+        .join(" ")
 }
 
 fn preview_title(query: &str) -> String {

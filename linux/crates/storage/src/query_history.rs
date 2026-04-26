@@ -69,7 +69,10 @@ pub async fn init() -> Result<(), StorageError> {
         return Ok(());
     }
     let Some(path) = db_path() else {
-        return Err(StorageError::Schema("no XDG_CONFIG_HOME or HOME".into()));
+        return Err(StorageError::Io(std::io::Error::new(
+            std::io::ErrorKind::NotFound,
+            "no XDG_CONFIG_HOME or HOME",
+        )));
     };
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)?;
