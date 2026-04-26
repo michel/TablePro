@@ -13,7 +13,7 @@ use super::edit_dialog::{EditDialog, EditDialogInit, EditDialogOutput};
 use super::editor::SqlEditor;
 use super::grid::build_column_view;
 use super::insert_dialog::{InsertDialog, InsertDialogInit, InsertDialogOutput};
-use crate::services::{connection_holder, connection_service};
+use crate::services::{connection_service, database_service};
 use crate::sql_dialect::{placeholder_for, quote_ident};
 
 const PAGE_SIZE: u64 = 1000;
@@ -368,7 +368,12 @@ impl SimpleComponent for App {
             }
 
             AppMsg::Disconnect => {
-                connection_holder::clear();
+                let svc = database_service::instance();
+                if let Some(id) = svc.active_id() {
+                    svc.remove(id);
+                } else {
+                    svc.clear_all();
+                }
                 self.editor = None;
                 self.current_table = None;
                 self.current_offset = 0;
@@ -657,7 +662,7 @@ impl SimpleComponent for App {
             }
 
             AppMsg::OpenEditor => {
-                if connection_holder::get().is_none() {
+                if database_service::instance().active().is_none() {
                     self.set_status_page("No connection", "Connect to a database first to run SQL.");
                     return;
                 }
@@ -715,7 +720,7 @@ impl App {
             return;
         };
         let offset = self.current_offset;
-        let Some(conn) = connection_holder::get() else {
+        let Some(conn) = database_service::instance().active() else {
             sender.input(AppMsg::LoadFailed("no active connection".into()));
             return;
         };
@@ -733,7 +738,7 @@ impl App {
     }
 
     fn fetch_columns(&self, table: String, sender: ComponentSender<App>) {
-        let Some(conn) = connection_holder::get() else {
+        let Some(conn) = database_service::instance().active() else {
             return;
         };
         let sender_clone = sender.clone();
@@ -797,7 +802,7 @@ impl App {
 }
 
 fn execute_then_refetch(sender: ComponentSender<App>, sql: String, params: Vec<Value>) {
-    let Some(conn) = connection_holder::get() else {
+    let Some(conn) = database_service::instance().active() else {
         sender.input(AppMsg::LoadFailed("no active connection".into()));
         return;
     };

@@ -8,7 +8,7 @@ use uuid::Uuid;
 use tablepro_core::{ConnectOptions, DriverRegistry, TableInfo};
 use tablepro_storage::{SavedConnection, save_connections, store_password};
 
-use crate::services::connection_holder;
+use crate::services::database_service;
 
 pub struct ConnectDialog {
     registry: Arc<DriverRegistry>,
@@ -255,7 +255,7 @@ impl Component for ConnectDialog {
                                         match save_one(&saved).await {
                                             Ok(()) => {
                                                 let _ = store_password(saved.id, &opts.password, &label).await;
-                                                connection_holder::set(conn);
+                                                database_service::instance().add(saved.id, conn);
                                                 Ok((saved, tables))
                                             }
                                             Err(e) => Err(format!("save: {e}")),

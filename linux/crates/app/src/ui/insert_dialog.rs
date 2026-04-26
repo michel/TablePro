@@ -4,7 +4,7 @@ use relm4::{adw, gtk};
 
 use tablepro_core::{ColumnInfo, Value};
 
-use crate::services::connection_holder;
+use crate::services::database_service;
 use crate::sql_dialect::{placeholder_for, quote_ident};
 
 pub struct InsertDialog {
@@ -114,7 +114,7 @@ impl SimpleComponent for InsertDialog {
     fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>) {
         match msg {
             InsertDialogInput::Submit => {
-                let Some(conn) = connection_holder::get() else {
+                let Some(conn) = database_service::instance().active() else {
                     self.status.set_label("no active connection");
                     return;
                 };

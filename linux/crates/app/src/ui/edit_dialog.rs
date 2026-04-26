@@ -4,7 +4,7 @@ use relm4::{adw, gtk};
 
 use tablepro_core::{ColumnInfo, Value};
 
-use crate::services::connection_holder;
+use crate::services::database_service;
 use crate::sql_dialect::build_full_row_update;
 
 pub struct EditDialog {
@@ -123,7 +123,7 @@ impl SimpleComponent for EditDialog {
     fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>) {
         match msg {
             EditDialogInput::Submit => {
-                let Some(conn) = connection_holder::get() else {
+                let Some(conn) = database_service::instance().active() else {
                     self.status.set_label("no active connection");
                     return;
                 };

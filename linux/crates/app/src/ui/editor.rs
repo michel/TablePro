@@ -6,7 +6,7 @@ use sourceview5::prelude::*;
 use tablepro_core::QueryResult;
 
 use super::grid::build_column_view;
-use crate::services::connection_holder;
+use crate::services::database_service;
 
 pub struct SqlEditor {
     source_view: sourceview5::View,
@@ -132,7 +132,7 @@ impl SimpleComponent for SqlEditor {
                     return;
                 }
 
-                let conn = match connection_holder::get() {
+                let conn = match database_service::instance().active() {
                     Some(c) => c,
                     None => {
                         self.status.set_label("no active connection");
