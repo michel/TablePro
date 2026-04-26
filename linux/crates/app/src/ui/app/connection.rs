@@ -32,10 +32,12 @@ impl App {
         self.split_view.set_show_sidebar(true);
         self.disconnect_action.set_enabled(true);
         self.table_search.set_text("");
-        // Enter the connected ViewStack: ViewSwitcher tabs in headerbar,
-        // Browse content in main area. Editor page is added lazily on
-        // first AppMsg::OpenEditor.
-        self.title_stack.set_visible_child_name("switcher");
+        // Reveal the ViewSwitcherBar so Browse / Editor tabs become
+        // visible just below the headerbar. The Editor page is added
+        // eagerly on first connect so the switcher always has two tabs;
+        // a lone "Browse" tab would be visual noise.
+        self.ensure_editor_page(sender.clone());
+        self.view_switcher_bar.set_reveal(true);
         self.view_stack.set_visible_child_name("browse");
         self.content_holder.set_content(Some(&self.view_stack));
         self.table_names = tables.iter().map(|t| t.name.clone()).collect();
@@ -75,10 +77,23 @@ impl App {
         self.table_search.set_text("");
         self.sidebar_schemas.borrow_mut().clear();
         self.sidebar_factory.guard().clear();
+        // Tear down the Editor view-stack page so the next connection
+        // builds a fresh editor (with its own tabs / persisted state).
+        if let Some(root) = self.editor_root.take()
+            && self.editor_page_added.get()
+        {
+            self.view_stack.remove(&root);
+            self.editor_page_added.set(false);
+        }
+        self.editor_tab_view = None;
+        self.editor_tabs.borrow_mut().clear();
         // Reset the Browse inner stack to its default "Select a table"
         // status so the next connection doesn't briefly flash the prior
         // session's grid before fetching fresh rows.
         self.browse_inner_stack.set_visible_child_name("status");
+        // Hide the ViewSwitcherBar so the welcome view occupies the full
+        // toolbar — the bar is only meaningful in the connected state.
+        self.view_switcher_bar.set_reveal(false);
         self.show_welcome_page(sender);
         tracing::info!("disconnected");
     }

@@ -20,20 +20,31 @@ impl App {
             self.show_toast(&crate::tr!("Connect to a database first to run SQL."));
             return;
         }
+        // ensure_editor_page is also called from on_connected so the Editor
+        // tab is always present in the ViewSwitcher; this call is a no-op
+        // when the page already exists.
+        self.ensure_editor_page(sender);
+        self.view_stack.set_visible_child_name("editor");
+    }
+
+    /// Builds editor_root + initial empty tab and registers it as the
+    /// "editor" page in view_stack — idempotent.
+    ///
+    /// Called eagerly from on_connected so AdwViewSwitcherBar always has
+    /// Browse + Editor peers, and again from on_open_editor for the
+    /// keyboard-shortcut path that re-enters after a close.
+    pub(super) fn ensure_editor_page(&mut self, sender: ComponentSender<Self>) {
+        if self.editor_page_added.get() {
+            return;
+        }
         if self.editor_root.is_none() {
             self.build_editor_root(sender.clone());
             self.restore_editor_tabs(sender);
         }
-        // Add the Editor page to the ViewStack the first time we open it,
-        // then activate it. Once added, the ViewSwitcher in the headerbar
-        // exposes Browse / Editor as native tabs.
         if let Some(root) = self.editor_root.as_ref() {
-            if !self.editor_page_added.get() {
-                self.view_stack
-                    .add_titled_with_icon(root, Some("editor"), &crate::tr!("Editor"), "edit-symbolic");
-                self.editor_page_added.set(true);
-            }
-            self.view_stack.set_visible_child_name("editor");
+            self.view_stack
+                .add_titled_with_icon(root, Some("editor"), &crate::tr!("Editor"), "edit-symbolic");
+            self.editor_page_added.set(true);
         }
     }
 
@@ -177,17 +188,12 @@ impl App {
         self.persist_editor_state();
 
         if self.editor_tabs.borrow().is_empty() {
-            // Remove the Editor ViewStack page so the next OpenEditor builds
-            // a fresh one — keeps the editor lifecycle aligned with the
-            // existence of any tabs.
-            if let Some(root) = self.editor_root.take()
-                && self.editor_page_added.get()
-            {
-                self.view_stack.remove(&root);
-                self.editor_page_added.set(false);
-            }
-            self.editor_tab_view = None;
-            self.show_welcome_or_grid_after_editor_close(sender);
+            // The Editor ViewSwitcher tab stays present for the duration
+            // of the connection (so the user always sees Browse | Editor
+            // as peers). Closing the last query tab opens a fresh empty
+            // tab rather than tearing down editor_root.
+            self.append_editor_tab(None, sender.clone());
+            self.view_stack.set_visible_child_name("browse");
         }
     }
 
@@ -203,17 +209,6 @@ impl App {
         // the close-page signal handler emits EditorTabClosed(id), which then
         // calls close_page_finish to actually finalise the close.
         tab_view.close_page(&page);
-    }
-
-    pub(super) fn show_welcome_or_grid_after_editor_close(&mut self, sender: ComponentSender<Self>) {
-        if self.connected {
-            // Closing the last editor tab returns the user to Browse —
-            // the ViewSwitcher will now only show one tab (Browse) until
-            // they hit Ctrl+E to reopen the editor.
-            self.view_stack.set_visible_child_name("browse");
-        } else {
-            self.show_welcome_page(sender);
-        }
     }
 
     pub(super) fn on_editor_tab_run_state_changed(&self, id: Uuid, running: bool) {

@@ -36,7 +36,6 @@ impl FactoryComponent for SidebarRow {
             add_prefix = &gtk::Image {
                 set_icon_name: Some("view-list-symbolic"),
                 set_pixel_size: 16,
-                add_css_class: "dim-label",
             },
         }
     }

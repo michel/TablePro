@@ -6,9 +6,8 @@ use super::{App, AppMsg, StatusKind, UndoBatch, build_shortcuts_window};
 impl App {
     pub(super) fn show_welcome_page(&self, _sender: ComponentSender<Self>) {
         // Welcome lives outside the ViewStack — it's the disconnected mode.
-        // The ViewStack's view-switcher tabs only make sense once a database
-        // is open, so we replace the entire content area with the welcome view.
-        self.title_stack.set_visible_child_name("title");
+        // The ViewSwitcherBar is hidden via on_disconnect so the welcome
+        // view occupies the full toolbar surface.
         self.content_holder.set_content(Some(self.welcome_view.widget()));
     }
 

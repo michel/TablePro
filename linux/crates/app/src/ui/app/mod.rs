@@ -68,12 +68,13 @@ pub struct App {
     /// Connected-state content: ViewSwitcher tabs for Browse + Editor.
     /// Hidden (replaced by `welcome_view`) while disconnected.
     view_stack: adw::ViewStack,
-    /// Headerbar title-widget: WindowTitle while disconnected, ViewSwitcher
-    /// while connected. Avoids the deprecated AdwViewSwitcherTitle.
-    title_stack: gtk::Stack,
+    /// Bottom-of-headerbar tab strip. Revealed when connected, hidden
+    /// otherwise — keeps WindowTitle visible above for connection name
+    /// rather than swapping it out (GNOME Maps pattern).
+    view_switcher_bar: adw::ViewSwitcherBar,
     /// `true` once the Editor page has been added to view_stack — built
-    /// lazily on first AppMsg::OpenEditor so we don't pay editor setup
-    /// cost during the welcome screen.
+    /// eagerly on connect so the ViewSwitcher always has Browse + Editor
+    /// peers (a single-tab switcher would be visual noise).
     editor_page_added: std::cell::Cell<bool>,
     dialog: Option<Controller<ConnectDialog>>,
     editor_root: Option<adw::TabOverview>,
@@ -249,6 +250,7 @@ impl SimpleComponent for App {
             set_default_width: 1200,
             set_default_height: 760,
 
+            #[name = "toolbar_view"]
             adw::ToolbarView {
                 #[name = "header_bar"]
                 add_top_bar = &adw::HeaderBar {
@@ -297,7 +299,7 @@ impl SimpleComponent for App {
                 #[name = "split_view"]
                 set_content = &adw::OverlaySplitView {
                     set_min_sidebar_width: 220.0,
-                    set_max_sidebar_width: 360.0,
+                    set_max_sidebar_width: 280.0,
                     set_show_sidebar: false,
 
                     #[wrap(Some)]
@@ -637,23 +639,12 @@ impl SimpleComponent for App {
         );
         let _ = browse_page;
 
-        let view_switcher = adw::ViewSwitcher::builder()
-            .stack(&view_stack)
-            .policy(adw::ViewSwitcherPolicy::Wide)
-            .build();
-        let title_stack = gtk::Stack::builder()
-            .transition_type(gtk::StackTransitionType::Crossfade)
-            .build();
-        // The window_title widget was placed into the headerbar's title slot
-        // by the view! macro. GTK4 enforces single-parent on widgets, so we
-        // must unparent it from the headerbar before re-parenting into
-        // title_stack — otherwise add_named fails silently and the title
-        // area renders empty.
-        widgets.header_bar.set_title_widget(gtk::Widget::NONE);
-        title_stack.add_named(&widgets.window_title, Some("title"));
-        title_stack.add_named(&view_switcher, Some("switcher"));
-        title_stack.set_visible_child_name("title");
-        widgets.header_bar.set_title_widget(Some(&title_stack));
+        // ViewSwitcherBar lives below the headerbar and is revealed only
+        // while connected. Keeping the WindowTitle in the headerbar slot
+        // (rather than replacing it with the switcher) preserves the
+        // connection-name subtitle promised by C3.
+        let view_switcher_bar = adw::ViewSwitcherBar::builder().stack(&view_stack).reveal(false).build();
+        widgets.toolbar_view.add_top_bar(&view_switcher_bar);
 
         let disconnect_action = install_window_actions(&widgets.window, sender.clone());
         install_window_shortcuts(&widgets.window);
@@ -727,7 +718,7 @@ impl SimpleComponent for App {
             grid_sender,
             browse_inner_stack,
             view_stack,
-            title_stack,
+            view_switcher_bar,
             editor_page_added: std::cell::Cell::new(false),
             dialog: None,
             editor_root: None,
