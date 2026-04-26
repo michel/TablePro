@@ -5,17 +5,20 @@ use relm4::prelude::*;
 use relm4::{ComponentController, Controller, adw, gtk};
 
 use tablepro_core::{DriverRegistry, QueryResult, TableInfo};
+use tablepro_storage::SavedConnection;
 
 use super::connect_dialog::{ConnectDialog, ConnectDialogInit, ConnectDialogOutput};
 use super::grid::build_column_view;
 use crate::runtime;
-use crate::services::connection_holder;
+use crate::services::{connection_holder, connection_service};
 
 pub struct App {
     registry: Arc<DriverRegistry>,
     window: adw::ApplicationWindow,
     sidebar: gtk::ListBox,
     content_holder: adw::ToolbarView,
+    connections_listbox: gtk::ListBox,
+    connections_popover: gtk::Popover,
     dialog: Option<Controller<ConnectDialog>>,
     selected: Option<String>,
 }
@@ -28,6 +31,9 @@ pub enum AppMsg {
     SelectTable(String),
     RowsLoaded(String, QueryResult),
     LoadFailed(String),
+    ReloadConnections,
+    ConnectionsLoaded(Vec<SavedConnection>),
+    OpenSaved(SavedConnection),
 }
 
 #[relm4::component(pub)]
@@ -49,8 +55,17 @@ impl SimpleComponent for App {
 
                     pack_start = &gtk::Button {
                         set_icon_name: "network-server-symbolic",
-                        set_tooltip_text: Some("Connect"),
+                        set_tooltip_text: Some("New connection"),
                         connect_clicked => AppMsg::OpenConnect,
+                    },
+
+                    pack_start = &gtk::MenuButton {
+                        set_icon_name: "folder-open-symbolic",
+                        set_tooltip_text: Some("Open saved connection"),
+
+                        #[wrap(Some)]
+                        #[name = "connections_popover"]
+                        set_popover = &gtk::Popover {},
                     },
                 },
 
@@ -86,7 +101,7 @@ impl SimpleComponent for App {
                             set_content = &adw::StatusPage {
                                 set_icon_name: Some("network-server-symbolic"),
                                 set_title: "Connect to a database",
-                                set_description: Some("Click the server icon in the header to start."),
+                                set_description: Some("Click the server icon for a new connection or the folder icon to open a saved one."),
                             },
                         },
                     },
@@ -97,14 +112,47 @@ impl SimpleComponent for App {
 
     fn init(registry: Self::Init, root: Self::Root, sender: ComponentSender<Self>) -> ComponentParts<Self> {
         let widgets = view_output!();
+
+        let connections_listbox = gtk::ListBox::builder().selection_mode(gtk::SelectionMode::None).build();
+        connections_listbox.add_css_class("boxed-list");
+
+        let popover_content = gtk::Box::builder()
+            .orientation(gtk::Orientation::Vertical)
+            .spacing(8)
+            .margin_top(12)
+            .margin_bottom(12)
+            .margin_start(12)
+            .margin_end(12)
+            .build();
+        let header = gtk::Label::builder()
+            .label("Saved Connections")
+            .halign(gtk::Align::Start)
+            .build();
+        header.add_css_class("heading");
+        popover_content.append(&header);
+
+        let scroll = gtk::ScrolledWindow::builder()
+            .child(&connections_listbox)
+            .min_content_width(320)
+            .min_content_height(120)
+            .max_content_height(400)
+            .propagate_natural_height(true)
+            .hscrollbar_policy(gtk::PolicyType::Never)
+            .build();
+        popover_content.append(&scroll);
+        widgets.connections_popover.set_child(Some(&popover_content));
+
         let model = App {
             registry,
             window: root.clone(),
             sidebar: widgets.sidebar.clone(),
             content_holder: widgets.content_holder.clone(),
+            connections_listbox,
+            connections_popover: widgets.connections_popover.clone(),
             dialog: None,
             selected: None,
         };
+        sender.input(AppMsg::ReloadConnections);
         ComponentParts { model, widgets }
     }
 
@@ -131,6 +179,7 @@ impl SimpleComponent for App {
                     "Select a table",
                     &format!("Connected to {driver_id}. Pick a table from the left to load up to 100,000 rows."),
                 );
+                sender.input(AppMsg::ReloadConnections);
             }
 
             AppMsg::DialogClosed => {
@@ -180,7 +229,51 @@ impl SimpleComponent for App {
 
             AppMsg::LoadFailed(msg) => {
                 tracing::warn!(error = %msg, "load failed");
-                self.set_status_page("Query failed", &msg);
+                self.set_status_page("Failed", &msg);
+            }
+
+            AppMsg::ReloadConnections => {
+                let (tx, rx) = async_channel::bounded(1);
+                runtime::handle().spawn(async move {
+                    let _ = tx.send(tablepro_storage::load_connections().await).await;
+                });
+                let sender_recv = sender.clone();
+                glib::spawn_future_local(async move {
+                    if let Ok(Ok(connections)) = rx.recv().await {
+                        sender_recv.input(AppMsg::ConnectionsLoaded(connections));
+                    }
+                });
+            }
+
+            AppMsg::ConnectionsLoaded(connections) => {
+                rebuild_connections_listbox(
+                    &self.connections_listbox,
+                    &connections,
+                    sender.clone(),
+                    self.connections_popover.clone(),
+                );
+            }
+
+            AppMsg::OpenSaved(saved) => {
+                self.connections_popover.popdown();
+                self.set_status_page("Connecting…", &format!("Opening {}", saved.name));
+                let driver_id = saved.driver_id.clone();
+                let registry = self.registry.clone();
+                let saved_for_task = saved.clone();
+                let (tx, rx) = async_channel::bounded(1);
+                runtime::handle().spawn(async move {
+                    let result = connection_service::open_saved(registry, saved_for_task).await;
+                    let _ = tx.send(result).await;
+                });
+                let sender_recv = sender.clone();
+                glib::spawn_future_local(async move {
+                    if let Ok(result) = rx.recv().await {
+                        match result {
+                            Ok(tables) => sender_recv.input(AppMsg::Connected { tables, driver_id }),
+                            Err(e) => sender_recv.input(AppMsg::LoadFailed(e)),
+                        }
+                    }
+                });
             }
         }
     }
@@ -207,6 +300,46 @@ fn rebuild_sidebar(listbox: &gtk::ListBox, tables: &[TableInfo], sender: Compone
         let sender_for_row = sender.clone();
         row.connect_activated(move |_| {
             sender_for_row.input(AppMsg::SelectTable(name.clone()));
+        });
+        listbox.append(&row);
+    }
+}
+
+fn rebuild_connections_listbox(
+    listbox: &gtk::ListBox,
+    saved: &[SavedConnection],
+    sender: ComponentSender<App>,
+    popover: gtk::Popover,
+) {
+    while let Some(child) = listbox.first_child() {
+        listbox.remove(&child);
+    }
+    if saved.is_empty() {
+        let empty = adw::ActionRow::builder()
+            .title("No saved connections")
+            .subtitle("Open a connection to save it here.")
+            .activatable(false)
+            .build();
+        listbox.append(&empty);
+        return;
+    }
+    for s in saved {
+        let subtitle = if s.driver_id == "sqlite" {
+            format!("sqlite · {}", s.database)
+        } else {
+            format!("{} · {}@{}:{}", s.driver_id, s.username, s.host, s.port)
+        };
+        let row = adw::ActionRow::builder()
+            .title(&s.name)
+            .subtitle(&subtitle)
+            .activatable(true)
+            .build();
+        let saved_clone = s.clone();
+        let sender_for_row = sender.clone();
+        let popover_for_row = popover.clone();
+        row.connect_activated(move |_| {
+            sender_for_row.input(AppMsg::OpenSaved(saved_clone.clone()));
+            popover_for_row.popdown();
         });
         listbox.append(&row);
     }
