@@ -61,6 +61,7 @@ pub struct App {
     current_total_rows: Option<u64>,
     page_size: u64,
     table_names: Vec<String>,
+    saved_connections: Vec<SavedConnection>,
     connected: bool,
 }
 
@@ -249,6 +250,7 @@ impl SimpleComponent for App {
                                 #[name = "reconnect_banner"]
                                 add_top_bar = &adw::Banner {
                                     set_revealed: false,
+                                    set_use_markup: false,
                                     set_button_label: Some("Retry"),
                                 },
 
@@ -495,6 +497,7 @@ impl SimpleComponent for App {
             current_total_rows: None,
             page_size: DEFAULT_PAGE_SIZE,
             table_names: Vec::new(),
+            saved_connections: Vec::new(),
             connected: false,
         };
         sender.input(AppMsg::ReloadConnections);
@@ -562,7 +565,10 @@ impl SimpleComponent for App {
                 new_value,
             } => self.on_cell_edited(table, row_position, col_index, new_value, sender),
             AppMsg::ReloadConnections => self.on_reload_connections(sender),
-            AppMsg::ConnectionsLoaded(connections) => self.on_connections_loaded(&connections, sender),
+            AppMsg::ConnectionsLoaded(connections) => {
+                let conns = connections;
+                self.on_connections_loaded(&conns, sender);
+            }
             AppMsg::OpenEditor => self.on_open_editor(),
             AppMsg::PollHealth => self.on_poll_health(),
             AppMsg::RefreshPage => self.fetch_current_page(sender),
@@ -1021,13 +1027,17 @@ impl App {
         });
     }
 
-    fn on_connections_loaded(&self, connections: &[SavedConnection], sender: ComponentSender<Self>) {
+    fn on_connections_loaded(&mut self, connections: &[SavedConnection], sender: ComponentSender<Self>) {
+        self.saved_connections = connections.to_vec();
         rebuild_connections_listbox(
             &self.connections_listbox,
             connections,
-            sender,
+            sender.clone(),
             self.connections_popover.clone(),
         );
+        if !self.connected {
+            self.show_welcome_page(sender);
+        }
     }
 
     fn on_open_editor(&mut self) {
@@ -1081,21 +1091,80 @@ impl App {
     }
 
     fn show_welcome_page(&self, sender: ComponentSender<Self>) {
-        let page = adw::StatusPage::builder()
-            .icon_name("network-server-symbolic")
-            .title("Connect to a database")
-            .description("Pick a saved connection from the popover or create a new one.")
+        if self.saved_connections.is_empty() {
+            let page = adw::StatusPage::builder()
+                .icon_name("network-server-symbolic")
+                .title("Connect to a database")
+                .description("Add a connection to get started.")
+                .build();
+            let new_btn = gtk::Button::builder()
+                .label("New connection")
+                .halign(gtk::Align::Center)
+                .build();
+            new_btn.add_css_class("suggested-action");
+            new_btn.add_css_class("pill");
+            let s = sender;
+            new_btn.connect_clicked(move |_| s.input(AppMsg::OpenConnect));
+            page.set_child(Some(&new_btn));
+            self.content_holder.set_content(Some(&page));
+            return;
+        }
+
+        let scroller = gtk::ScrolledWindow::builder()
+            .hexpand(true)
+            .vexpand(true)
+            .hscrollbar_policy(gtk::PolicyType::Never)
             .build();
+        let outer = gtk::Box::builder()
+            .orientation(gtk::Orientation::Vertical)
+            .spacing(12)
+            .margin_top(24)
+            .margin_bottom(24)
+            .margin_start(24)
+            .margin_end(24)
+            .halign(gtk::Align::Center)
+            .build();
+        outer.set_size_request(560, -1);
+
+        let header = gtk::Label::builder()
+            .label("Saved connections")
+            .xalign(0.0)
+            .build();
+        header.add_css_class("title-2");
+        outer.append(&header);
+
+        let group = adw::PreferencesGroup::new();
+        for saved in &self.saved_connections {
+            let subtitle = if saved.driver_id == "sqlite" {
+                format!("sqlite · {}", saved.database)
+            } else {
+                format!("{} · {}@{}:{}", saved.driver_id, saved.username, saved.host, saved.port)
+            };
+            let row = adw::ActionRow::builder()
+                .title(&saved.name)
+                .subtitle(&subtitle)
+                .activatable(true)
+                .build();
+            let saved_clone = saved.clone();
+            let s = sender.clone();
+            row.connect_activated(move |_| s.input(AppMsg::OpenSaved(saved_clone.clone())));
+            group.add(&row);
+        }
+        outer.append(&group);
+
         let new_btn = gtk::Button::builder()
             .label("New connection")
             .halign(gtk::Align::Center)
+            .margin_top(8)
             .build();
         new_btn.add_css_class("suggested-action");
         new_btn.add_css_class("pill");
         let s = sender;
         new_btn.connect_clicked(move |_| s.input(AppMsg::OpenConnect));
-        page.set_child(Some(&new_btn));
-        self.content_holder.set_content(Some(&page));
+        outer.append(&new_btn);
+
+        scroller.set_child(Some(&outer));
+        self.content_holder.set_content(Some(&scroller));
     }
 
     fn set_loading_page(&self, title: &str, description: &str) {
@@ -1108,10 +1177,17 @@ impl App {
     }
 
     fn set_status_page(&self, title: &str, description: &str) {
+        let icon = if title.eq_ignore_ascii_case("failed") || title.to_lowercase().contains("error") {
+            "dialog-error-symbolic"
+        } else if title.contains("No connection") {
+            "network-server-symbolic"
+        } else {
+            "view-grid-symbolic"
+        };
         let page = adw::StatusPage::builder()
             .title(title)
             .description(description)
-            .icon_name("view-grid-symbolic")
+            .icon_name(icon)
             .build();
         self.content_holder.set_content(Some(&page));
     }
@@ -1259,7 +1335,12 @@ impl App {
             batches.push(pk_indexes.iter().map(|i| row[*i].clone()).collect());
         }
 
-        let dialog = adw::AlertDialog::new(Some("Confirm"), Some(preview));
+        let alert_title = if positions.len() == 1 {
+            "Delete row?".to_string()
+        } else {
+            format!("Delete {} rows?", positions.len())
+        };
+        let dialog = adw::AlertDialog::new(Some(&alert_title), Some(preview));
         dialog.add_response("cancel", "Cancel");
         dialog.add_response("delete", confirm_label);
         dialog.set_response_appearance("delete", adw::ResponseAppearance::Destructive);
@@ -1299,6 +1380,7 @@ impl App {
         let dialog = adw::AlertDialog::new(Some(title), Some(message));
         dialog.add_response("ok", "OK");
         dialog.set_default_response(Some("ok"));
+        dialog.set_close_response("ok");
         dialog.present(Some(&self.window));
     }
 }
@@ -1813,6 +1895,21 @@ impl App {
             ExportFormat::Csv => "table.csv",
             ExportFormat::Json => "table.json",
         };
+        let filter = gtk::FileFilter::new();
+        match format {
+            ExportFormat::Csv => {
+                filter.set_name(Some("CSV files"));
+                filter.add_mime_type("text/csv");
+                filter.add_suffix("csv");
+            }
+            ExportFormat::Json => {
+                filter.set_name(Some("JSON files"));
+                filter.add_mime_type("application/json");
+                filter.add_suffix("json");
+            }
+        };
+        let filters = gio::ListStore::new::<gtk::FileFilter>();
+        filters.append(&filter);
         let dialog = gtk::FileDialog::builder()
             .title(match format {
                 ExportFormat::Csv => "Export as CSV",
@@ -1820,6 +1917,8 @@ impl App {
             })
             .modal(true)
             .initial_name(suggested)
+            .default_filter(&filter)
+            .filters(&filters)
             .build();
         let parent = self.window.clone();
         let toast_overlay = self.toast_overlay.clone();

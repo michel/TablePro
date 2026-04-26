@@ -79,7 +79,7 @@ impl SimpleComponent for EditDialog {
             } else if col.nullable {
                 col.name.clone()
             } else {
-                format!("{} *", col.name)
+                format!("{} (required)", col.name)
             };
             let row = adw::EntryRow::builder().title(&title).build();
             row.set_text(&value_to_text(value));
