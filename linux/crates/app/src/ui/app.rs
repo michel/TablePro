@@ -16,6 +16,7 @@ use super::edit_dialog::{EditDialog, EditDialogInit, EditDialogOutput};
 use super::editor::SqlEditor;
 use super::grid::build_column_view;
 use super::insert_dialog::{InsertDialog, InsertDialogInit, InsertDialogOutput};
+use super::sidebar_row::{SidebarRow, SidebarRowOutput};
 use crate::services::database_service::ConnectionHealth;
 use crate::services::{connection_service, database_service};
 use crate::sql_dialect::{placeholder_for, quote_ident};
@@ -26,7 +27,8 @@ const DEFAULT_PAGE_SIZE: u64 = 1_000;
 pub struct App {
     registry: Arc<DriverRegistry>,
     window: adw::ApplicationWindow,
-    sidebar: gtk::ListBox,
+    sidebar_factory: FactoryVecDeque<SidebarRow>,
+    sidebar_schemas: std::rc::Rc<std::cell::RefCell<Vec<Option<String>>>>,
     content_holder: adw::ToolbarView,
     toast_overlay: adw::ToastOverlay,
     reconnect_banner: adw::Banner,
@@ -236,17 +238,10 @@ impl SimpleComponent for App {
                                 set_margin_end: 12,
                             },
 
+                            #[name = "sidebar_scroll"]
                             gtk::ScrolledWindow {
                                 set_hscrollbar_policy: gtk::PolicyType::Never,
                                 set_vexpand: true,
-
-                                #[wrap(Some)]
-                                #[name = "sidebar"]
-                                set_child = &gtk::ListBox {
-                                    set_selection_mode: gtk::SelectionMode::Single,
-                                    set_activate_on_single_click: true,
-                                    add_css_class: "navigation-sidebar",
-                                },
                             },
                         },
                     },
@@ -307,8 +302,26 @@ impl SimpleComponent for App {
         breakpoint.add_setter(&widgets.split_view, "collapsed", Some(&true.into()));
         widgets.window.add_breakpoint(breakpoint);
 
+        let sidebar_schemas: std::rc::Rc<std::cell::RefCell<Vec<Option<String>>>> =
+            std::rc::Rc::new(std::cell::RefCell::new(Vec::new()));
+
+        let sidebar_factory: FactoryVecDeque<SidebarRow> = FactoryVecDeque::builder()
+            .launch(
+                gtk::ListBox::builder()
+                    .selection_mode(gtk::SelectionMode::Single)
+                    .activate_on_single_click(true)
+                    .css_classes(["navigation-sidebar"])
+                    .build(),
+            )
+            .forward(sender.input_sender(), |out| match out {
+                SidebarRowOutput::Selected { schema, name } => AppMsg::SelectTable { schema, name },
+            });
+
+        let sidebar_listbox = sidebar_factory.widget();
+        widgets.sidebar_scroll.set_child(Some(sidebar_listbox));
+
         let search_for_filter = widgets.table_search.clone();
-        widgets.sidebar.set_filter_func(move |row| {
+        sidebar_listbox.set_filter_func(move |row| {
             let query = search_for_filter.text().to_lowercase();
             if query.is_empty() {
                 return true;
@@ -317,9 +330,46 @@ impl SimpleComponent for App {
                 .map(|r| r.title().to_lowercase().contains(&query))
                 .unwrap_or(true)
         });
-        let listbox_for_invalidate = widgets.sidebar.clone();
+        let listbox_for_invalidate = sidebar_listbox.clone();
         widgets.table_search.connect_search_changed(move |_| {
             listbox_for_invalidate.invalidate_filter();
+        });
+
+        let schemas_for_header = sidebar_schemas.clone();
+        sidebar_listbox.set_header_func(move |row, before| {
+            let schemas = schemas_for_header.borrow();
+            let total_distinct: std::collections::BTreeSet<&str> =
+                schemas.iter().filter_map(|s| s.as_deref()).collect();
+            if total_distinct.len() < 2 {
+                row.set_header(gtk::Widget::NONE);
+                return;
+            }
+            let idx = row.index();
+            let current = schemas.get(idx as usize).and_then(|s| s.as_deref());
+            let prev_idx = before.map(|b| b.index());
+            let prev = prev_idx
+                .and_then(|i| schemas.get(i as usize))
+                .and_then(|s| s.as_deref());
+            let needs = match (current, prev) {
+                (Some(c), Some(p)) => c != p,
+                (Some(_), None) => true,
+                _ => false,
+            };
+            if needs {
+                let header = gtk::Label::builder()
+                    .label(current.unwrap_or(""))
+                    .xalign(0.0)
+                    .margin_top(8)
+                    .margin_bottom(4)
+                    .margin_start(12)
+                    .margin_end(12)
+                    .build();
+                header.add_css_class("heading");
+                header.add_css_class("dim-label");
+                row.set_header(Some(&header));
+            } else {
+                row.set_header(gtk::Widget::NONE);
+            }
         });
 
         let connections_factory: FactoryVecDeque<ConnectionRow> = FactoryVecDeque::builder()
@@ -481,7 +531,8 @@ impl SimpleComponent for App {
         let model = App {
             registry,
             window: root.clone(),
-            sidebar: widgets.sidebar.clone(),
+            sidebar_factory,
+            sidebar_schemas,
             content_holder: widgets.content_holder.clone(),
             toast_overlay: widgets.toast_overlay.clone(),
             reconnect_banner: widgets.reconnect_banner.clone(),
@@ -651,7 +702,7 @@ impl App {
         self.table_search.set_text("");
         self.table_names = tables.iter().map(|t| t.name.clone()).collect();
         tracing::info!(driver = %driver_id, table_count = tables.len(), "workspace ready");
-        rebuild_sidebar(&self.sidebar, &tables, sender.clone());
+        self.repopulate_sidebar(&tables);
         self.push_schema_words();
         self.refresh_window_title();
         self.set_status_page(
@@ -682,9 +733,8 @@ impl App {
         self.refresh_crud_buttons();
         self.refresh_window_title();
         self.table_search.set_text("");
-        while let Some(child) = self.sidebar.first_child() {
-            self.sidebar.remove(&child);
-        }
+        self.sidebar_schemas.borrow_mut().clear();
+        self.sidebar_factory.guard().clear();
         self.show_welcome_page(sender);
         tracing::info!("disconnected");
     }
@@ -1147,6 +1197,21 @@ impl App {
                 })
                 .drop_on_shutdown()
         });
+    }
+
+    fn repopulate_sidebar(&mut self, tables: &[TableInfo]) {
+        {
+            let mut schemas = self.sidebar_schemas.borrow_mut();
+            schemas.clear();
+            schemas.extend(tables.iter().map(|t| t.schema.clone()));
+        }
+        let mut guard = self.sidebar_factory.guard();
+        guard.clear();
+        for table in tables {
+            guard.push_back(table.clone());
+        }
+        drop(guard);
+        self.sidebar_factory.widget().invalidate_headers();
     }
 
     fn show_welcome_page(&self, sender: ComponentSender<Self>) {
@@ -1678,54 +1743,6 @@ fn preview_pk(columns: &[ColumnInfo], pk_indexes: &[usize], row: &[Value]) -> St
 fn clear_box(b: &gtk::Box) {
     while let Some(child) = b.first_child() {
         b.remove(&child);
-    }
-}
-
-fn rebuild_sidebar(listbox: &gtk::ListBox, tables: &[TableInfo], sender: ComponentSender<App>) {
-    while let Some(child) = listbox.first_child() {
-        listbox.remove(&child);
-    }
-    let multiple_schemas = tables
-        .iter()
-        .filter_map(|t| t.schema.as_deref())
-        .collect::<std::collections::BTreeSet<_>>()
-        .len()
-        > 1;
-    let mut last_schema: Option<String> = None;
-    for table in tables {
-        if multiple_schemas && table.schema != last_schema {
-            if let Some(schema) = &table.schema {
-                let header = gtk::Label::builder()
-                    .label(schema)
-                    .xalign(0.0)
-                    .margin_top(8)
-                    .margin_bottom(4)
-                    .margin_start(12)
-                    .margin_end(12)
-                    .selectable(false)
-                    .build();
-                header.add_css_class("heading");
-                header.add_css_class("dim-label");
-                let header_row = gtk::ListBoxRow::builder()
-                    .activatable(false)
-                    .selectable(false)
-                    .child(&header)
-                    .build();
-                listbox.append(&header_row);
-            }
-            last_schema = table.schema.clone();
-        }
-        let row = adw::ActionRow::builder().title(&table.name).activatable(true).build();
-        let name = table.name.clone();
-        let schema = table.schema.clone();
-        let sender_for_row = sender.clone();
-        row.connect_activated(move |_| {
-            sender_for_row.input(AppMsg::SelectTable {
-                schema: schema.clone(),
-                name: name.clone(),
-            });
-        });
-        listbox.append(&row);
     }
 }
 

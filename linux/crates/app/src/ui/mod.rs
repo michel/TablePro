@@ -8,6 +8,7 @@ mod grid;
 mod insert_dialog;
 mod preferences;
 mod row_object;
+mod sidebar_row;
 mod ssh_section;
 
 pub use app::App;
