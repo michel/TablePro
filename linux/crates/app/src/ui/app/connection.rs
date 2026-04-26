@@ -1,5 +1,5 @@
 use relm4::adw::prelude::*;
-use relm4::{Component, ComponentController, ComponentSender};
+use relm4::{Component, ComponentController, ComponentSender, adw};
 
 use tablepro_core::TableInfo;
 use tablepro_storage::SavedConnection;
@@ -139,18 +139,42 @@ impl App {
     }
 
     pub(super) fn on_delete_connection(&self, id: Uuid, sender: ComponentSender<Self>) {
-        let sender_clone = sender.clone();
-        sender.command(move |_, shutdown| {
-            shutdown
-                .register(async move {
-                    let _ = tablepro_storage::delete_connection(id).await;
-                    let _ = tablepro_storage::delete_password(id).await;
-                    let _ = tablepro_storage::delete_ssh_password(id).await;
-                    let _ = tablepro_storage::delete_ssh_passphrase(id).await;
-                    sender_clone.input(AppMsg::ReloadConnections);
-                })
-                .drop_on_shutdown()
+        // Connection deletion wipes the saved entry and ALL associated
+        // keyring credentials (db password, SSH password, SSH passphrase).
+        // It's irreversible — Undo can't recover the keyring entries — so
+        // we confirm before acting (gated by preferences::confirm_destructive
+        // to match the row-delete pattern).
+        if !crate::services::preferences::load().confirm_destructive {
+            execute_delete_connection(id, sender);
+            return;
+        }
+
+        let connection_name = self
+            .saved_connections
+            .iter()
+            .find(|s| s.id == id)
+            .map(|s| s.name.clone())
+            .unwrap_or_else(|| crate::tr!("this connection"));
+        let title = crate::tr!("Delete {name}?").replace("{name}", &connection_name);
+        let body = crate::tr!(
+            "The saved entry and any stored passwords will be removed from your keyring. This cannot be undone."
+        );
+        let dialog = adw::AlertDialog::new(Some(&title), Some(&body));
+        dialog.add_response("cancel", &crate::tr!("Cancel"));
+        dialog.add_response("delete", &crate::tr!("Delete"));
+        dialog.set_response_appearance("delete", adw::ResponseAppearance::Destructive);
+        dialog.set_default_response(Some("cancel"));
+        dialog.set_close_response("cancel");
+
+        let sender_for_response = sender;
+        dialog.connect_response(None, move |dialog, response| {
+            dialog.close();
+            if response != "delete" {
+                return;
+            }
+            execute_delete_connection(id, sender_for_response.clone());
         });
+        dialog.present(Some(&self.window));
     }
 
     pub(super) fn on_open_saved(&self, saved: SavedConnection, sender: ComponentSender<Self>) {
@@ -228,4 +252,22 @@ impl App {
         self.window.set_title(Some(&os_title));
         self.window_title.set_subtitle(&subtitle);
     }
+}
+
+/// Performs the actual disk + keyring teardown for a saved connection.
+/// Extracted from `on_delete_connection` so the confirm-yes branch and
+/// the prefs-disabled branch share one implementation.
+fn execute_delete_connection(id: Uuid, sender: ComponentSender<App>) {
+    let sender_clone = sender.clone();
+    sender.command(move |_, shutdown| {
+        shutdown
+            .register(async move {
+                let _ = tablepro_storage::delete_connection(id).await;
+                let _ = tablepro_storage::delete_password(id).await;
+                let _ = tablepro_storage::delete_ssh_password(id).await;
+                let _ = tablepro_storage::delete_ssh_passphrase(id).await;
+                sender_clone.input(AppMsg::ReloadConnections);
+            })
+            .drop_on_shutdown()
+    });
 }

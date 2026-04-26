@@ -15,32 +15,23 @@ impl App {
     /// title + description. The ViewSwitcher tabs stay visible (we're still
     /// inside the connected ViewStack), only the Browse page's inner stack
     /// swaps.
+    ///
+    /// Uses `adw::StatusPage` with a spinner as its child for native
+    /// styling (margins, typography, accessibility) — matches the idiom
+    /// of `set_status_page` for visual consistency.
     pub(super) fn set_loading_page(&self, title: &str, description: &str) {
-        let spinner = gtk::Spinner::new();
-        spinner.set_spinning(true);
-        spinner.set_size_request(48, 48);
-
-        let title_label = gtk::Label::builder().label(title).build();
-        title_label.add_css_class("title-2");
-        let description_label = gtk::Label::builder()
-            .label(description)
-            .wrap(true)
-            .justify(gtk::Justification::Center)
-            .build();
-        description_label.add_css_class("dim-label");
-
-        let outer = gtk::Box::builder()
-            .orientation(gtk::Orientation::Vertical)
-            .spacing(12)
+        let spinner = gtk::Spinner::builder()
+            .spinning(true)
+            .width_request(32)
+            .height_request(32)
             .halign(gtk::Align::Center)
-            .valign(gtk::Align::Center)
-            .hexpand(true)
-            .vexpand(true)
             .build();
-        outer.append(&spinner);
-        outer.append(&title_label);
-        outer.append(&description_label);
-        self.replace_browse_status_child("loading", &outer);
+        let page = adw::StatusPage::builder()
+            .title(title)
+            .description(description)
+            .child(&spinner)
+            .build();
+        self.replace_browse_status_child("loading", &page);
         self.view_stack.set_visible_child_name("browse");
     }
 
