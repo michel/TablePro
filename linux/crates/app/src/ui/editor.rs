@@ -142,6 +142,9 @@ impl SimpleComponent for SqlEditor {
             apply_editor_scheme(&view_for_theme);
         });
 
+        let font_size = crate::services::preferences::load().editor_font_size;
+        apply_editor_font_size(&widgets.source_view, font_size);
+
         let schema_buffer = gtk::TextBuffer::new(None);
         schema_buffer.set_text(SQL_KEYWORDS);
         let provider = sourceview5::CompletionWords::new(Some("SQL"));
@@ -476,6 +479,15 @@ fn apply_editor_scheme(view: &sourceview5::View) {
     {
         buffer.set_style_scheme(Some(&scheme));
     }
+}
+
+fn apply_editor_font_size(view: &sourceview5::View, font_size: u32) {
+    let css = format!("textview, textview text {{ font-size: {font_size}pt; }}");
+    let provider = gtk::CssProvider::new();
+    provider.load_from_string(&css);
+    #[allow(deprecated)]
+    view.style_context()
+        .add_provider(&provider, gtk::STYLE_PROVIDER_PRIORITY_APPLICATION);
 }
 
 #[cfg(test)]

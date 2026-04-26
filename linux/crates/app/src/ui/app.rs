@@ -1396,6 +1396,12 @@ impl App {
             })
         };
 
+        if !crate::services::preferences::load().confirm_destructive {
+            sender.input(AppMsg::RowOpStarted);
+            execute_many_then_refetch(sender, sql, batches, undo);
+            return;
+        }
+
         let alert_title = if positions.len() == 1 {
             "Delete row?".to_string()
         } else {
