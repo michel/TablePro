@@ -29,16 +29,16 @@ impl DatabaseDriver for PgDriver {
     }
 
     async fn connect(&self, opts: ConnectOptions) -> Result<Box<dyn Connection>, DriverError> {
-        let sslmode = if opts.use_tls { "require" } else { "prefer" };
         let pg_opts = PgConnectOptions::new()
             .host(&opts.host)
             .port(opts.port)
             .database(&opts.database)
             .username(&opts.username)
             .password(opts.password.expose_secret())
-            .ssl_mode(match sslmode {
-                "require" => sqlx::postgres::PgSslMode::Require,
-                _ => sqlx::postgres::PgSslMode::Prefer,
+            .ssl_mode(if opts.use_tls {
+                sqlx::postgres::PgSslMode::Require
+            } else {
+                sqlx::postgres::PgSslMode::Disable
             });
         let pool = PgPoolOptions::new()
             .max_connections(4)

@@ -38,7 +38,7 @@ impl DatabaseDriver for MysqlDriver {
             .ssl_mode(if opts.use_tls {
                 sqlx::mysql::MySqlSslMode::Required
             } else {
-                sqlx::mysql::MySqlSslMode::Preferred
+                sqlx::mysql::MySqlSslMode::Disabled
             });
         let pool = MySqlPoolOptions::new()
             .max_connections(4)
