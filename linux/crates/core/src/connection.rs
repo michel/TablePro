@@ -1,16 +1,16 @@
 use async_trait::async_trait;
-use serde::{Deserialize, Serialize};
+use secrecy::SecretString;
 
 use crate::error::DriverError;
 use crate::query::{ColumnInfo, ExecResult, QueryResult, TableInfo, Value};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct ConnectOptions {
     pub host: String,
     pub port: u16,
     pub database: String,
     pub username: String,
-    pub password: String,
+    pub password: SecretString,
     pub use_tls: bool,
 }
 
@@ -21,7 +21,7 @@ impl Default for ConnectOptions {
             port: 0,
             database: String::new(),
             username: String::new(),
-            password: String::new(),
+            password: SecretString::new(String::new().into()),
             use_tls: false,
         }
     }

@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use secrecy::SecretString;
 use tablepro_core::{ConnectOptions, Connection, DriverRegistry, ReadOnlyConnection, TableInfo};
 use tablepro_ssh::{SshConfig, SshTunnel};
 use tablepro_storage::{SavedConnection, SavedSshAuth, load_password, load_ssh_passphrase, load_ssh_password};
@@ -10,7 +11,11 @@ pub async fn open_saved(registry: Arc<DriverRegistry>, saved: SavedConnection) -
     let driver = registry
         .get(&saved.driver_id)
         .ok_or_else(|| format!("driver {} not registered", saved.driver_id))?;
-    let password = load_password(saved.id).await.ok().flatten().unwrap_or_default();
+    let password = load_password(saved.id)
+        .await
+        .ok()
+        .flatten()
+        .unwrap_or_else(|| SecretString::new(String::new().into()));
     let id = saved.id;
 
     let ssh_cfg = match &saved.ssh {

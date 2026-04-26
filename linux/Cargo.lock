@@ -3597,6 +3597,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "secrecy"
+version = "0.10.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e891af845473308773346dc847b2c23ee78fe442e0472ac50e22a18a93d3ae5a"
+dependencies = [
+ "serde",
+ "zeroize",
+]
+
+[[package]]
 name = "security-framework"
 version = "3.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4235,6 +4245,7 @@ dependencies = [
  "libadwaita",
  "relm4",
  "rust_decimal",
+ "secrecy",
  "serde_json",
  "sourceview5",
  "tablepro-core",
@@ -4258,6 +4269,7 @@ dependencies = [
  "async-trait",
  "chrono",
  "rust_decimal",
+ "secrecy",
  "serde",
  "serde_json",
  "thiserror 2.0.18",
@@ -4273,6 +4285,7 @@ dependencies = [
  "chrono",
  "futures",
  "rust_decimal",
+ "secrecy",
  "serde_json",
  "sqlx",
  "tablepro-core",
@@ -4290,6 +4303,7 @@ dependencies = [
  "chrono",
  "futures",
  "rust_decimal",
+ "secrecy",
  "serde_json",
  "sqlx",
  "tablepro-core",
@@ -4322,6 +4336,7 @@ dependencies = [
  "async-trait",
  "futures",
  "russh",
+ "secrecy",
  "serde",
  "serde_json",
  "tempfile",
@@ -4336,6 +4351,7 @@ name = "tablepro-storage"
 version = "0.1.0"
 dependencies = [
  "oo7",
+ "secrecy",
  "serde",
  "serde_json",
  "tablepro-core",

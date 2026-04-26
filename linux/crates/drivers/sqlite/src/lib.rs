@@ -76,8 +76,7 @@ impl Connection for SqliteConnection {
     }
 
     async fn fetch_columns(&self, table: &str) -> Result<Vec<ColumnInfo>, DriverError> {
-        let safe = table.replace('"', "");
-        let sql = format!("PRAGMA table_info(\"{safe}\")");
+        let sql = format!("PRAGMA table_info({})", quote_ident(table));
         let rows = sqlx::query(&sql).fetch_all(&self.pool).await.map_err(map_sqlx_error)?;
         Ok(rows
             .into_iter()
@@ -91,8 +90,7 @@ impl Connection for SqliteConnection {
     }
 
     async fn fetch_rows(&self, table: &str, offset: u64, limit: u64) -> Result<QueryResult, DriverError> {
-        let safe = table.replace('"', "");
-        let sql = format!("SELECT * FROM \"{safe}\" LIMIT {limit} OFFSET {offset}");
+        let sql = format!("SELECT * FROM {} LIMIT {limit} OFFSET {offset}", quote_ident(table));
         stream_into_result(&self.pool, &sql, limit as usize).await
     }
 
@@ -212,6 +210,10 @@ fn extract_value(row: &SqliteRow, idx: usize) -> Value {
     }
 }
 
+fn quote_ident(name: &str) -> String {
+    format!("\"{}\"", name.replace('"', "\"\""))
+}
+
 fn map_sqlx_error(err: sqlx::Error) -> DriverError {
     use sqlx::Error::*;
     match err {
@@ -281,5 +283,31 @@ mod tests {
         }
         let page = conn.fetch_rows("n", 5, 3).await.unwrap();
         assert_eq!(page.rows.len(), 3);
+    }
+
+    #[test]
+    fn quote_ident_doubles_embedded_quotes() {
+        assert_eq!(quote_ident("users"), "\"users\"");
+        assert_eq!(quote_ident("My Table"), "\"My Table\"");
+        assert_eq!(
+            quote_ident("evil\"; DROP TABLE x; --"),
+            "\"evil\"\"; DROP TABLE x; --\""
+        );
+    }
+
+    #[tokio::test]
+    async fn fetch_rows_handles_table_with_embedded_quote() {
+        let dir = TempDir::new().unwrap();
+        let path = dir.path().join("hostile.db");
+        let driver = SqliteDriver;
+        let conn = driver.connect(opts_for(path.to_str().unwrap())).await.unwrap();
+        conn.execute("CREATE TABLE \"weird\"\"name\" (i INTEGER)")
+            .await
+            .unwrap();
+        conn.execute("INSERT INTO \"weird\"\"name\" VALUES (1), (2)")
+            .await
+            .unwrap();
+        let result = conn.fetch_rows("weird\"name", 0, 100).await.unwrap();
+        assert_eq!(result.rows.len(), 2);
     }
 }

@@ -19,7 +19,7 @@ async fn start_mysql() -> (ContainerAsync<Mysql>, ConnectOptions) {
         port,
         database: "test".into(),
         username: "root".into(),
-        password: String::new(),
+        password: secrecy::SecretString::new(String::new().into()),
         use_tls: false,
     };
     (container, opts)

@@ -20,7 +20,7 @@ async fn start_pg() -> (ContainerAsync<Postgres>, ConnectOptions) {
         port,
         database: "postgres".into(),
         username: "postgres".into(),
-        password: "postgres".into(),
+        password: secrecy::SecretString::new("postgres".to_string().into()),
         use_tls: false,
     };
     (container, opts)

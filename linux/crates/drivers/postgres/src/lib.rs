@@ -1,7 +1,7 @@
-use std::str::FromStr;
 use std::time::Duration;
 
 use async_trait::async_trait;
+use secrecy::ExposeSecret;
 use sqlx::postgres::{PgConnectOptions, PgPoolOptions, PgRow};
 use sqlx::{Column, Pool, Postgres, Row, TypeInfo};
 
@@ -30,11 +30,16 @@ impl DatabaseDriver for PgDriver {
 
     async fn connect(&self, opts: ConnectOptions) -> Result<Box<dyn Connection>, DriverError> {
         let sslmode = if opts.use_tls { "require" } else { "prefer" };
-        let url = format!(
-            "postgres://{}:{}@{}:{}/{}?sslmode={}",
-            opts.username, opts.password, opts.host, opts.port, opts.database, sslmode,
-        );
-        let pg_opts = PgConnectOptions::from_str(&url).map_err(map_sqlx_error)?;
+        let pg_opts = PgConnectOptions::new()
+            .host(&opts.host)
+            .port(opts.port)
+            .database(&opts.database)
+            .username(&opts.username)
+            .password(opts.password.expose_secret())
+            .ssl_mode(match sslmode {
+                "require" => sqlx::postgres::PgSslMode::Require,
+                _ => sqlx::postgres::PgSslMode::Prefer,
+            });
         let pool = PgPoolOptions::new()
             .max_connections(4)
             .acquire_timeout(Duration::from_secs(5))
@@ -109,8 +114,7 @@ impl Connection for PgConnection {
     }
 
     async fn fetch_rows(&self, table: &str, offset: u64, limit: u64) -> Result<QueryResult, DriverError> {
-        let safe = table.replace('"', "");
-        let sql = format!("SELECT * FROM \"{safe}\" OFFSET {offset} LIMIT {limit}");
+        let sql = format!("SELECT * FROM {} OFFSET {offset} LIMIT {limit}", quote_ident(table));
         stream_into_result(&self.pool, &sql, limit as usize).await
     }
 
@@ -255,6 +259,10 @@ fn extract_value(row: &PgRow, idx: usize) -> Value {
     }
 }
 
+fn quote_ident(name: &str) -> String {
+    format!("\"{}\"", name.replace('"', "\"\""))
+}
+
 fn map_sqlx_error(err: sqlx::Error) -> DriverError {
     use sqlx::Error::*;
     match err {
@@ -284,5 +292,15 @@ mod tests {
         let d = PgDriver;
         assert_eq!(d.id(), "postgres");
         assert_eq!(d.default_port(), 5432);
+    }
+
+    #[test]
+    fn quote_ident_doubles_embedded_quotes() {
+        assert_eq!(quote_ident("users"), "\"users\"");
+        assert_eq!(quote_ident("My Table"), "\"My Table\"");
+        assert_eq!(
+            quote_ident("evil\"; DROP TABLE x; --"),
+            "\"evil\"\"; DROP TABLE x; --\""
+        );
     }
 }

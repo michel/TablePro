@@ -1,7 +1,7 @@
-use std::str::FromStr;
 use std::time::Duration;
 
 use async_trait::async_trait;
+use secrecy::ExposeSecret;
 use sqlx::mysql::{MySql, MySqlConnectOptions, MySqlPoolOptions, MySqlRow};
 use sqlx::{Column, Pool, Row, TypeInfo};
 
@@ -29,16 +29,17 @@ impl DatabaseDriver for MysqlDriver {
     }
 
     async fn connect(&self, opts: ConnectOptions) -> Result<Box<dyn Connection>, DriverError> {
-        let url = format!(
-            "mysql://{}:{}@{}:{}/{}",
-            opts.username, opts.password, opts.host, opts.port, opts.database,
-        );
-        let mysql_opts = MySqlConnectOptions::from_str(&url).map_err(map_sqlx_error)?;
-        let mysql_opts = if opts.use_tls {
-            mysql_opts.ssl_mode(sqlx::mysql::MySqlSslMode::Required)
-        } else {
-            mysql_opts.ssl_mode(sqlx::mysql::MySqlSslMode::Preferred)
-        };
+        let mysql_opts = MySqlConnectOptions::new()
+            .host(&opts.host)
+            .port(opts.port)
+            .database(&opts.database)
+            .username(&opts.username)
+            .password(opts.password.expose_secret())
+            .ssl_mode(if opts.use_tls {
+                sqlx::mysql::MySqlSslMode::Required
+            } else {
+                sqlx::mysql::MySqlSslMode::Preferred
+            });
         let pool = MySqlPoolOptions::new()
             .max_connections(4)
             .acquire_timeout(Duration::from_secs(5))
@@ -97,8 +98,7 @@ impl Connection for MysqlConnection {
     }
 
     async fn fetch_rows(&self, table: &str, offset: u64, limit: u64) -> Result<QueryResult, DriverError> {
-        let safe = table.replace('`', "");
-        let sql = format!("SELECT * FROM `{safe}` LIMIT {limit} OFFSET {offset}");
+        let sql = format!("SELECT * FROM {} LIMIT {limit} OFFSET {offset}", quote_ident(table));
         stream_into_result(&self.pool, &sql, limit as usize).await
     }
 
@@ -231,6 +231,10 @@ fn extract_value(row: &MySqlRow, idx: usize) -> Value {
     }
 }
 
+fn quote_ident(name: &str) -> String {
+    format!("`{}`", name.replace('`', "``"))
+}
+
 fn map_sqlx_error(err: sqlx::Error) -> DriverError {
     use sqlx::Error::*;
     match err {
@@ -261,5 +265,12 @@ mod tests {
     fn map_io_refused_returns_connection_refused() {
         let err = sqlx::Error::Io(std::io::Error::from(std::io::ErrorKind::ConnectionRefused));
         assert!(matches!(map_sqlx_error(err), DriverError::ConnectionRefused));
+    }
+
+    #[test]
+    fn quote_ident_doubles_embedded_backticks() {
+        assert_eq!(quote_ident("users"), "`users`");
+        assert_eq!(quote_ident("My Table"), "`My Table`");
+        assert_eq!(quote_ident("evil`; DROP TABLE x; --"), "`evil``; DROP TABLE x; --`");
     }
 }

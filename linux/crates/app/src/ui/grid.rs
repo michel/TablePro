@@ -66,16 +66,12 @@ fn build_column(
 
         label.connect_editing_notify(move |label| {
             if label.is_editing() {
-                let position = unsafe { label.data::<u32>("tp-position").map(|p| *p.as_ref()).unwrap_or(0) };
+                let position = POSITION_SLOT.get(label).unwrap_or(0);
                 let original = label.text().to_string();
-                let snapshot = EditSnapshot { position, original };
-                unsafe {
-                    label.set_data("tp-snapshot", snapshot);
-                }
+                SNAPSHOT_SLOT.set(label, EditSnapshot { position, original });
                 return;
             }
-            let snap = unsafe { label.steal_data::<EditSnapshot>("tp-snapshot") };
-            let Some(snap) = snap else {
+            let Some(snap) = SNAPSHOT_SLOT.take(label) else {
                 return;
             };
             let new_value = label.text().to_string();
@@ -111,9 +107,7 @@ fn build_column(
             value_to_display_text(&value)
         };
         label.set_text(&text);
-        unsafe {
-            label.set_data("tp-position", item.position());
-        }
+        POSITION_SLOT.set(&label, item.position());
     });
 
     factory.connect_unbind(|_, item| {
@@ -126,10 +120,8 @@ fn build_column(
         if label.is_editing() {
             label.stop_editing(false);
         }
-        unsafe {
-            let _: Option<u32> = label.steal_data("tp-position");
-            let _: Option<EditSnapshot> = label.steal_data("tp-snapshot");
-        }
+        POSITION_SLOT.take(&label);
+        SNAPSHOT_SLOT.take(&label);
     });
 
     gtk::ColumnViewColumn::builder()
@@ -154,6 +146,37 @@ struct EditSnapshot {
     position: u32,
     original: String,
 }
+
+struct WidgetSlot<T: 'static> {
+    key: &'static str,
+    _phantom: std::marker::PhantomData<T>,
+}
+
+impl<T: 'static> WidgetSlot<T> {
+    const fn new(key: &'static str) -> Self {
+        Self {
+            key,
+            _phantom: std::marker::PhantomData,
+        }
+    }
+
+    fn set(&self, widget: &impl IsA<gtk::Widget>, value: T) {
+        unsafe { widget.set_data(self.key, value) };
+    }
+
+    fn take(&self, widget: &impl IsA<gtk::Widget>) -> Option<T> {
+        unsafe { widget.steal_data::<T>(self.key) }
+    }
+}
+
+impl<T: 'static + Copy> WidgetSlot<T> {
+    fn get(&self, widget: &impl IsA<gtk::Widget>) -> Option<T> {
+        unsafe { widget.data::<T>(self.key).map(|p| *p.as_ref()) }
+    }
+}
+
+const POSITION_SLOT: WidgetSlot<u32> = WidgetSlot::new("tp-position");
+const SNAPSHOT_SLOT: WidgetSlot<EditSnapshot> = WidgetSlot::new("tp-snapshot");
 
 pub fn value_to_display_text(value: &Value) -> String {
     match value {

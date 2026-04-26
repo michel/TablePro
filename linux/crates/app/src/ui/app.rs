@@ -102,7 +102,7 @@ impl SimpleComponent for App {
 
             adw::ToolbarView {
                 add_top_bar = &adw::HeaderBar {
-                    set_title_widget: Some(&adw::WindowTitle::new("TablePro Linux", "Phase 0")),
+                    set_title_widget: Some(&adw::WindowTitle::new("TablePro Linux", env!("CARGO_PKG_VERSION"))),
 
                     pack_start = &gtk::Button {
                         set_icon_name: "network-server-symbolic",

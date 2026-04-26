@@ -2,6 +2,7 @@ use std::path::PathBuf;
 
 use relm4::adw::prelude::*;
 use relm4::{adw, gtk};
+use secrecy::SecretString;
 
 use tablepro_ssh::{SshAuth, SshConfig};
 use tablepro_storage::{SavedSshAuth, SavedSshConfig};
@@ -30,8 +31,8 @@ pub struct SshInputs {
 
 #[derive(Clone)]
 pub enum SshSecretToStore {
-    Password(String),
-    Passphrase(String),
+    Password(SecretString),
+    Passphrase(SecretString),
     None,
 }
 
@@ -126,30 +127,34 @@ impl SshSection {
                     return Err("ssh: private key path is required".into());
                 }
                 let path_buf = PathBuf::from(path);
-                let passphrase = self.passphrase.text().to_string();
-                let has_passphrase = !passphrase.is_empty();
+                let raw_passphrase = self.passphrase.text().to_string();
+                let has_passphrase = !raw_passphrase.is_empty();
                 let auth = SshAuth::PrivateKey {
                     path: path_buf.clone(),
-                    passphrase: if has_passphrase { Some(passphrase.clone()) } else { None },
+                    passphrase: if has_passphrase {
+                        Some(SecretString::new(raw_passphrase.clone().into()))
+                    } else {
+                        None
+                    },
                 };
                 let saved_auth = SavedSshAuth::PrivateKey {
                     path: path_buf,
                     has_passphrase,
                 };
                 let secret = if has_passphrase {
-                    SshSecretToStore::Passphrase(passphrase)
+                    SshSecretToStore::Passphrase(SecretString::new(raw_passphrase.into()))
                 } else {
                     SshSecretToStore::None
                 };
                 (auth, saved_auth, secret)
             }
             _ => {
-                let password = self.password.text().to_string();
+                let raw_password = self.password.text().to_string();
                 let auth = SshAuth::Password {
-                    password: password.clone(),
+                    password: SecretString::new(raw_password.clone().into()),
                 };
                 let saved_auth = SavedSshAuth::Password;
-                let secret = SshSecretToStore::Password(password);
+                let secret = SshSecretToStore::Password(SecretString::new(raw_password.into()));
                 (auth, saved_auth, secret)
             }
         };

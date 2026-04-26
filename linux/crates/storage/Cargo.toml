@@ -13,6 +13,7 @@ path = "src/lib.rs"
 tablepro-core = { path = "../core" }
 tablepro-ssh = { path = "../ssh" }
 oo7.workspace = true
+secrecy.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true

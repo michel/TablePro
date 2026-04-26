@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use oo7::Keyring;
+use secrecy::SecretString;
 use uuid::Uuid;
 
 use crate::error::StorageError;
@@ -15,7 +16,7 @@ pub async fn store_password(id: Uuid, password: &str, label: &str) -> Result<(),
     store_secret(id, KIND_DB_PASSWORD, password, label).await
 }
 
-pub async fn load_password(id: Uuid) -> Result<Option<String>, StorageError> {
+pub async fn load_password(id: Uuid) -> Result<Option<SecretString>, StorageError> {
     load_secret(id, KIND_DB_PASSWORD).await
 }
 
@@ -27,7 +28,7 @@ pub async fn store_ssh_password(id: Uuid, password: &str, label: &str) -> Result
     store_secret(id, KIND_SSH_PASSWORD, password, label).await
 }
 
-pub async fn load_ssh_password(id: Uuid) -> Result<Option<String>, StorageError> {
+pub async fn load_ssh_password(id: Uuid) -> Result<Option<SecretString>, StorageError> {
     load_secret(id, KIND_SSH_PASSWORD).await
 }
 
@@ -39,7 +40,7 @@ pub async fn store_ssh_passphrase(id: Uuid, passphrase: &str, label: &str) -> Re
     store_secret(id, KIND_SSH_PASSPHRASE, passphrase, label).await
 }
 
-pub async fn load_ssh_passphrase(id: Uuid) -> Result<Option<String>, StorageError> {
+pub async fn load_ssh_passphrase(id: Uuid) -> Result<Option<SecretString>, StorageError> {
     load_secret(id, KIND_SSH_PASSPHRASE).await
 }
 
@@ -56,7 +57,7 @@ async fn store_secret(id: Uuid, kind: &str, value: &str, label: &str) -> Result<
     Ok(())
 }
 
-async fn load_secret(id: Uuid, kind: &str) -> Result<Option<String>, StorageError> {
+async fn load_secret(id: Uuid, kind: &str) -> Result<Option<SecretString>, StorageError> {
     let keyring = match open().await {
         Ok(k) => k,
         Err(_) => return Ok(None),
@@ -67,7 +68,7 @@ async fn load_secret(id: Uuid, kind: &str) -> Result<Option<String>, StorageErro
     };
     let secret = item.secret().await.map_err(map_err)?;
     let s = String::from_utf8(secret.to_vec()).map_err(|e| StorageError::Schema(format!("secret utf8: {e}")))?;
-    Ok(Some(s))
+    Ok(Some(SecretString::new(s.into())))
 }
 
 async fn delete_secret(id: Uuid, kind: &str) -> Result<(), StorageError> {
@@ -123,10 +124,14 @@ mod tests {
     #[tokio::test]
     #[ignore]
     async fn round_trip_via_secret_service() {
+        use secrecy::ExposeSecret;
         let id = Uuid::new_v4();
         store_password(id, "test-secret", "tablepro-spike").await.unwrap();
         let loaded = load_password(id).await.unwrap();
-        assert_eq!(loaded.as_deref(), Some("test-secret"));
+        assert_eq!(
+            loaded.map(|s| s.expose_secret().to_string()),
+            Some("test-secret".to_string())
+        );
         delete_password(id).await.unwrap();
         let after = load_password(id).await.unwrap();
         assert!(after.is_none());

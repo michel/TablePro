@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
-use serde::{Deserialize, Serialize};
+use secrecy::{ExposeSecret, SecretString};
 use thiserror::Error;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
@@ -15,7 +15,7 @@ use russh::keys::{PrivateKeyWithHashAlg, load_secret_key};
 
 const LOCAL_BIND_HOST: &str = "127.0.0.1";
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct SshConfig {
     pub host: String,
     pub port: u16,
@@ -23,11 +23,15 @@ pub struct SshConfig {
     pub auth: SshAuth,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(tag = "kind", rename_all = "snake_case")]
+#[derive(Debug, Clone)]
 pub enum SshAuth {
-    Password { password: String },
-    PrivateKey { path: PathBuf, passphrase: Option<String> },
+    Password {
+        password: SecretString,
+    },
+    PrivateKey {
+        path: PathBuf,
+        passphrase: Option<SecretString>,
+    },
 }
 
 #[derive(Debug, Error)]
@@ -216,9 +220,14 @@ async fn connect_and_auth(cfg: &SshConfig) -> Result<Handle<ClientHandler>, SshE
     }
 
     let auth = match &cfg.auth {
-        SshAuth::Password { password } => session.authenticate_password(&cfg.username, password).await?,
+        SshAuth::Password { password } => {
+            session
+                .authenticate_password(&cfg.username, password.expose_secret())
+                .await?
+        }
         SshAuth::PrivateKey { path, passphrase } => {
-            let key = load_secret_key(path, passphrase.as_deref()).map_err(|e| SshError::Key {
+            let pp = passphrase.as_ref().map(|s| s.expose_secret().to_string());
+            let key = load_secret_key(path, pp.as_deref()).map_err(|e| SshError::Key {
                 path: path.clone(),
                 source: e,
             })?;
@@ -351,24 +360,12 @@ mod tests {
     use super::*;
 
     #[test]
-    fn ssh_auth_serde_round_trip_password() {
-        let original = SshAuth::Password {
-            password: "hunter2".into(),
+    fn ssh_auth_password_redacts_in_debug() {
+        let auth = SshAuth::Password {
+            password: SecretString::new("topsecret".to_string().into()),
         };
-        let json = serde_json::to_string(&original).unwrap();
-        let parsed: SshAuth = serde_json::from_str(&json).unwrap();
-        assert_eq!(parsed, original);
-    }
-
-    #[test]
-    fn ssh_auth_serde_round_trip_key() {
-        let original = SshAuth::PrivateKey {
-            path: PathBuf::from("/home/u/.ssh/id_ed25519"),
-            passphrase: Some("p".into()),
-        };
-        let json = serde_json::to_string(&original).unwrap();
-        let parsed: SshAuth = serde_json::from_str(&json).unwrap();
-        assert_eq!(parsed, original);
+        let dbg = format!("{auth:?}");
+        assert!(!dbg.contains("topsecret"), "password leaked in Debug: {dbg}");
     }
 
     const KEY_A_BASE64: &str = "AAAAC3NzaC1lZDI1NTE5AAAAIGAdbe+Xv3hfmzwpfcGVeMHE/jfo5bmR1IgIpfuP4ypR";

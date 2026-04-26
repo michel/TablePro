@@ -3,6 +3,7 @@ use std::sync::Arc;
 use relm4::adw::prelude::*;
 use relm4::prelude::*;
 use relm4::{adw, gtk};
+use secrecy::{ExposeSecret, SecretString};
 use uuid::Uuid;
 
 use tablepro_core::{ConnectOptions, DriverRegistry, TableInfo};
@@ -138,7 +139,6 @@ impl Component for ConnectDialog {
         let database = adw::EntryRow::builder().title("Database").text("postgres").build();
         let username = adw::EntryRow::builder().title("Username").text("postgres").build();
         let password = adw::PasswordEntryRow::builder().title("Password").build();
-        password.set_text("test");
         let use_tls = adw::SwitchRow::builder()
             .title("Use TLS")
             .subtitle("Require encrypted connection")
@@ -247,7 +247,7 @@ impl Component for ConnectDialog {
                     port: self.port.text().parse().unwrap_or_else(|_| driver.default_port()),
                     database: self.database.text().to_string(),
                     username: self.username.text().to_string(),
-                    password: self.password.text().to_string(),
+                    password: SecretString::new(self.password.text().to_string().into()),
                     use_tls: self.use_tls.is_active(),
                 };
 
@@ -331,7 +331,7 @@ async fn run_connect(
     ssh: Option<SshInputs>,
     read_only: bool,
 ) -> Result<(SavedConnection, Vec<TableInfo>), String> {
-    let stored_password = opts.password.clone();
+    let stored_password: SecretString = opts.password.clone();
     let ssh_for_establish = ssh.as_ref().map(|s| s.cfg.clone());
     let opts_clone = opts.clone();
 
@@ -358,14 +358,14 @@ async fn run_connect(
     };
 
     save_one(&saved).await.map_err(|e| format!("save: {e}"))?;
-    let _ = store_password(saved.id, &stored_password, &label).await;
+    let _ = store_password(saved.id, stored_password.expose_secret(), &label).await;
     if let Some(s) = &ssh {
         match &s.secret_to_store {
             SshSecretToStore::Password(p) => {
-                let _ = store_ssh_password(saved.id, p, &label).await;
+                let _ = store_ssh_password(saved.id, p.expose_secret(), &label).await;
             }
             SshSecretToStore::Passphrase(p) => {
-                let _ = store_ssh_passphrase(saved.id, p, &label).await;
+                let _ = store_ssh_passphrase(saved.id, p.expose_secret(), &label).await;
             }
             SshSecretToStore::None => {}
         }
