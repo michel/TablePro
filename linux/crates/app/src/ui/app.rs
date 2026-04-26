@@ -25,6 +25,7 @@ pub struct App {
     connections_popover: gtk::Popover,
     edit_button: gtk::Button,
     disconnect_button: gtk::Button,
+    table_search: gtk::SearchEntry,
     paginator_label: gtk::Label,
     prev_button: gtk::Button,
     next_button: gtk::Button,
@@ -111,16 +112,29 @@ impl SimpleComponent for App {
                         set_title: "Tables",
 
                         #[wrap(Some)]
-                        set_child = &gtk::ScrolledWindow {
-                            set_hscrollbar_policy: gtk::PolicyType::Never,
-                            set_vexpand: true,
+                        set_child = &gtk::Box {
+                            set_orientation: gtk::Orientation::Vertical,
 
-                            #[wrap(Some)]
-                            #[name = "sidebar"]
-                            set_child = &gtk::ListBox {
-                                set_selection_mode: gtk::SelectionMode::Single,
-                                set_activate_on_single_click: true,
-                                add_css_class: "navigation-sidebar",
+                            #[name = "table_search"]
+                            gtk::SearchEntry {
+                                set_placeholder_text: Some("Filter tables…"),
+                                set_margin_top: 8,
+                                set_margin_bottom: 4,
+                                set_margin_start: 8,
+                                set_margin_end: 8,
+                            },
+
+                            gtk::ScrolledWindow {
+                                set_hscrollbar_policy: gtk::PolicyType::Never,
+                                set_vexpand: true,
+
+                                #[wrap(Some)]
+                                #[name = "sidebar"]
+                                set_child = &gtk::ListBox {
+                                    set_selection_mode: gtk::SelectionMode::Single,
+                                    set_activate_on_single_click: true,
+                                    add_css_class: "navigation-sidebar",
+                                },
                             },
                         },
                     },
@@ -147,6 +161,21 @@ impl SimpleComponent for App {
 
     fn init(registry: Self::Init, root: Self::Root, sender: ComponentSender<Self>) -> ComponentParts<Self> {
         let widgets = view_output!();
+
+        let search_for_filter = widgets.table_search.clone();
+        widgets.sidebar.set_filter_func(move |row| {
+            let query = search_for_filter.text().to_lowercase();
+            if query.is_empty() {
+                return true;
+            }
+            row.downcast_ref::<adw::ActionRow>()
+                .map(|r| r.title().to_lowercase().contains(&query))
+                .unwrap_or(true)
+        });
+        let listbox_for_invalidate = widgets.sidebar.clone();
+        widgets.table_search.connect_search_changed(move |_| {
+            listbox_for_invalidate.invalidate_filter();
+        });
 
         let connections_listbox = gtk::ListBox::builder().selection_mode(gtk::SelectionMode::None).build();
         connections_listbox.add_css_class("boxed-list");
@@ -226,6 +255,7 @@ impl SimpleComponent for App {
             connections_popover: widgets.connections_popover.clone(),
             edit_button: widgets.edit_button.clone(),
             disconnect_button: widgets.disconnect_button.clone(),
+            table_search: widgets.table_search.clone(),
             paginator_label,
             prev_button,
             next_button,
@@ -261,6 +291,7 @@ impl SimpleComponent for App {
                 self.connected = true;
                 self.edit_button.set_sensitive(true);
                 self.disconnect_button.set_visible(true);
+                self.table_search.set_text("");
                 tracing::info!(driver = %driver_id, table_count = tables.len(), "workspace ready");
                 rebuild_sidebar(&self.sidebar, &tables, sender.clone());
                 self.set_status_page(
@@ -278,6 +309,7 @@ impl SimpleComponent for App {
                 self.connected = false;
                 self.edit_button.set_sensitive(false);
                 self.disconnect_button.set_visible(false);
+                self.table_search.set_text("");
                 while let Some(child) = self.sidebar.first_child() {
                     self.sidebar.remove(&child);
                 }
