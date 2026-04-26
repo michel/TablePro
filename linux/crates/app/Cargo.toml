@@ -25,6 +25,7 @@ sourceview5.workspace = true
 glib.workspace = true
 relm4.workspace = true
 tokio.workspace = true
+tokio-util.workspace = true
 async-channel.workspace = true
 anyhow.workspace = true
 tracing.workspace = true

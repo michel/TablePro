@@ -2,6 +2,7 @@ use relm4::adw::prelude::*;
 use relm4::prelude::*;
 use relm4::{adw, gtk};
 use sourceview5::prelude::*;
+use tokio_util::sync::CancellationToken;
 
 use tablepro_core::QueryResult;
 
@@ -11,15 +12,19 @@ use crate::services::database_service;
 pub struct SqlEditor {
     source_view: sourceview5::View,
     run_button: gtk::Button,
+    cancel_button: gtk::Button,
     results_holder: gtk::Box,
     status: gtk::Label,
+    cancel_token: Option<CancellationToken>,
 }
 
 #[derive(Debug)]
 pub enum SqlEditorInput {
     Run,
+    Cancel,
     ShowResult(QueryResult),
     ShowError(String),
+    ShowCancelled,
 }
 
 #[relm4::component(pub)]
@@ -51,6 +56,14 @@ impl SimpleComponent for SqlEditor {
                 gtk::Label {
                     set_halign: gtk::Align::End,
                     add_css_class: "dim-label",
+                },
+
+                #[name = "cancel_button"]
+                gtk::Button {
+                    set_label: "Cancel",
+                    set_visible: false,
+                    add_css_class: "destructive-action",
+                    connect_clicked => SqlEditorInput::Cancel,
                 },
 
                 #[name = "run_button"]
@@ -113,8 +126,10 @@ impl SimpleComponent for SqlEditor {
         let model = SqlEditor {
             source_view: widgets.source_view.clone(),
             run_button: widgets.run_button.clone(),
+            cancel_button: widgets.cancel_button.clone(),
             results_holder: widgets.results_holder.clone(),
             status: widgets.status.clone(),
+            cancel_token: None,
         };
         let _ = sender;
         ComponentParts { model, widgets }
@@ -140,7 +155,14 @@ impl SimpleComponent for SqlEditor {
                     }
                 };
 
+                if let Some(prev) = self.cancel_token.take() {
+                    prev.cancel();
+                }
+                let token = CancellationToken::new();
+                self.cancel_token = Some(token.clone());
+
                 self.run_button.set_sensitive(false);
+                self.cancel_button.set_visible(true);
                 self.status.set_label("Running…");
                 clear_box(&self.results_holder);
 
@@ -149,30 +171,43 @@ impl SimpleComponent for SqlEditor {
                 sender.command(move |_, shutdown| {
                     shutdown
                         .register(async move {
-                            let result = conn.query(&trimmed).await;
-                            let elapsed = started.elapsed();
-                            match result {
-                                Ok(query_result) => {
-                                    tracing::info!(
-                                        rows = query_result.rows.len(),
-                                        elapsed_ms = elapsed.as_millis(),
-                                        "query ok"
-                                    );
-                                    sender_clone.input(SqlEditorInput::ShowResult(query_result));
+                            let msg = tokio::select! {
+                                biased;
+                                _ = token.cancelled() => SqlEditorInput::ShowCancelled,
+                                result = conn.query(&trimmed) => {
+                                    let elapsed = started.elapsed();
+                                    match result {
+                                        Ok(query_result) => {
+                                            tracing::info!(
+                                                rows = query_result.rows.len(),
+                                                elapsed_ms = elapsed.as_millis(),
+                                                "query ok"
+                                            );
+                                            SqlEditorInput::ShowResult(query_result)
+                                        }
+                                        Err(e) => {
+                                            tracing::warn!(error = %e, "query failed");
+                                            SqlEditorInput::ShowError(super::error_text::driver_message(&e))
+                                        }
+                                    }
                                 }
-                                Err(e) => {
-                                    tracing::warn!(error = %e, "query failed");
-                                    sender_clone
-                                        .input(SqlEditorInput::ShowError(super::error_text::driver_message(&e)));
-                                }
-                            }
+                            };
+                            sender_clone.input(msg);
                         })
                         .drop_on_shutdown()
                 });
             }
 
+            SqlEditorInput::Cancel => {
+                if let Some(token) = self.cancel_token.take() {
+                    token.cancel();
+                }
+            }
+
             SqlEditorInput::ShowResult(result) => {
+                self.cancel_token = None;
                 self.run_button.set_sensitive(true);
+                self.cancel_button.set_visible(false);
                 let label = if result.truncated {
                     format!("{} row(s) (truncated)", result.rows.len())
                 } else {
@@ -200,7 +235,9 @@ impl SimpleComponent for SqlEditor {
             }
 
             SqlEditorInput::ShowError(msg) => {
+                self.cancel_token = None;
                 self.run_button.set_sensitive(true);
+                self.cancel_button.set_visible(false);
                 self.status.set_label("error");
                 clear_box(&self.results_holder);
                 let err_page = adw::StatusPage::builder()
@@ -210,6 +247,21 @@ impl SimpleComponent for SqlEditor {
                     .vexpand(true)
                     .build();
                 self.results_holder.append(&err_page);
+            }
+
+            SqlEditorInput::ShowCancelled => {
+                self.cancel_token = None;
+                self.run_button.set_sensitive(true);
+                self.cancel_button.set_visible(false);
+                self.status.set_label("cancelled");
+                clear_box(&self.results_holder);
+                let cancelled_page = adw::StatusPage::builder()
+                    .title("Query cancelled")
+                    .description("The running query was stopped.")
+                    .icon_name("process-stop-symbolic")
+                    .vexpand(true)
+                    .build();
+                self.results_holder.append(&cancelled_page);
             }
         }
     }
