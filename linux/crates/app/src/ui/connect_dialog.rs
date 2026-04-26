@@ -1,4 +1,3 @@
-use std::path::PathBuf;
 use std::sync::Arc;
 
 use relm4::adw::prelude::*;
@@ -7,17 +6,13 @@ use relm4::{adw, gtk};
 use uuid::Uuid;
 
 use tablepro_core::{ConnectOptions, DriverRegistry, TableInfo};
-use tablepro_ssh::{SshAuth, SshConfig};
 use tablepro_storage::{
-    SavedConnection, SavedSshAuth, SavedSshConfig, save_connections, store_password, store_ssh_passphrase,
-    store_ssh_password,
+    SavedConnection, SavedSshConfig, save_connections, store_password, store_ssh_passphrase, store_ssh_password,
 };
 
+use super::ssh_section::{SshInputs, SshSecretToStore, SshSection};
 use crate::services::connection_service;
 use crate::services::database_service::{self, ReconnectParams};
-
-const SSH_AUTH_PASSWORD: u32 = 0;
-const SSH_AUTH_KEY: u32 = 1;
 
 pub struct ConnectDialog {
     registry: Arc<DriverRegistry>,
@@ -30,15 +25,7 @@ pub struct ConnectDialog {
     password: adw::PasswordEntryRow,
     use_tls: adw::SwitchRow,
     read_only: adw::SwitchRow,
-    ssh_enable: adw::SwitchRow,
-    ssh_group: adw::PreferencesGroup,
-    ssh_host: adw::EntryRow,
-    ssh_port: adw::EntryRow,
-    ssh_user: adw::EntryRow,
-    ssh_auth_combo: adw::ComboRow,
-    ssh_password: adw::PasswordEntryRow,
-    ssh_key_path: adw::EntryRow,
-    ssh_passphrase: adw::PasswordEntryRow,
+    ssh: SshSection,
     submit: gtk::Button,
     status: gtk::Label,
 }
@@ -113,10 +100,10 @@ impl Component for ConnectDialog {
                             add: &model.password,
                             add: &model.use_tls,
                             add: &model.read_only,
-                            add: &model.ssh_enable,
+                            add: &model.ssh.enable,
                         },
 
-                        append: &model.ssh_group,
+                        append: &model.ssh.group,
                         append: &model.submit,
                         append: &model.status,
                     },
@@ -157,54 +144,21 @@ impl Component for ConnectDialog {
             .subtitle("Require encrypted connection")
             .active(false)
             .build();
-
         let read_only = adw::SwitchRow::builder()
             .title("Read-only mode")
             .subtitle("Block INSERT, UPDATE, DELETE, and DDL on this connection")
             .active(false)
             .build();
 
-        let ssh_enable = adw::SwitchRow::builder()
-            .title("Use SSH tunnel")
-            .subtitle("Reach the database through a bastion host")
-            .active(false)
-            .build();
+        let ssh = SshSection::build();
         let sender_for_ssh = sender.clone();
-        ssh_enable.connect_active_notify(move |_| {
+        ssh.enable.connect_active_notify(move |_| {
             sender_for_ssh.input(ConnectDialogInput::SshToggled);
         });
-
-        let ssh_group = adw::PreferencesGroup::builder()
-            .title("SSH tunnel")
-            .visible(false)
-            .build();
-        let ssh_host = adw::EntryRow::builder().title("SSH host").build();
-        let ssh_port = adw::EntryRow::builder().title("SSH port").text("22").build();
-        let ssh_user = adw::EntryRow::builder().title("SSH user").build();
-
-        let auth_model = gtk::StringList::new(&["Password", "Private key"]);
-        let ssh_auth_combo = adw::ComboRow::builder()
-            .title("SSH auth")
-            .model(&auth_model)
-            .selected(SSH_AUTH_PASSWORD)
-            .build();
         let sender_for_auth = sender.clone();
-        ssh_auth_combo.connect_selected_notify(move |_| {
+        ssh.auth_combo.connect_selected_notify(move |_| {
             sender_for_auth.input(ConnectDialogInput::SshAuthChanged);
         });
-
-        let ssh_password = adw::PasswordEntryRow::builder().title("SSH password").build();
-        let ssh_key_path = adw::EntryRow::builder().title("Private key path").build();
-        let ssh_passphrase = adw::PasswordEntryRow::builder().title("Key passphrase").build();
-
-        ssh_group.add(&ssh_host);
-        ssh_group.add(&ssh_port);
-        ssh_group.add(&ssh_user);
-        ssh_group.add(&ssh_auth_combo);
-        ssh_group.add(&ssh_password);
-        ssh_group.add(&ssh_key_path);
-        ssh_group.add(&ssh_passphrase);
-        apply_ssh_auth_visibility(SSH_AUTH_PASSWORD, &ssh_password, &ssh_key_path, &ssh_passphrase);
 
         let submit = gtk::Button::builder()
             .label("Connect")
@@ -232,15 +186,7 @@ impl Component for ConnectDialog {
             password,
             use_tls,
             read_only,
-            ssh_enable,
-            ssh_group,
-            ssh_host,
-            ssh_port,
-            ssh_user,
-            ssh_auth_combo,
-            ssh_password,
-            ssh_key_path,
-            ssh_passphrase,
+            ssh,
             submit,
             status,
         };
@@ -248,16 +194,7 @@ impl Component for ConnectDialog {
 
         if let Some(first) = drivers.first() {
             if let Some(driver) = model.registry.get(&first.id) {
-                apply_form_visibility(
-                    driver.as_ref(),
-                    &model.host,
-                    &model.port,
-                    &model.database,
-                    &model.username,
-                    &model.password,
-                    &model.use_tls,
-                    &model.ssh_enable,
-                );
+                model.apply_driver_form_visibility(driver.as_ref());
             }
             root.set_title(&format!("Connect to {}", first.display_name));
         }
@@ -272,31 +209,17 @@ impl Component for ConnectDialog {
                     return;
                 };
                 if let Some(driver) = self.registry.get(&entry.id) {
-                    apply_form_visibility(
-                        driver.as_ref(),
-                        &self.host,
-                        &self.port,
-                        &self.database,
-                        &self.username,
-                        &self.password,
-                        &self.use_tls,
-                        &self.ssh_enable,
-                    );
+                    self.apply_driver_form_visibility(driver.as_ref());
                 }
                 root.set_title(&format!("Connect to {}", entry.display_name));
             }
 
             ConnectDialogInput::SshToggled => {
-                self.ssh_group.set_visible(self.ssh_enable.is_active());
+                self.ssh.set_section_visible(self.ssh.is_enabled());
             }
 
             ConnectDialogInput::SshAuthChanged => {
-                apply_ssh_auth_visibility(
-                    self.ssh_auth_combo.selected(),
-                    &self.ssh_password,
-                    &self.ssh_key_path,
-                    &self.ssh_passphrase,
-                );
+                self.ssh.refresh_auth_visibility();
             }
 
             ConnectDialogInput::Submit => {
@@ -335,8 +258,8 @@ impl Component for ConnectDialog {
                 };
                 let driver_id = entry.id.clone();
 
-                let ssh_inputs = if self.ssh_enable.is_active() {
-                    match self.collect_ssh_inputs() {
+                let ssh_inputs = if self.ssh.is_enabled() {
+                    match self.ssh.collect() {
                         Ok(inputs) => Some(inputs),
                         Err(e) => {
                             self.status.set_label(&e);
@@ -386,82 +309,17 @@ impl Component for ConnectDialog {
     }
 }
 
-#[derive(Clone)]
-struct SshInputs {
-    cfg: SshConfig,
-    saved: SavedSshConfig,
-    secret_to_store: SshSecretToStore,
-}
-
-#[derive(Clone)]
-enum SshSecretToStore {
-    Password(String),
-    Passphrase(String),
-    None,
-}
-
 impl ConnectDialog {
-    fn collect_ssh_inputs(&self) -> Result<SshInputs, String> {
-        let host = self.ssh_host.text().to_string();
-        if host.trim().is_empty() {
-            return Err("ssh: host is required".into());
-        }
-        let port: u16 = self.ssh_port.text().parse().unwrap_or(22);
-        let username = self.ssh_user.text().to_string();
-        if username.trim().is_empty() {
-            return Err("ssh: username is required".into());
-        }
-
-        let (auth, saved_auth, secret) = match self.ssh_auth_combo.selected() {
-            SSH_AUTH_KEY => {
-                let path = self.ssh_key_path.text().to_string();
-                if path.trim().is_empty() {
-                    return Err("ssh: private key path is required".into());
-                }
-                let path_buf = PathBuf::from(path);
-                let passphrase = self.ssh_passphrase.text().to_string();
-                let has_passphrase = !passphrase.is_empty();
-                let auth = SshAuth::PrivateKey {
-                    path: path_buf.clone(),
-                    passphrase: if has_passphrase { Some(passphrase.clone()) } else { None },
-                };
-                let saved_auth = SavedSshAuth::PrivateKey {
-                    path: path_buf,
-                    has_passphrase,
-                };
-                let secret = if has_passphrase {
-                    SshSecretToStore::Passphrase(passphrase)
-                } else {
-                    SshSecretToStore::None
-                };
-                (auth, saved_auth, secret)
-            }
-            _ => {
-                let password = self.ssh_password.text().to_string();
-                let auth = SshAuth::Password {
-                    password: password.clone(),
-                };
-                let saved_auth = SavedSshAuth::Password;
-                let secret = SshSecretToStore::Password(password);
-                (auth, saved_auth, secret)
-            }
-        };
-
-        Ok(SshInputs {
-            cfg: SshConfig {
-                host: host.clone(),
-                port,
-                username: username.clone(),
-                auth,
-            },
-            saved: SavedSshConfig {
-                host,
-                port,
-                username,
-                auth: saved_auth,
-            },
-            secret_to_store: secret,
-        })
+    fn apply_driver_form_visibility(&self, driver: &dyn tablepro_core::DatabaseDriver) {
+        let file_based = driver.is_file_based();
+        self.host.set_visible(!file_based);
+        self.port.set_visible(!file_based);
+        self.username.set_visible(!file_based);
+        self.password.set_visible(!file_based);
+        self.use_tls.set_visible(!file_based);
+        self.ssh.set_enable_visible(!file_based);
+        self.database
+            .set_title(if file_based { "File path" } else { "Database" });
     }
 }
 
@@ -521,42 +379,6 @@ async fn run_connect(
     };
     database_service::instance().add(saved.id, conn, tunnel, read_only, params);
     Ok((saved, tables))
-}
-
-#[allow(clippy::too_many_arguments)]
-fn apply_form_visibility(
-    driver: &dyn tablepro_core::DatabaseDriver,
-    host: &adw::EntryRow,
-    port: &adw::EntryRow,
-    database: &adw::EntryRow,
-    username: &adw::EntryRow,
-    password: &adw::PasswordEntryRow,
-    use_tls: &adw::SwitchRow,
-    ssh_enable: &adw::SwitchRow,
-) {
-    let file_based = driver.is_file_based();
-    host.set_visible(!file_based);
-    port.set_visible(!file_based);
-    username.set_visible(!file_based);
-    password.set_visible(!file_based);
-    use_tls.set_visible(!file_based);
-    ssh_enable.set_visible(!file_based);
-    if file_based {
-        ssh_enable.set_active(false);
-    }
-    database.set_title(if file_based { "File path" } else { "Database" });
-}
-
-fn apply_ssh_auth_visibility(
-    selected: u32,
-    password: &adw::PasswordEntryRow,
-    key_path: &adw::EntryRow,
-    passphrase: &adw::PasswordEntryRow,
-) {
-    let is_password = selected == SSH_AUTH_PASSWORD;
-    password.set_visible(is_password);
-    key_path.set_visible(!is_password);
-    passphrase.set_visible(!is_password);
 }
 
 async fn save_one(connection: &SavedConnection) -> Result<(), tablepro_storage::StorageError> {
