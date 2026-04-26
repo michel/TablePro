@@ -18,7 +18,8 @@ use crate::services::database_service::ConnectionHealth;
 use crate::services::{connection_service, database_service};
 use crate::sql_dialect::{placeholder_for, quote_ident};
 
-const PAGE_SIZE: u64 = 1000;
+const PAGE_SIZE_OPTIONS: &[u64] = &[100, 500, 1_000, 5_000, 10_000];
+const DEFAULT_PAGE_SIZE: u64 = 1_000;
 
 pub struct App {
     registry: Arc<DriverRegistry>,
@@ -39,6 +40,8 @@ pub struct App {
     edit_row_button: gtk::Button,
     delete_button: gtk::Button,
     grid_holder: gtk::Box,
+    grid_search: gtk::SearchEntry,
+    grid_search_revealer: gtk::Revealer,
     browse_view: gtk::Box,
     dialog: Option<Controller<ConnectDialog>>,
     editor: Option<Controller<SqlEditor>>,
@@ -48,8 +51,11 @@ pub struct App {
     current_offset: u64,
     current_columns: Vec<ColumnInfo>,
     current_result: Option<QueryResult>,
-    current_selection: Option<gtk::SingleSelection>,
+    current_selection: Option<gtk::MultiSelection>,
     current_driver_id: Option<String>,
+    current_sort: Option<(usize, bool)>,
+    current_total_rows: Option<u64>,
+    page_size: u64,
     connected: bool,
 }
 
@@ -89,6 +95,10 @@ pub enum AppMsg {
     RefreshPage,
     ShowShortcuts,
     ShowAbout,
+    SortChanged(usize),
+    PageSizeChanged(u64),
+    RowCountLoaded(String, u64),
+    FindInResults,
 }
 
 #[relm4::component(pub)]
@@ -268,6 +278,32 @@ impl SimpleComponent for App {
         let paginator_label = gtk::Label::builder().build();
         paginator_label.add_css_class("dim-label");
 
+        let page_size_labels: Vec<String> = PAGE_SIZE_OPTIONS
+            .iter()
+            .map(|n| {
+                if *n >= 1_000 {
+                    format!("{} K", n / 1_000)
+                } else {
+                    n.to_string()
+                }
+            })
+            .collect();
+        let page_size_strs: Vec<&str> = page_size_labels.iter().map(String::as_str).collect();
+        let page_size_combo = gtk::DropDown::from_strings(&page_size_strs);
+        let default_idx = PAGE_SIZE_OPTIONS
+            .iter()
+            .position(|n| *n == DEFAULT_PAGE_SIZE)
+            .unwrap_or(2) as u32;
+        page_size_combo.set_selected(default_idx);
+        page_size_combo.set_tooltip_text(Some("Rows per page"));
+        let sender_for_size = sender.clone();
+        page_size_combo.connect_selected_notify(move |dd| {
+            let idx = dd.selected() as usize;
+            if let Some(&size) = PAGE_SIZE_OPTIONS.get(idx) {
+                sender_for_size.input(AppMsg::PageSizeChanged(size));
+            }
+        });
+
         let sender_for_prev = sender.clone();
         prev_button.connect_clicked(move |_| sender_for_prev.input(AppMsg::PrevPage));
         let sender_for_next = sender.clone();
@@ -310,6 +346,7 @@ impl SimpleComponent for App {
         paginator_bar.append(&next_button);
         paginator_bar.append(&paginator_label);
         paginator_bar.append(&spacer);
+        paginator_bar.append(&page_size_combo);
         paginator_bar.append(&insert_button);
         paginator_bar.append(&edit_row_button);
         paginator_bar.append(&delete_button);
@@ -319,9 +356,29 @@ impl SimpleComponent for App {
             .vexpand(true)
             .build();
 
+        let grid_search = gtk::SearchEntry::builder()
+            .placeholder_text("Find in results")
+            .margin_top(4)
+            .margin_bottom(4)
+            .margin_start(8)
+            .margin_end(8)
+            .build();
+        let grid_search_revealer = gtk::Revealer::builder()
+            .transition_type(gtk::RevealerTransitionType::SlideDown)
+            .reveal_child(false)
+            .child(&grid_search)
+            .build();
+        let revealer_for_close = grid_search_revealer.clone();
+        let entry_for_close = grid_search.clone();
+        grid_search.connect_stop_search(move |_| {
+            revealer_for_close.set_reveal_child(false);
+            entry_for_close.set_text("");
+        });
+
         let browse_view = gtk::Box::builder().orientation(gtk::Orientation::Vertical).build();
         browse_view.append(&paginator_bar);
         browse_view.append(&gtk::Separator::new(gtk::Orientation::Horizontal));
+        browse_view.append(&grid_search_revealer);
         browse_view.append(&grid_holder);
 
         let model = App {
@@ -343,6 +400,8 @@ impl SimpleComponent for App {
             edit_row_button,
             delete_button,
             grid_holder,
+            grid_search,
+            grid_search_revealer,
             browse_view,
             dialog: None,
             editor: None,
@@ -354,6 +413,9 @@ impl SimpleComponent for App {
             current_result: None,
             current_selection: None,
             current_driver_id: None,
+            current_sort: None,
+            current_total_rows: None,
+            page_size: DEFAULT_PAGE_SIZE,
             connected: false,
         };
         sender.input(AppMsg::ReloadConnections);
@@ -418,6 +480,10 @@ impl SimpleComponent for App {
             AppMsg::RefreshPage => self.fetch_current_page(sender),
             AppMsg::ShowShortcuts => self.on_show_shortcuts(),
             AppMsg::ShowAbout => self.on_show_about(),
+            AppMsg::SortChanged(col_idx) => self.on_sort_changed(col_idx, sender),
+            AppMsg::PageSizeChanged(size) => self.on_page_size_changed(size, sender),
+            AppMsg::RowCountLoaded(table, count) => self.on_row_count_loaded(table, count),
+            AppMsg::FindInResults => self.on_find_in_results(),
             AppMsg::DeleteConnection(id) => self.on_delete_connection(id, sender),
             AppMsg::OpenSaved(saved) => self.on_open_saved(saved, sender),
         }
@@ -488,9 +554,44 @@ impl App {
         self.current_table = Some(name.clone());
         self.current_offset = 0;
         self.current_columns.clear();
+        self.current_sort = None;
+        self.current_total_rows = None;
         self.set_status_page("Loading…", &format!("Fetching rows from {name}"));
         self.fetch_current_page(sender.clone());
-        self.fetch_columns(name, sender);
+        self.fetch_columns(name.clone(), sender.clone());
+        self.fetch_row_count(name, sender);
+    }
+
+    fn fetch_row_count(&self, table: String, sender: ComponentSender<Self>) {
+        let Some(conn) = database_service::instance().active() else {
+            return;
+        };
+        let driver_id = self.current_driver_id.clone().unwrap_or_else(|| "postgres".to_string());
+        let table_for_async = table.clone();
+        let sender_clone = sender.clone();
+        sender.command(move |_, shutdown| {
+            shutdown
+                .register(async move {
+                    let sql = format!(
+                        "SELECT COUNT(*) FROM {}",
+                        crate::sql_dialect::quote_ident(&driver_id, &table_for_async)
+                    );
+                    if let Ok(qr) = conn.query(&sql).await
+                        && let Some(row) = qr.rows.first()
+                        && let Some(value) = row.first()
+                    {
+                        let count = match value {
+                            tablepro_core::Value::Int(i) if *i >= 0 => Some(*i as u64),
+                            tablepro_core::Value::Decimal(d) => d.to_string().parse::<u64>().ok(),
+                            _ => None,
+                        };
+                        if let Some(count) = count {
+                            sender_clone.input(AppMsg::RowCountLoaded(table_for_async, count));
+                        }
+                    }
+                })
+                .drop_on_shutdown()
+        });
     }
 
     fn on_columns_loaded(&mut self, table: String, columns: Vec<ColumnInfo>, sender: ComponentSender<Self>) {
@@ -505,15 +606,62 @@ impl App {
     }
 
     fn on_prev_page(&mut self, sender: ComponentSender<Self>) {
-        if self.current_offset >= PAGE_SIZE {
-            self.current_offset -= PAGE_SIZE;
+        if self.current_offset >= self.page_size {
+            self.current_offset -= self.page_size;
             self.fetch_current_page(sender);
         }
     }
 
     fn on_next_page(&mut self, sender: ComponentSender<Self>) {
-        self.current_offset += PAGE_SIZE;
+        self.current_offset += self.page_size;
         self.fetch_current_page(sender);
+    }
+
+    fn on_sort_changed(&mut self, col_idx: usize, sender: ComponentSender<Self>) {
+        let next = match self.current_sort {
+            Some((c, asc)) if c == col_idx => Some((c, !asc)),
+            _ => Some((col_idx, true)),
+        };
+        self.current_sort = next;
+        self.current_offset = 0;
+        self.fetch_current_page(sender);
+    }
+
+    fn on_page_size_changed(&mut self, size: u64, sender: ComponentSender<Self>) {
+        if self.page_size == size {
+            return;
+        }
+        self.page_size = size;
+        self.current_offset = 0;
+        self.fetch_current_page(sender);
+    }
+
+    fn on_row_count_loaded(&mut self, table: String, count: u64) {
+        if self.current_table.as_deref() != Some(&table) {
+            return;
+        }
+        self.current_total_rows = Some(count);
+        self.update_paginator_label();
+    }
+
+    fn update_paginator_label(&self) {
+        let Some(result) = self.current_result.as_ref() else {
+            self.paginator_label.set_label("");
+            return;
+        };
+        let n_rows = result.rows.len();
+        if n_rows == 0 {
+            self.paginator_label
+                .set_label(&format!("No rows at offset {}", self.current_offset));
+            return;
+        }
+        let start = self.current_offset + 1;
+        let end = self.current_offset + n_rows as u64;
+        let label = match self.current_total_rows {
+            Some(total) => format!("Rows {start} – {end} of {total}"),
+            None => format!("Rows {start} – {end}"),
+        };
+        self.paginator_label.set_label(&label);
     }
 
     fn on_rows_loaded(&mut self, table: String, offset: u64, result: QueryResult, sender: ComponentSender<Self>) {
@@ -531,7 +679,19 @@ impl App {
         } else {
             Some(sender.input_sender().clone())
         };
-        let (column_view, selection) = build_column_view(&result, &self.current_columns, &table, edit_sender);
+        let (column_view, selection, filter_setter) = build_column_view(
+            &result,
+            &self.current_columns,
+            &table,
+            edit_sender,
+            self.current_sort,
+            Some(sender.input_sender().clone()),
+        );
+        let setter = filter_setter.clone();
+        self.grid_search.connect_search_changed(move |entry| {
+            setter(&entry.text());
+        });
+        filter_setter(&self.grid_search.text());
         self.current_selection = Some(selection);
         self.current_result = Some(result.clone());
         let scrolled = gtk::ScrolledWindow::builder()
@@ -542,16 +702,9 @@ impl App {
         self.grid_holder.append(&scrolled);
         self.refresh_crud_buttons();
 
-        let label = if n_rows == 0 {
-            format!("No rows at offset {offset}")
-        } else {
-            let start = offset + 1;
-            let end = offset + n_rows as u64;
-            format!("Rows {start} – {end}")
-        };
-        self.paginator_label.set_label(&label);
+        self.update_paginator_label();
         self.prev_button.set_sensitive(offset > 0);
-        self.next_button.set_sensitive(n_rows as u64 == PAGE_SIZE);
+        self.next_button.set_sensitive(n_rows as u64 == self.page_size);
 
         self.content_holder.set_content(Some(&self.browse_view));
     }
@@ -597,11 +750,16 @@ impl App {
         let Some(result) = self.current_result.clone() else {
             return;
         };
-        let position = selection.selected();
-        if position == gtk::INVALID_LIST_POSITION || (position as usize) >= result.rows.len() {
+        let positions = selected_positions(&selection);
+        if positions.len() != 1 {
+            self.show_error_alert("Cannot edit", "Select exactly one row to edit.");
             return;
         }
-        let row = result.rows[position as usize].clone();
+        let position = positions[0] as usize;
+        if position >= result.rows.len() {
+            return;
+        }
+        let row = result.rows[position].clone();
         let driver_id = self.current_driver_id.clone().unwrap_or_else(|| "postgres".to_string());
         let dialog = EditDialog::builder()
             .launch(EditDialogInit {
@@ -632,11 +790,10 @@ impl App {
         let Some(result) = self.current_result.clone() else {
             return;
         };
-        let position = selection.selected();
-        if position == gtk::INVALID_LIST_POSITION || (position as usize) >= result.rows.len() {
+        let positions = selected_positions(&selection);
+        if positions.is_empty() {
             return;
         }
-        let row = result.rows[position as usize].clone();
         let pk_indexes: Vec<usize> = self
             .current_columns
             .iter()
@@ -651,23 +808,33 @@ impl App {
             );
             return;
         }
-
         let driver_id = self.current_driver_id.clone().unwrap_or_else(|| "postgres".to_string());
-        let where_clause: String = pk_indexes
-            .iter()
-            .enumerate()
-            .map(|(i, col_idx)| {
-                let name = &self.current_columns[*col_idx].name;
-                let placeholder = placeholder_for(&driver_id, i);
-                format!("{} = {}", quote_ident(&driver_id, name), placeholder)
-            })
-            .collect::<Vec<_>>()
-            .join(" AND ");
-        let sql = format!("DELETE FROM {} WHERE {}", quote_ident(&driver_id, &table), where_clause);
-        let params: Vec<Value> = pk_indexes.iter().map(|i| row[*i].clone()).collect();
-        let preview = preview_pk(&self.current_columns, &pk_indexes, &row);
 
-        self.confirm_and_execute(sender, sql, params, &format!("Delete row where {preview}?"));
+        let preview = if positions.len() == 1 {
+            let row = &result.rows[positions[0] as usize];
+            format!(
+                "Delete row where {}?",
+                preview_pk(&self.current_columns, &pk_indexes, row)
+            )
+        } else {
+            format!("Delete {} rows?", positions.len())
+        };
+        let confirm_label = if positions.len() == 1 {
+            "Delete".to_string()
+        } else {
+            format!("Delete {}", positions.len())
+        };
+
+        self.confirm_and_execute_many(
+            sender,
+            &table,
+            &driver_id,
+            &pk_indexes,
+            &positions,
+            &result.rows,
+            &preview,
+            &confirm_label,
+        );
     }
 
     fn on_cell_edited(
@@ -799,15 +966,37 @@ impl App {
             return;
         };
         let offset = self.current_offset;
+        let limit = self.page_size;
         let Some(conn) = database_service::instance().active() else {
             sender.input(AppMsg::LoadFailed("no active connection".into()));
             return;
         };
+        let driver_id = self.current_driver_id.clone().unwrap_or_else(|| "postgres".to_string());
+        let order_by = self.current_sort.and_then(|(idx, asc)| {
+            self.current_columns.get(idx).map(|c| {
+                let name = crate::sql_dialect::quote_ident(&driver_id, &c.name);
+                let dir = if asc { "ASC" } else { "DESC" };
+                format!("{name} {dir}")
+            })
+        });
         let sender_clone = sender.clone();
         sender.command(move |_, shutdown| {
             shutdown
                 .register(async move {
-                    match conn.fetch_rows(&table, offset, PAGE_SIZE).await {
+                    let result = match &order_by {
+                        Some(order) => {
+                            let sql = format!(
+                                "SELECT * FROM {} ORDER BY {} LIMIT {} OFFSET {}",
+                                crate::sql_dialect::quote_ident(&driver_id, &table),
+                                order,
+                                limit,
+                                offset,
+                            );
+                            conn.query(&sql).await
+                        }
+                        None => conn.fetch_rows(&table, offset, limit).await,
+                    };
+                    match result {
                         Ok(query_result) => sender_clone.input(AppMsg::RowsLoaded(table, offset, query_result)),
                         Err(e) => sender_clone.input(AppMsg::LoadFailed(super::error_text::driver_message(&e))),
                     }
@@ -868,32 +1057,101 @@ impl App {
         self.delete_button.set_sensitive(has_row);
     }
 
-    fn show_error_alert(&self, title: &str, message: &str) {
-        let dialog = adw::AlertDialog::new(Some(title), Some(message));
-        dialog.add_response("ok", "OK");
-        dialog.set_default_response(Some("ok"));
-        dialog.present(Some(&self.window));
-    }
+    #[allow(clippy::too_many_arguments)]
+    fn confirm_and_execute_many(
+        &self,
+        sender: ComponentSender<App>,
+        table: &str,
+        driver_id: &str,
+        pk_indexes: &[usize],
+        positions: &[u32],
+        rows: &[Vec<Value>],
+        preview: &str,
+        confirm_label: &str,
+    ) {
+        let where_clause: String = pk_indexes
+            .iter()
+            .enumerate()
+            .map(|(i, col_idx)| {
+                let name = &self.current_columns[*col_idx].name;
+                let placeholder = placeholder_for(driver_id, i);
+                format!("{} = {}", quote_ident(driver_id, name), placeholder)
+            })
+            .collect::<Vec<_>>()
+            .join(" AND ");
+        let sql = format!("DELETE FROM {} WHERE {}", quote_ident(driver_id, table), where_clause);
 
-    fn confirm_and_execute(&self, sender: ComponentSender<App>, sql: String, params: Vec<Value>, preview: &str) {
+        let mut batches: Vec<Vec<Value>> = Vec::with_capacity(positions.len());
+        for pos in positions {
+            let Some(row) = rows.get(*pos as usize) else {
+                continue;
+            };
+            batches.push(pk_indexes.iter().map(|i| row[*i].clone()).collect());
+        }
+
         let dialog = adw::AlertDialog::new(Some("Confirm"), Some(preview));
         dialog.add_response("cancel", "Cancel");
-        dialog.add_response("delete", "Delete");
+        dialog.add_response("delete", confirm_label);
         dialog.set_response_appearance("delete", adw::ResponseAppearance::Destructive);
         dialog.set_default_response(Some("cancel"));
         dialog.set_close_response("cancel");
 
+        let sender_clone = sender;
         dialog.connect_response(None, move |dialog, response| {
             dialog.close();
             if response != "delete" {
                 return;
             }
             let sql = sql.clone();
-            let params = params.clone();
-            execute_then_refetch(sender.clone(), sql, params);
+            let batches = batches.clone();
+            execute_many_then_refetch(sender_clone.clone(), sql, batches);
         });
         dialog.present(Some(&self.window));
     }
+
+    fn show_error_alert(&self, title: &str, message: &str) {
+        let dialog = adw::AlertDialog::new(Some(title), Some(message));
+        dialog.add_response("ok", "OK");
+        dialog.set_default_response(Some("ok"));
+        dialog.present(Some(&self.window));
+    }
+}
+
+fn selected_positions(selection: &gtk::MultiSelection) -> Vec<u32> {
+    let bitset = selection.selection();
+    let mut out = Vec::with_capacity(bitset.size() as usize);
+    for i in 0..bitset.size() {
+        out.push(bitset.nth(i as u32));
+    }
+    out.sort_unstable();
+    out
+}
+
+fn execute_many_then_refetch(sender: ComponentSender<App>, sql: String, batches: Vec<Vec<Value>>) {
+    let Some(conn) = database_service::instance().active() else {
+        sender.input(AppMsg::LoadFailed("no active connection".into()));
+        return;
+    };
+    let sender_clone = sender.clone();
+    sender.command(move |_, shutdown| {
+        shutdown
+            .register(async move {
+                let mut total: u64 = 0;
+                for params in &batches {
+                    match conn.execute_params(&sql, params).await {
+                        Ok(exec) => total += exec.rows_affected,
+                        Err(e) => {
+                            tracing::warn!(error = %e, "execute (multi) failed");
+                            sender_clone.input(AppMsg::LoadFailed(super::error_text::driver_message(&e)));
+                            return;
+                        }
+                    }
+                }
+                tracing::info!(rows = total, "multi-execute ok");
+                sender_clone.input(AppMsg::RowOperationCommitted);
+            })
+            .drop_on_shutdown()
+    });
 }
 
 fn execute_then_refetch(sender: ComponentSender<App>, sql: String, params: Vec<Value>) {
@@ -1042,12 +1300,17 @@ fn install_window_actions(window: &adw::ApplicationWindow, sender: ComponentSend
         .activate(move |_, _, _| editor_sender.input(AppMsg::OpenEditor))
         .build();
 
-    let refresh_sender = sender;
+    let refresh_sender = sender.clone();
     let refresh = gio::ActionEntry::builder("refresh-page")
         .activate(move |_, _, _| refresh_sender.input(AppMsg::RefreshPage))
         .build();
 
-    group.add_action_entries([shortcuts, about, quit, open_editor, refresh]);
+    let find_sender = sender;
+    let find = gio::ActionEntry::builder("find-in-results")
+        .activate(move |_, _, _| find_sender.input(AppMsg::FindInResults))
+        .build();
+
+    group.add_action_entries([shortcuts, about, quit, open_editor, refresh, find]);
     window.insert_action_group("win", Some(&group));
 }
 
@@ -1060,6 +1323,7 @@ fn install_window_shortcuts(window: &adw::ApplicationWindow) {
     controller.add_shortcut(make_shortcut("<Primary>w", "win.quit"));
     controller.add_shortcut(make_shortcut("<Primary>e", "win.open-editor"));
     controller.add_shortcut(make_shortcut("F5", "win.refresh-page"));
+    controller.add_shortcut(make_shortcut("<Primary>f", "win.find-in-results"));
     window.add_controller(controller);
 }
 
@@ -1079,6 +1343,7 @@ fn build_shortcuts_window(parent: &adw::ApplicationWindow) -> gtk::ShortcutsWind
 
     let general = gtk::ShortcutsGroup::builder().title("General").build();
     general.append(&shortcut_entry("<Primary>e", "Open SQL editor"));
+    general.append(&shortcut_entry("<Primary>f", "Find in results"));
     general.append(&shortcut_entry("F5", "Refresh table"));
     general.append(&shortcut_entry("<Primary>question", "Show keyboard shortcuts"));
     general.append(&shortcut_entry("<Primary>q", "Quit"));
@@ -1108,6 +1373,13 @@ fn shortcut_entry(accel: &str, title: &str) -> gtk::ShortcutsShortcut {
 impl App {
     fn on_show_shortcuts(&self) {
         build_shortcuts_window(&self.window).present();
+    }
+
+    fn on_find_in_results(&self) {
+        if !self.grid_search_revealer.is_child_revealed() {
+            self.grid_search_revealer.set_reveal_child(true);
+        }
+        self.grid_search.grab_focus();
     }
 
     fn on_show_about(&self) {

@@ -36,4 +36,8 @@ impl RowObject {
     pub fn cell_value(&self, idx: usize) -> Value {
         self.imp().cells.borrow().get(idx).cloned().unwrap_or(Value::Null)
     }
+
+    pub fn cells_clone(&self) -> Vec<Value> {
+        self.imp().cells.borrow().clone()
+    }
 }

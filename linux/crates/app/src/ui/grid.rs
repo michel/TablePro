@@ -1,3 +1,6 @@
+use std::cell::RefCell;
+use std::rc::Rc;
+
 use gtk4::prelude::*;
 use gtk4::{self as gtk};
 
@@ -6,29 +9,85 @@ use tablepro_core::{ColumnInfo, QueryResult, Value};
 use super::row_object::RowObject;
 use crate::ui::app::AppMsg;
 
+pub type FilterSetter = Rc<dyn Fn(&str)>;
+
 pub fn build_column_view(
     result: &QueryResult,
     schema_columns: &[ColumnInfo],
     table: &str,
-    sender: Option<relm4::Sender<AppMsg>>,
-) -> (gtk::ColumnView, gtk::SingleSelection) {
+    edit_sender: Option<relm4::Sender<AppMsg>>,
+    sort: Option<(usize, bool)>,
+    sort_sender: Option<relm4::Sender<AppMsg>>,
+) -> (gtk::ColumnView, gtk::MultiSelection, FilterSetter) {
     let store = gtk4::gio::ListStore::new::<RowObject>();
     for row in &result.rows {
         store.append(&RowObject::new(row.clone()));
     }
-    let selection = gtk::SingleSelection::new(Some(store));
+    let filter_text: Rc<RefCell<String>> = Rc::new(RefCell::new(String::new()));
+    let filter_text_for_filter = filter_text.clone();
+    let filter = gtk::CustomFilter::new(move |item| {
+        let query = filter_text_for_filter.borrow();
+        if query.is_empty() {
+            return true;
+        }
+        let Some(row) = item.downcast_ref::<RowObject>() else {
+            return true;
+        };
+        let needle = query.to_lowercase();
+        row.cells_clone()
+            .iter()
+            .any(|v| value_to_display_text(v).to_lowercase().contains(&needle))
+    });
+    let filter_model = gtk::FilterListModel::new(Some(store), Some(filter.clone()));
+    let selection = gtk::MultiSelection::new(Some(filter_model));
+
+    let filter_for_setter = filter.clone();
+    let setter: FilterSetter = Rc::new(move |q: &str| {
+        filter_text.replace(q.to_string());
+        filter_for_setter.changed(gtk::FilterChange::Different);
+    });
     let column_view = gtk::ColumnView::builder()
         .model(&selection)
         .show_row_separators(true)
         .show_column_separators(true)
         .build();
 
+    let mut columns: Vec<gtk::ColumnViewColumn> = Vec::with_capacity(result.columns.len());
     for (i, column) in result.columns.iter().enumerate() {
         let editable = is_cell_editable(schema_columns.get(i).unwrap_or(column));
-        column_view.append_column(&build_column(column, i, editable, table.to_string(), sender.clone()));
+        let sort_indicator = sort.and_then(|(c, asc)| if c == i { Some(asc) } else { None });
+        let col = build_column(
+            column,
+            i,
+            editable,
+            table.to_string(),
+            edit_sender.clone(),
+            sort_indicator,
+            sort_sender.clone(),
+        );
+        column_view.append_column(&col);
+        columns.push(col);
     }
 
-    (column_view, selection)
+    if let Some(app_sender) = sort_sender
+        && let Some(view_sorter) = column_view
+            .sorter()
+            .and_then(|s| s.downcast::<gtk::ColumnViewSorter>().ok())
+    {
+        view_sorter.connect_primary_sort_column_notify(move |sorter| {
+            let Some(active) = sorter.primary_sort_column() else {
+                return;
+            };
+            for (idx, col) in columns.iter().enumerate() {
+                if col == &active {
+                    app_sender.send(AppMsg::SortChanged(idx)).ok();
+                    break;
+                }
+            }
+        });
+    }
+
+    (column_view, selection, setter)
 }
 
 fn build_column(
@@ -37,6 +96,8 @@ fn build_column(
     editable: bool,
     table: String,
     sender: Option<relm4::Sender<AppMsg>>,
+    sort_indicator: Option<bool>,
+    sort_sender: Option<relm4::Sender<AppMsg>>,
 ) -> gtk::ColumnViewColumn {
     let factory = gtk::SignalListItemFactory::new();
     let editable_for_setup = editable && sender.is_some();
@@ -101,12 +162,18 @@ fn build_column(
             return;
         };
         let value = row.cell_value(idx);
+        let is_null = matches!(value, Value::Null);
         let text = if editable_for_bind {
             value_to_edit_text(&value)
         } else {
             value_to_display_text(&value)
         };
         label.set_text(&text);
+        if is_null && !editable_for_bind {
+            label.add_css_class("dim-label");
+        } else {
+            label.remove_css_class("dim-label");
+        }
         POSITION_SLOT.set(&label, item.position());
     });
 
@@ -124,12 +191,22 @@ fn build_column(
         SNAPSHOT_SLOT.take(&label);
     });
 
-    gtk::ColumnViewColumn::builder()
-        .title(&info.name)
+    let title = match sort_indicator {
+        Some(true) => format!("{} \u{2191}", info.name),
+        Some(false) => format!("{} \u{2193}", info.name),
+        None => info.name.clone(),
+    };
+    let column = gtk::ColumnViewColumn::builder()
+        .title(&title)
         .factory(&factory)
         .resizable(true)
         .expand(true)
-        .build()
+        .build();
+    if sort_sender.is_some() {
+        let dummy = gtk::CustomSorter::new(|_, _| gtk::Ordering::Equal);
+        column.set_sorter(Some(&dummy));
+    }
+    column
 }
 
 fn is_cell_editable(col: &ColumnInfo) -> bool {
