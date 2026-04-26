@@ -28,6 +28,7 @@ jobs:
             pkg-config \
             libgtk-4-dev \
             libadwaita-1-dev \
+            libgtksourceview-5-dev \
             libssl-dev \
             libsecret-1-dev
       - uses: dtolnay/rust-toolchain@1.93

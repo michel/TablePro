@@ -32,6 +32,7 @@ pub trait Connection: Send + Sync {
     async fn list_tables(&self) -> Result<Vec<TableInfo>, DriverError>;
     async fn fetch_columns(&self, table: &str) -> Result<Vec<ColumnInfo>, DriverError>;
     async fn fetch_rows(&self, table: &str, offset: u64, limit: u64) -> Result<QueryResult, DriverError>;
+    async fn query(&self, sql: &str) -> Result<QueryResult, DriverError>;
     async fn execute(&self, sql: &str) -> Result<ExecResult, DriverError>;
     async fn ping(&self) -> Result<(), DriverError>;
     async fn close(self: Box<Self>) -> Result<(), DriverError>;

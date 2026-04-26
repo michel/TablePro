@@ -91,7 +91,11 @@ impl Connection for MysqlConnection {
     async fn fetch_rows(&self, table: &str, offset: u64, limit: u64) -> Result<QueryResult, DriverError> {
         let safe = table.replace('`', "");
         let sql = format!("SELECT * FROM `{safe}` LIMIT {limit} OFFSET {offset}");
-        let rows = sqlx::query(&sql).fetch_all(&self.pool).await.map_err(map_sqlx_error)?;
+        self.query(&sql).await
+    }
+
+    async fn query(&self, sql: &str) -> Result<QueryResult, DriverError> {
+        let rows = sqlx::query(sql).fetch_all(&self.pool).await.map_err(map_sqlx_error)?;
         if rows.is_empty() {
             return Ok(QueryResult {
                 columns: Vec::new(),

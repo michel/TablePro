@@ -17,6 +17,7 @@ tablepro-driver-sqlite = { path = "../drivers/sqlite" }
 tablepro-storage = { path = "../storage" }
 gtk4.workspace = true
 libadwaita.workspace = true
+sourceview5.workspace = true
 glib.workspace = true
 relm4.workspace = true
 tokio.workspace = true

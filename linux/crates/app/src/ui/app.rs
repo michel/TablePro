@@ -9,6 +9,7 @@ use tablepro_storage::SavedConnection;
 use uuid::Uuid;
 
 use super::connect_dialog::{ConnectDialog, ConnectDialogInit, ConnectDialogOutput};
+use super::editor::SqlEditor;
 use super::grid::build_column_view;
 use crate::runtime;
 use crate::services::{connection_holder, connection_service};
@@ -21,6 +22,7 @@ pub struct App {
     connections_listbox: gtk::ListBox,
     connections_popover: gtk::Popover,
     dialog: Option<Controller<ConnectDialog>>,
+    editor: Option<Controller<SqlEditor>>,
     selected: Option<String>,
 }
 
@@ -36,6 +38,7 @@ pub enum AppMsg {
     ConnectionsLoaded(Vec<SavedConnection>),
     OpenSaved(SavedConnection),
     DeleteConnection(Uuid),
+    OpenEditor,
 }
 
 #[relm4::component(pub)]
@@ -68,6 +71,12 @@ impl SimpleComponent for App {
                         #[wrap(Some)]
                         #[name = "connections_popover"]
                         set_popover = &gtk::Popover {},
+                    },
+
+                    pack_end = &gtk::Button {
+                        set_icon_name: "edit-symbolic",
+                        set_tooltip_text: Some("SQL editor"),
+                        connect_clicked => AppMsg::OpenEditor,
                     },
                 },
 
@@ -152,6 +161,7 @@ impl SimpleComponent for App {
             connections_listbox,
             connections_popover: widgets.connections_popover.clone(),
             dialog: None,
+            editor: None,
             selected: None,
         };
         sender.input(AppMsg::ReloadConnections);
@@ -189,6 +199,7 @@ impl SimpleComponent for App {
             }
 
             AppMsg::SelectTable(name) => {
+                self.editor = None;
                 self.selected = Some(name.clone());
                 self.set_status_page("Loading…", &format!("Fetching rows from {name}"));
                 let conn = match connection_holder::get() {
@@ -254,6 +265,16 @@ impl SimpleComponent for App {
                     sender.clone(),
                     self.connections_popover.clone(),
                 );
+            }
+
+            AppMsg::OpenEditor => {
+                if connection_holder::get().is_none() {
+                    self.set_status_page("No connection", "Connect to a database first to run SQL.");
+                    return;
+                }
+                let editor = SqlEditor::builder().launch(()).detach();
+                self.content_holder.set_content(Some(editor.widget()));
+                self.editor = Some(editor);
             }
 
             AppMsg::DeleteConnection(id) => {
