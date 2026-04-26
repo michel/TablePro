@@ -1,0 +1,11 @@
+# Source files containing translatable strings.
+# Used by `xtr` (Rust xgettext) when regenerating po/tablepro.pot.
+crates/app/src/ui/app.rs
+crates/app/src/ui/connect_dialog.rs
+crates/app/src/ui/edit_dialog.rs
+crates/app/src/ui/editor.rs
+crates/app/src/ui/error_text.rs
+crates/app/src/ui/grid.rs
+crates/app/src/ui/insert_dialog.rs
+crates/app/src/ui/preferences.rs
+crates/app/src/ui/ssh_section.rs

@@ -393,7 +393,7 @@ impl SimpleComponent for App {
             .margin_end(12)
             .build();
         let header = gtk::Label::builder()
-            .label("Saved Connections")
+            .label(crate::tr!("Saved Connections"))
             .halign(gtk::Align::Start)
             .build();
         header.add_css_class("heading");
@@ -1218,11 +1218,11 @@ impl App {
         if self.saved_connections.is_empty() {
             let page = adw::StatusPage::builder()
                 .icon_name("network-server-symbolic")
-                .title("Connect to a database")
-                .description("Add a connection to get started.")
+                .title(crate::tr!("Connect to a database"))
+                .description(crate::tr!("Add a connection to get started."))
                 .build();
             let new_btn = gtk::Button::builder()
-                .label("New connection")
+                .label(crate::tr!("New connection"))
                 .halign(gtk::Align::Center)
                 .build();
             new_btn.add_css_class("suggested-action");
@@ -1250,7 +1250,10 @@ impl App {
             .build();
         outer.set_size_request(560, -1);
 
-        let header = gtk::Label::builder().label("Saved connections").xalign(0.0).build();
+        let header = gtk::Label::builder()
+            .label(crate::tr!("Saved connections"))
+            .xalign(0.0)
+            .build();
         header.add_css_class("title-2");
         outer.append(&header);
 
@@ -1274,7 +1277,7 @@ impl App {
         outer.append(&group);
 
         let new_btn = gtk::Button::builder()
-            .label("New connection")
+            .label(crate::tr!("New connection"))
             .halign(gtk::Align::Center)
             .margin_top(8)
             .build();
@@ -1756,15 +1759,15 @@ fn qualified_label(schema: Option<&str>, table: &str) -> String {
 fn primary_menu_model() -> gio::Menu {
     let menu = gio::Menu::new();
     let connection_section = gio::Menu::new();
-    connection_section.append(Some("Disconnect"), Some("win.disconnect"));
+    connection_section.append(Some(&crate::tr!("Disconnect")), Some("win.disconnect"));
     menu.append_section(None, &connection_section);
     let prefs_section = gio::Menu::new();
-    prefs_section.append(Some("Preferences"), Some("win.preferences"));
+    prefs_section.append(Some(&crate::tr!("Preferences")), Some("win.preferences"));
     menu.append_section(None, &prefs_section);
     let app_section = gio::Menu::new();
-    app_section.append(Some("Keyboard Shortcuts"), Some("win.shortcuts"));
-    app_section.append(Some("About TablePro"), Some("win.about"));
-    app_section.append(Some("Quit"), Some("win.quit"));
+    app_section.append(Some(&crate::tr!("Keyboard Shortcuts")), Some("win.shortcuts"));
+    app_section.append(Some(&crate::tr!("About TablePro")), Some("win.about"));
+    app_section.append(Some(&crate::tr!("Quit")), Some("win.quit"));
     menu.append_section(None, &app_section);
     menu
 }
@@ -2081,20 +2084,22 @@ impl App {
 
     fn on_show_about(&self) {
         let dialog = adw::AboutDialog::builder()
-            .application_name("TablePro Linux")
+            .application_name(crate::tr!("TablePro Linux"))
             .application_icon("com.tablepro.Linux")
-            .developer_name("TablePro Authors")
+            .developer_name(crate::tr!("TablePro Authors"))
             .version(env!("CARGO_PKG_VERSION"))
             .website("https://github.com/TableProApp/TablePro")
             .issue_url("https://github.com/TableProApp/TablePro/issues")
             .support_url("https://github.com/TableProApp/TablePro/discussions")
-            .copyright("© 2025–2026 TablePro Authors")
+            .copyright(crate::tr!("© 2025–2026 TablePro Authors"))
             .license_type(gtk::License::Custom)
-            .license("Source-available; license not yet finalised. See https://github.com/TableProApp/TablePro for the latest terms.")
-            .comments("A native Linux database client built with GTK4 + libadwaita.")
+            .license(crate::tr!(
+                "Source-available; license not yet finalised. See https://github.com/TableProApp/TablePro for the latest terms."
+            ))
+            .comments(crate::tr!("A native Linux database client built with GTK4 + libadwaita."))
             .build();
         dialog.set_developers(&["TablePro Authors https://github.com/TableProApp/TablePro"]);
-        dialog.set_translator_credits("translator-credits");
+        dialog.set_translator_credits(&crate::tr!("translator-credits"));
         dialog.present(Some(&self.window));
     }
 }
