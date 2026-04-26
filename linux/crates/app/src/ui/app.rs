@@ -2092,11 +2092,10 @@ impl App {
             .issue_url("https://github.com/TableProApp/TablePro/issues")
             .support_url("https://github.com/TableProApp/TablePro/discussions")
             .copyright(crate::tr!("© 2025–2026 TablePro Authors"))
-            .license_type(gtk::License::Custom)
-            .license(crate::tr!(
-                "Source-available; license not yet finalised. See https://github.com/TableProApp/TablePro for the latest terms."
+            .license_type(gtk::License::Agpl30)
+            .comments(crate::tr!(
+                "A native Linux database client built with GTK4 + libadwaita."
             ))
-            .comments(crate::tr!("A native Linux database client built with GTK4 + libadwaita."))
             .build();
         dialog.set_developers(&["TablePro Authors https://github.com/TableProApp/TablePro"]);
         dialog.set_translator_credits(&crate::tr!("translator-credits"));
