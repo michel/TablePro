@@ -163,6 +163,13 @@ pub fn value_to_display_text(value: &Value) -> String {
         Value::Float(f) => f.to_string(),
         Value::Text(s) => s.clone(),
         Value::Bytes(b) => format!("<{} bytes>", b.len()),
+        Value::Date(d) => d.format("%Y-%m-%d").to_string(),
+        Value::Time(t) => t.format("%H:%M:%S").to_string(),
+        Value::DateTime(dt) => dt.format("%Y-%m-%d %H:%M:%S").to_string(),
+        Value::TimestampTz(ts) => ts.format("%Y-%m-%d %H:%M:%S%:z").to_string(),
+        Value::Decimal(d) => d.to_string(),
+        Value::Uuid(u) => u.to_string(),
+        Value::Json(j) => j.to_string(),
     }
 }
 
@@ -220,7 +227,7 @@ mod tests {
     }
 
     #[test]
-    fn display_text_variants() {
+    fn display_text_primitive_variants() {
         assert_eq!(value_to_display_text(&Value::Null), "NULL");
         assert_eq!(value_to_display_text(&Value::Bool(true)), "true");
         assert_eq!(value_to_display_text(&Value::Int(42)), "42");
@@ -229,9 +236,55 @@ mod tests {
     }
 
     #[test]
+    fn display_text_temporal_variants() {
+        let date = chrono::NaiveDate::from_ymd_opt(2026, 4, 26).unwrap();
+        assert_eq!(value_to_display_text(&Value::Date(date)), "2026-04-26");
+
+        let time = chrono::NaiveTime::from_hms_opt(14, 30, 0).unwrap();
+        assert_eq!(value_to_display_text(&Value::Time(time)), "14:30:00");
+
+        let datetime = chrono::NaiveDateTime::new(date, time);
+        assert_eq!(value_to_display_text(&Value::DateTime(datetime)), "2026-04-26 14:30:00");
+
+        let tz = chrono::DateTime::<chrono::Utc>::from_naive_utc_and_offset(datetime, chrono::Utc);
+        assert_eq!(
+            value_to_display_text(&Value::TimestampTz(tz)),
+            "2026-04-26 14:30:00+00:00"
+        );
+    }
+
+    #[test]
+    fn display_text_extended_variants() {
+        let dec: rust_decimal::Decimal = "1234.56789".parse().unwrap();
+        assert_eq!(value_to_display_text(&Value::Decimal(dec)), "1234.56789");
+
+        let id = uuid::Uuid::parse_str("550e8400-e29b-41d4-a716-446655440000").unwrap();
+        assert_eq!(
+            value_to_display_text(&Value::Uuid(id)),
+            "550e8400-e29b-41d4-a716-446655440000"
+        );
+
+        let json = serde_json::json!({"a": 1, "b": [2, 3]});
+        let text = value_to_display_text(&Value::Json(json));
+        assert!(text.contains("\"a\":1"));
+    }
+
+    #[test]
     fn edit_text_distinguishes_null_from_text_null() {
         assert_eq!(value_to_edit_text(&Value::Null), "");
         assert_eq!(value_to_edit_text(&Value::Text("NULL".into())), "NULL");
         assert_eq!(value_to_edit_text(&Value::Int(0)), "0");
+    }
+
+    #[test]
+    fn edit_text_keeps_extended_variants_visible() {
+        let date = chrono::NaiveDate::from_ymd_opt(2026, 4, 26).unwrap();
+        assert_eq!(value_to_edit_text(&Value::Date(date)), "2026-04-26");
+
+        let id = uuid::Uuid::parse_str("550e8400-e29b-41d4-a716-446655440000").unwrap();
+        assert_eq!(
+            value_to_edit_text(&Value::Uuid(id)),
+            "550e8400-e29b-41d4-a716-446655440000"
+        );
     }
 }

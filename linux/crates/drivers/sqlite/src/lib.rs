@@ -135,6 +135,13 @@ impl Connection for SqliteConnection {
                 Value::Float(f) => q.bind(*f),
                 Value::Text(s) => q.bind(s.clone()),
                 Value::Bytes(b) => q.bind(b.clone()),
+                Value::Date(d) => q.bind(*d),
+                Value::Time(t) => q.bind(*t),
+                Value::DateTime(dt) => q.bind(*dt),
+                Value::TimestampTz(ts) => q.bind(*ts),
+                Value::Decimal(d) => q.bind(d.to_string()),
+                Value::Uuid(u) => q.bind(u.to_string()),
+                Value::Json(j) => q.bind(j.to_string()),
             };
         }
         let res = q.execute(&self.pool).await.map_err(map_sqlx_error)?;
@@ -158,22 +165,29 @@ impl Connection for SqliteConnection {
 }
 
 fn extract_value(row: &SqliteRow, idx: usize) -> Value {
-    if let Ok(s) = row.try_get::<String, _>(idx) {
-        return Value::Text(s);
+    let type_name = row.columns()[idx].type_info().name().to_ascii_uppercase();
+    match type_name.as_str() {
+        "INTEGER" => row.try_get::<i64, _>(idx).map(Value::Int).unwrap_or(Value::Null),
+        "REAL" => row.try_get::<f64, _>(idx).map(Value::Float).unwrap_or(Value::Null),
+        "BLOB" => row.try_get::<Vec<u8>, _>(idx).map(Value::Bytes).unwrap_or(Value::Null),
+        "BOOLEAN" => row.try_get::<bool, _>(idx).map(Value::Bool).unwrap_or(Value::Null),
+        "DATE" => row
+            .try_get::<chrono::NaiveDate, _>(idx)
+            .map(Value::Date)
+            .or_else(|_| row.try_get::<String, _>(idx).map(Value::Text))
+            .unwrap_or(Value::Null),
+        "TIME" => row
+            .try_get::<chrono::NaiveTime, _>(idx)
+            .map(Value::Time)
+            .or_else(|_| row.try_get::<String, _>(idx).map(Value::Text))
+            .unwrap_or(Value::Null),
+        "DATETIME" | "TIMESTAMP" => row
+            .try_get::<chrono::NaiveDateTime, _>(idx)
+            .map(Value::DateTime)
+            .or_else(|_| row.try_get::<String, _>(idx).map(Value::Text))
+            .unwrap_or(Value::Null),
+        _ => row.try_get::<String, _>(idx).map(Value::Text).unwrap_or(Value::Null),
     }
-    if let Ok(v) = row.try_get::<i64, _>(idx) {
-        return Value::Int(v);
-    }
-    if let Ok(v) = row.try_get::<f64, _>(idx) {
-        return Value::Float(v);
-    }
-    if let Ok(v) = row.try_get::<bool, _>(idx) {
-        return Value::Bool(v);
-    }
-    if let Ok(v) = row.try_get::<Vec<u8>, _>(idx) {
-        return Value::Bytes(v);
-    }
-    Value::Null
 }
 
 fn map_sqlx_error(err: sqlx::Error) -> DriverError {

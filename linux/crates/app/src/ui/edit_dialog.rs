@@ -190,10 +190,6 @@ impl SimpleComponent for EditDialog {
 fn value_to_text(value: &Value) -> String {
     match value {
         Value::Null => String::new(),
-        Value::Bool(b) => b.to_string(),
-        Value::Int(i) => i.to_string(),
-        Value::Float(f) => f.to_string(),
-        Value::Text(s) => s.clone(),
-        Value::Bytes(b) => format!("<{} bytes>", b.len()),
+        other => super::grid::value_to_display_text(other),
     }
 }

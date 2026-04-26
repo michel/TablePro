@@ -825,13 +825,10 @@ fn preview_pk(columns: &[ColumnInfo], pk_indexes: &[usize], row: &[Value]) -> St
         .iter()
         .map(|i| {
             let name = &columns[*i].name;
+            let raw = super::grid::value_to_display_text(&row[*i]);
             let value = match &row[*i] {
-                Value::Null => "NULL".to_string(),
-                Value::Bool(b) => b.to_string(),
-                Value::Int(i) => i.to_string(),
-                Value::Float(f) => f.to_string(),
-                Value::Text(s) => format!("'{}'", s),
-                Value::Bytes(b) => format!("<{} bytes>", b.len()),
+                Value::Text(_) => format!("'{raw}'"),
+                _ => raw,
             };
             format!("{name} = {value}")
         })
