@@ -4,7 +4,6 @@ use relm4::{adw, gtk};
 
 use tablepro_core::{ColumnInfo, Value};
 
-use crate::runtime;
 use crate::services::connection_holder;
 use crate::sql_dialect::{placeholder_for, quote_ident};
 
@@ -151,18 +150,16 @@ impl SimpleComponent for InsertDialog {
                 self.status.set_label("Inserting…");
 
                 let sender_clone = sender.clone();
-                let (tx, rx) = async_channel::bounded(1);
-                runtime::handle().spawn(async move {
-                    let result = conn.execute_params(&sql, &params).await;
-                    let _ = tx.send(result).await;
-                });
-                glib::spawn_future_local(async move {
-                    if let Ok(result) = rx.recv().await {
-                        match result {
-                            Ok(_) => sender_clone.input(InsertDialogInput::Inserted),
-                            Err(e) => sender_clone.input(InsertDialogInput::ShowError(format!("{e}"))),
-                        }
-                    }
+                sender.command(move |_, shutdown| {
+                    shutdown
+                        .register(async move {
+                            match conn.execute_params(&sql, &params).await {
+                                Ok(_) => sender_clone.input(InsertDialogInput::Inserted),
+                                Err(e) => sender_clone
+                                    .input(InsertDialogInput::ShowError(super::error_text::driver_message(&e))),
+                            }
+                        })
+                        .drop_on_shutdown()
                 });
             }
 

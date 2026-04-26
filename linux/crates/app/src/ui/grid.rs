@@ -14,8 +14,7 @@ pub fn build_column_view(
 ) -> (gtk::ColumnView, gtk::SingleSelection) {
     let store = gtk4::gio::ListStore::new::<RowObject>();
     for row in &result.rows {
-        let cells = row.iter().map(value_to_string).collect();
-        store.append(&RowObject::new(cells));
+        store.append(&RowObject::new(row.clone()));
     }
     let selection = gtk::SingleSelection::new(Some(store));
     let column_view = gtk::ColumnView::builder()
@@ -94,6 +93,7 @@ fn build_column(
         });
     });
 
+    let editable_for_bind = editable_for_setup;
     factory.connect_bind(move |_, item| {
         let Some(item) = item.downcast_ref::<gtk::ListItem>() else {
             return;
@@ -104,7 +104,12 @@ fn build_column(
         let Some(label) = item.child().and_downcast::<gtk::EditableLabel>() else {
             return;
         };
-        let text = row.cell(idx);
+        let value = row.cell_value(idx);
+        let text = if editable_for_bind {
+            value_to_edit_text(&value)
+        } else {
+            value_to_display_text(&value)
+        };
         label.set_text(&text);
         unsafe {
             label.set_data("tp-position", item.position());
@@ -150,7 +155,7 @@ struct EditSnapshot {
     original: String,
 }
 
-pub fn value_to_string(value: &Value) -> String {
+pub fn value_to_display_text(value: &Value) -> String {
     match value {
         Value::Null => "NULL".into(),
         Value::Bool(b) => b.to_string(),
@@ -158,6 +163,13 @@ pub fn value_to_string(value: &Value) -> String {
         Value::Float(f) => f.to_string(),
         Value::Text(s) => s.clone(),
         Value::Bytes(b) => format!("<{} bytes>", b.len()),
+    }
+}
+
+pub fn value_to_edit_text(value: &Value) -> String {
+    match value {
+        Value::Null => String::new(),
+        other => value_to_display_text(other),
     }
 }
 
@@ -208,11 +220,18 @@ mod tests {
     }
 
     #[test]
-    fn value_to_string_variants() {
-        assert_eq!(value_to_string(&Value::Null), "NULL");
-        assert_eq!(value_to_string(&Value::Bool(true)), "true");
-        assert_eq!(value_to_string(&Value::Int(42)), "42");
-        assert_eq!(value_to_string(&Value::Text("hello".into())), "hello");
-        assert_eq!(value_to_string(&Value::Bytes(vec![0u8; 16])), "<16 bytes>");
+    fn display_text_variants() {
+        assert_eq!(value_to_display_text(&Value::Null), "NULL");
+        assert_eq!(value_to_display_text(&Value::Bool(true)), "true");
+        assert_eq!(value_to_display_text(&Value::Int(42)), "42");
+        assert_eq!(value_to_display_text(&Value::Text("hello".into())), "hello");
+        assert_eq!(value_to_display_text(&Value::Bytes(vec![0u8; 16])), "<16 bytes>");
+    }
+
+    #[test]
+    fn edit_text_distinguishes_null_from_text_null() {
+        assert_eq!(value_to_edit_text(&Value::Null), "");
+        assert_eq!(value_to_edit_text(&Value::Text("NULL".into())), "NULL");
+        assert_eq!(value_to_edit_text(&Value::Int(0)), "0");
     }
 }

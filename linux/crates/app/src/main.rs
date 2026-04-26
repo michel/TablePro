@@ -4,7 +4,6 @@ use relm4::RelmApp;
 
 use tablepro_core::DriverRegistry;
 
-mod runtime;
 mod services;
 mod sql_dialect;
 mod ui;
@@ -19,7 +18,6 @@ fn main() {
 
     let registry = Arc::new(build_registry());
     tracing::info!(drivers = registry.len(), "starting tablepro-app");
-    let _ = runtime::handle();
 
     let app = RelmApp::new(APP_ID);
     app.run::<ui::App>(registry);

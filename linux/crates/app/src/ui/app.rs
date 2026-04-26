@@ -13,7 +13,6 @@ use super::edit_dialog::{EditDialog, EditDialogInit, EditDialogOutput};
 use super::editor::SqlEditor;
 use super::grid::build_column_view;
 use super::insert_dialog::{InsertDialog, InsertDialogInit, InsertDialogOutput};
-use crate::runtime;
 use crate::services::{connection_holder, connection_service};
 use crate::sql_dialect::{placeholder_for, quote_ident};
 
@@ -557,7 +556,10 @@ impl SimpleComponent for App {
                     .map(|(i, _)| i)
                     .collect();
                 if pk_indexes.is_empty() {
-                    self.show_error_alert("Cannot delete", "Table has no primary key.");
+                    self.show_error_alert(
+                        "Cannot delete",
+                        &super::error_text::build_sql_message(&crate::sql_dialect::BuildSqlError::NoPrimaryKey),
+                    );
                     return;
                 }
 
@@ -625,7 +627,7 @@ impl SimpleComponent for App {
                 ) {
                     Ok(t) => t,
                     Err(e) => {
-                        self.show_error_alert("Cannot update cell", &e.to_string());
+                        self.show_error_alert("Cannot update cell", &super::error_text::build_sql_message(&e));
                         return;
                     }
                 };
@@ -633,15 +635,15 @@ impl SimpleComponent for App {
             }
 
             AppMsg::ReloadConnections => {
-                let (tx, rx) = async_channel::bounded(1);
-                runtime::handle().spawn(async move {
-                    let _ = tx.send(tablepro_storage::load_connections().await).await;
-                });
-                let sender_recv = sender.clone();
-                glib::spawn_future_local(async move {
-                    if let Ok(Ok(connections)) = rx.recv().await {
-                        sender_recv.input(AppMsg::ConnectionsLoaded(connections));
-                    }
+                let sender_clone = sender.clone();
+                sender.command(move |_, shutdown| {
+                    shutdown
+                        .register(async move {
+                            if let Ok(connections) = tablepro_storage::load_connections().await {
+                                sender_clone.input(AppMsg::ConnectionsLoaded(connections));
+                            }
+                        })
+                        .drop_on_shutdown()
                 });
             }
 
@@ -665,17 +667,15 @@ impl SimpleComponent for App {
             }
 
             AppMsg::DeleteConnection(id) => {
-                let (tx, rx) = async_channel::bounded(1);
-                runtime::handle().spawn(async move {
-                    let _ = tablepro_storage::delete_connection(id).await;
-                    let _ = tablepro_storage::delete_password(id).await;
-                    let _ = tx.send(()).await;
-                });
-                let sender_recv = sender.clone();
-                glib::spawn_future_local(async move {
-                    if rx.recv().await.is_ok() {
-                        sender_recv.input(AppMsg::ReloadConnections);
-                    }
+                let sender_clone = sender.clone();
+                sender.command(move |_, shutdown| {
+                    shutdown
+                        .register(async move {
+                            let _ = tablepro_storage::delete_connection(id).await;
+                            let _ = tablepro_storage::delete_password(id).await;
+                            sender_clone.input(AppMsg::ReloadConnections);
+                        })
+                        .drop_on_shutdown()
                 });
             }
 
@@ -684,20 +684,16 @@ impl SimpleComponent for App {
                 self.set_status_page("Connecting…", &format!("Opening {}", saved.name));
                 let driver_id = saved.driver_id.clone();
                 let registry = self.registry.clone();
-                let saved_for_task = saved.clone();
-                let (tx, rx) = async_channel::bounded(1);
-                runtime::handle().spawn(async move {
-                    let result = connection_service::open_saved(registry, saved_for_task).await;
-                    let _ = tx.send(result).await;
-                });
-                let sender_recv = sender.clone();
-                glib::spawn_future_local(async move {
-                    if let Ok(result) = rx.recv().await {
-                        match result {
-                            Ok(tables) => sender_recv.input(AppMsg::Connected { tables, driver_id }),
-                            Err(e) => sender_recv.input(AppMsg::LoadFailed(e)),
-                        }
-                    }
+                let sender_clone = sender.clone();
+                sender.command(move |_, shutdown| {
+                    shutdown
+                        .register(async move {
+                            match connection_service::open_saved(registry, saved).await {
+                                Ok(tables) => sender_clone.input(AppMsg::Connected { tables, driver_id }),
+                                Err(e) => sender_clone.input(AppMsg::LoadFailed(e)),
+                            }
+                        })
+                        .drop_on_shutdown()
                 });
             }
         }
@@ -719,47 +715,36 @@ impl App {
             return;
         };
         let offset = self.current_offset;
-        let conn = match connection_holder::get() {
-            Some(c) => c,
-            None => {
-                sender.input(AppMsg::LoadFailed("no active connection".into()));
-                return;
-            }
+        let Some(conn) = connection_holder::get() else {
+            sender.input(AppMsg::LoadFailed("no active connection".into()));
+            return;
         };
-        let table_for_task = table.clone();
-        let (tx, rx) = async_channel::bounded(1);
-        runtime::handle().spawn(async move {
-            let result = conn.fetch_rows(&table_for_task, offset, PAGE_SIZE).await;
-            let _ = tx.send(result).await;
-        });
-        let sender_recv = sender.clone();
-        let table_for_send = table;
-        glib::spawn_future_local(async move {
-            if let Ok(result) = rx.recv().await {
-                match result {
-                    Ok(query_result) => sender_recv.input(AppMsg::RowsLoaded(table_for_send, offset, query_result)),
-                    Err(e) => sender_recv.input(AppMsg::LoadFailed(format!("{e}"))),
-                }
-            }
+        let sender_clone = sender.clone();
+        sender.command(move |_, shutdown| {
+            shutdown
+                .register(async move {
+                    match conn.fetch_rows(&table, offset, PAGE_SIZE).await {
+                        Ok(query_result) => sender_clone.input(AppMsg::RowsLoaded(table, offset, query_result)),
+                        Err(e) => sender_clone.input(AppMsg::LoadFailed(super::error_text::driver_message(&e))),
+                    }
+                })
+                .drop_on_shutdown()
         });
     }
 
     fn fetch_columns(&self, table: String, sender: ComponentSender<App>) {
-        let conn = match connection_holder::get() {
-            Some(c) => c,
-            None => return,
+        let Some(conn) = connection_holder::get() else {
+            return;
         };
-        let table_for_task = table.clone();
-        let (tx, rx) = async_channel::bounded(1);
-        runtime::handle().spawn(async move {
-            let result = conn.fetch_columns(&table_for_task).await;
-            let _ = tx.send(result).await;
-        });
-        let sender_recv = sender.clone();
-        glib::spawn_future_local(async move {
-            if let Ok(Ok(columns)) = rx.recv().await {
-                sender_recv.input(AppMsg::ColumnsLoaded(table, columns));
-            }
+        let sender_clone = sender.clone();
+        sender.command(move |_, shutdown| {
+            shutdown
+                .register(async move {
+                    if let Ok(columns) = conn.fetch_columns(&table).await {
+                        sender_clone.input(AppMsg::ColumnsLoaded(table, columns));
+                    }
+                })
+                .drop_on_shutdown()
         });
     }
 
@@ -779,30 +764,7 @@ impl App {
     }
 
     fn run_execute_then_refetch(&self, sender: ComponentSender<App>, sql: String, params: Vec<Value>) {
-        let Some(conn) = connection_holder::get() else {
-            sender.input(AppMsg::LoadFailed("no active connection".into()));
-            return;
-        };
-        let (tx, rx) = async_channel::bounded(1);
-        runtime::handle().spawn(async move {
-            let result = conn.execute_params(&sql, &params).await;
-            let _ = tx.send(result).await;
-        });
-        let sender_recv = sender.clone();
-        glib::spawn_future_local(async move {
-            if let Ok(result) = rx.recv().await {
-                match result {
-                    Ok(exec) => {
-                        tracing::info!(rows = exec.rows_affected, "execute ok");
-                        sender_recv.input(AppMsg::RowOperationCommitted);
-                    }
-                    Err(e) => {
-                        tracing::warn!(error = %e, "execute failed");
-                        sender_recv.input(AppMsg::LoadFailed(format!("{e}")));
-                    }
-                }
-            }
-        });
+        execute_then_refetch(sender, sql, params);
     }
 
     fn confirm_and_execute(
@@ -820,41 +782,42 @@ impl App {
         dialog.set_default_response(Some("cancel"));
         dialog.set_close_response("cancel");
 
-        let table = table.to_string();
+        let _ = table;
         dialog.connect_response(None, move |dialog, response| {
             dialog.close();
             if response != "delete" {
                 return;
             }
-            let Some(conn) = connection_holder::get() else {
-                return;
-            };
             let sql = sql.clone();
             let params = params.clone();
-            let table = table.clone();
-            let sender_clone = sender.clone();
-            let (tx, rx) = async_channel::bounded(1);
-            runtime::handle().spawn(async move {
-                let result = conn.execute_params(&sql, &params).await;
-                let _ = tx.send((table, result)).await;
-            });
-            glib::spawn_future_local(async move {
-                if let Ok((_, result)) = rx.recv().await {
-                    match result {
-                        Ok(exec) => {
-                            tracing::info!(rows = exec.rows_affected, "delete ok");
-                            sender_clone.input(AppMsg::RowOperationCommitted);
-                        }
-                        Err(e) => {
-                            tracing::warn!(error = %e, "delete failed");
-                            sender_clone.input(AppMsg::LoadFailed(format!("delete: {e}")));
-                        }
-                    }
-                }
-            });
+            execute_then_refetch(sender.clone(), sql, params);
         });
         dialog.present(Some(&self.window));
     }
+}
+
+fn execute_then_refetch(sender: ComponentSender<App>, sql: String, params: Vec<Value>) {
+    let Some(conn) = connection_holder::get() else {
+        sender.input(AppMsg::LoadFailed("no active connection".into()));
+        return;
+    };
+    let sender_clone = sender.clone();
+    sender.command(move |_, shutdown| {
+        shutdown
+            .register(async move {
+                match conn.execute_params(&sql, &params).await {
+                    Ok(exec) => {
+                        tracing::info!(rows = exec.rows_affected, "execute ok");
+                        sender_clone.input(AppMsg::RowOperationCommitted);
+                    }
+                    Err(e) => {
+                        tracing::warn!(error = %e, "execute failed");
+                        sender_clone.input(AppMsg::LoadFailed(super::error_text::driver_message(&e)));
+                    }
+                }
+            })
+            .drop_on_shutdown()
+    });
 }
 
 fn preview_pk(columns: &[ColumnInfo], pk_indexes: &[usize], row: &[Value]) -> String {

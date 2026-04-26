@@ -6,7 +6,6 @@ use sourceview5::prelude::*;
 use tablepro_core::QueryResult;
 
 use super::grid::build_column_view;
-use crate::runtime;
 use crate::services::connection_holder;
 
 pub struct SqlEditor {
@@ -146,30 +145,29 @@ impl SimpleComponent for SqlEditor {
                 clear_box(&self.results_holder);
 
                 let started = std::time::Instant::now();
-                let (tx, rx) = async_channel::bounded(1);
-                runtime::handle().spawn(async move {
-                    let result = conn.query(&trimmed).await;
-                    let _ = tx.send((result, started.elapsed())).await;
-                });
-
-                let sender_recv = sender.clone();
-                glib::spawn_future_local(async move {
-                    if let Ok((result, elapsed)) = rx.recv().await {
-                        match result {
-                            Ok(query_result) => {
-                                tracing::info!(
-                                    rows = query_result.rows.len(),
-                                    elapsed_ms = elapsed.as_millis(),
-                                    "query ok"
-                                );
-                                sender_recv.input(SqlEditorInput::ShowResult(query_result));
+                let sender_clone = sender.clone();
+                sender.command(move |_, shutdown| {
+                    shutdown
+                        .register(async move {
+                            let result = conn.query(&trimmed).await;
+                            let elapsed = started.elapsed();
+                            match result {
+                                Ok(query_result) => {
+                                    tracing::info!(
+                                        rows = query_result.rows.len(),
+                                        elapsed_ms = elapsed.as_millis(),
+                                        "query ok"
+                                    );
+                                    sender_clone.input(SqlEditorInput::ShowResult(query_result));
+                                }
+                                Err(e) => {
+                                    tracing::warn!(error = %e, "query failed");
+                                    sender_clone
+                                        .input(SqlEditorInput::ShowError(super::error_text::driver_message(&e)));
+                                }
                             }
-                            Err(e) => {
-                                tracing::warn!(error = %e, "query failed");
-                                sender_recv.input(SqlEditorInput::ShowError(format!("{e}")));
-                            }
-                        }
-                    }
+                        })
+                        .drop_on_shutdown()
                 });
             }
 

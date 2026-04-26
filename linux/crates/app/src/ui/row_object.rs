@@ -3,12 +3,14 @@ use std::cell::RefCell;
 use gtk4::glib;
 use gtk4::subclass::prelude::*;
 
+use tablepro_core::Value;
+
 mod imp {
     use super::*;
 
     #[derive(Default)]
     pub struct RowObject {
-        pub cells: RefCell<Vec<String>>,
+        pub cells: RefCell<Vec<Value>>,
     }
 
     #[glib::object_subclass]
@@ -25,13 +27,13 @@ glib::wrapper! {
 }
 
 impl RowObject {
-    pub fn new(cells: Vec<String>) -> Self {
+    pub fn new(cells: Vec<Value>) -> Self {
         let obj: Self = glib::Object::new();
         *obj.imp().cells.borrow_mut() = cells;
         obj
     }
 
-    pub fn cell(&self, idx: usize) -> String {
-        self.imp().cells.borrow().get(idx).cloned().unwrap_or_default()
+    pub fn cell_value(&self, idx: usize) -> Value {
+        self.imp().cells.borrow().get(idx).cloned().unwrap_or(Value::Null)
     }
 }
