@@ -39,6 +39,19 @@ final class CopilotService {
     @ObservationIgnored private var restartTask: Task<Void, Never>?
     @ObservationIgnored private var restartAttempt: Int = 0
     @ObservationIgnored private let authManager = CopilotAuthManager()
+    @ObservationIgnored private lazy var unauthenticatedStop = CopilotIdleStopController(
+        timeout: Self.unauthenticatedTimeout,
+        isAuthenticated: { [weak self] in self?.isAuthenticated ?? true },
+        isRunning: { [weak self] in self?.status == .running },
+        onStopRequest: { [weak self] in
+            Self.logger.info("Copilot LSP idle without sign-in, stopping")
+            await self?.stop()
+        }
+    )
+
+    /// Stops the LSP server if the user hasn't signed in within this window after start.
+    /// Avoids leaving a Node process idle for users who add a Copilot config but never authorise.
+    private static let unauthenticatedTimeout: Duration = .seconds(5 * 60)
 
     private init() {}
 
@@ -93,6 +106,7 @@ final class CopilotService {
             Self.logger.info("Copilot language server started successfully")
 
             await checkAuthStatus()
+            scheduleUnauthenticatedStopIfNeeded()
         } catch {
             guard generation == serverGeneration else { return }
             status = .error(error.localizedDescription)
@@ -108,6 +122,7 @@ final class CopilotService {
     func stop() async {
         restartTask?.cancel()
         restartTask = nil
+        unauthenticatedStop.cancel()
         serverGeneration += 1
 
         if let client = lspClient {
@@ -125,6 +140,9 @@ final class CopilotService {
     // MARK: - Authentication
 
     func signIn() async throws {
+        if status == .stopped {
+            await start()
+        }
         guard let transport else {
             throw CopilotError.serverNotRunning
         }
@@ -138,12 +156,14 @@ final class CopilotService {
         }
         let username = try await authManager.completeSignIn(transport: transport)
         authState = .signedIn(username: username)
+        unauthenticatedStop.cancel()
     }
 
     func signOut() async {
         guard let transport else { return }
         await authManager.signOut(transport: transport)
         authState = .signedOut
+        scheduleUnauthenticatedStopIfNeeded()
     }
 
     // MARK: - Private
@@ -182,6 +202,10 @@ final class CopilotService {
         }
     }
 
+    private func scheduleUnauthenticatedStopIfNeeded() {
+        unauthenticatedStop.schedule()
+    }
+
     private func handleStatusNotification(_ data: Data) {
         guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let params = json["params"] as? [String: Any] else { return }
@@ -194,6 +218,7 @@ final class CopilotService {
             statusMessage = message
             if let message, message.lowercased().contains("sign") || message.lowercased().contains("expired") {
                 authState = .signedOut
+                scheduleUnauthenticatedStopIfNeeded()
             }
         case "Warning":
             statusMessage = message
