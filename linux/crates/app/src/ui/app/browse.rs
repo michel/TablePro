@@ -200,7 +200,14 @@ impl App {
         self.prev_button.set_sensitive(offset > 0);
         self.next_button.set_sensitive(n_rows as u64 == self.page_size);
 
-        self.content_holder.set_content(Some(&self.browse_view));
+        // Make sure the Browse view-stack page is showing the grid (not a
+        // status / loading page) and the top-level content_holder is the
+        // view_stack itself (not the welcome view).
+        self.browse_inner_stack.set_visible_child_name("grid");
+        self.view_stack.set_visible_child_name("browse");
+        if self.content_holder.content().as_ref() != Some(self.view_stack.upcast_ref::<gtk::Widget>()) {
+            self.content_holder.set_content(Some(&self.view_stack));
+        }
     }
 
     pub(super) fn on_load_failed(&self, msg: String) {

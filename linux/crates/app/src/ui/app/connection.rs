@@ -30,11 +30,14 @@ impl App {
         self.connected = true;
         self.current_driver_id = Some(driver_id.clone());
         self.split_view.set_show_sidebar(true);
-        self.edit_button.set_visible(true);
-        self.edit_button.set_sensitive(true);
-        self.saved_connections_button.set_visible(true);
         self.disconnect_action.set_enabled(true);
         self.table_search.set_text("");
+        // Enter the connected ViewStack: ViewSwitcher tabs in headerbar,
+        // Browse content in main area. Editor page is added lazily on
+        // first AppMsg::OpenEditor.
+        self.title_stack.set_visible_child_name("switcher");
+        self.view_stack.set_visible_child_name("browse");
+        self.content_holder.set_content(Some(&self.view_stack));
         self.table_names = tables.iter().map(|t| t.name.clone()).collect();
         tracing::info!(driver = %driver_id, table_count = tables.len(), "workspace ready");
         self.repopulate_sidebar(&tables);
@@ -43,8 +46,7 @@ impl App {
         self.set_status_page(
             StatusKind::Info,
             &crate::tr!("Select a table"),
-            &crate::tr!("Connected to {driver}. Pick a table from the left to load up to 100,000 rows.")
-                .replace("{driver}", &driver_id),
+            &crate::tr!("Pick a table from the sidebar to load its rows."),
         );
         sender.input(AppMsg::ReloadConnections);
     }
@@ -66,9 +68,6 @@ impl App {
         self.current_selection = None;
         self.current_driver_id = None;
         self.connected = false;
-        self.edit_button.set_sensitive(false);
-        self.edit_button.set_visible(false);
-        self.saved_connections_button.set_visible(false);
         self.split_view.set_show_sidebar(false);
         self.disconnect_action.set_enabled(false);
         self.refresh_crud_buttons();
@@ -76,6 +75,10 @@ impl App {
         self.table_search.set_text("");
         self.sidebar_schemas.borrow_mut().clear();
         self.sidebar_factory.guard().clear();
+        // Reset the Browse inner stack to its default "Select a table"
+        // status so the next connection doesn't briefly flash the prior
+        // session's grid before fetching fresh rows.
+        self.browse_inner_stack.set_visible_child_name("status");
         self.show_welcome_page(sender);
         tracing::info!("disconnected");
     }
@@ -115,7 +118,7 @@ impl App {
     pub(super) fn on_poll_health(&mut self) {
         let current = database_service::instance().active_health();
         if current != self.health_state {
-            self.refresh_health_pill(current.clone());
+            self.refresh_health_banner(current.clone());
             self.health_state = current;
         }
     }
@@ -171,27 +174,11 @@ impl App {
         self.sidebar_factory.widget().invalidate_headers();
     }
 
-    pub(super) fn refresh_health_pill(&self, health: Option<ConnectionHealth>) {
-        let pill = &self.health_pill;
-        pill.remove_css_class("success");
-        pill.remove_css_class("warning");
-        match &health {
-            None => {
-                pill.set_visible(false);
-            }
-            Some(ConnectionHealth::Healthy) => {
-                pill.set_visible(true);
-                pill.set_label(&crate::tr!("Connected"));
-                pill.add_css_class("success");
-            }
-            Some(ConnectionHealth::Reconnecting { attempt }) => {
-                pill.set_visible(true);
-                pill.set_label(
-                    &crate::tr!("Reconnecting · attempt {n} · retrying").replace("{n}", &attempt.to_string()),
-                );
-                pill.add_css_class("warning");
-            }
-        }
+    /// Surfaces connection health via `adw::Banner` only when degraded —
+    /// healthy/disconnected states show no chrome, matching GNOME apps that
+    /// reserve banners for "abnormal, user-actionable" situations (Files
+    /// uses the same pattern for unmounted volumes).
+    pub(super) fn refresh_health_banner(&self, health: Option<ConnectionHealth>) {
         match health {
             Some(ConnectionHealth::Reconnecting { attempt }) => {
                 self.reconnect_banner.set_title(
@@ -205,12 +192,22 @@ impl App {
     }
 
     pub(super) fn refresh_window_title(&self) {
-        let (os_title, subtitle) = match (&self.current_driver_id, &self.current_table) {
-            (Some(driver), Some(table)) => {
+        // Subtitle composes user-facing connection name (e.g. "Production")
+        // with driver, then table when one is selected. Window title (the
+        // OS-level string used by the shell) keeps the "— TablePro" suffix
+        // so it remains identifiable across multiple windows.
+        let metadata = database_service::instance().active_metadata();
+        let connection_name = metadata.as_ref().map(|m| m.name.as_str());
+        let (os_title, subtitle) = match (connection_name, &self.current_driver_id, &self.current_table) {
+            (Some(name), Some(driver), Some(table)) => {
                 let label = qualified_label(self.current_schema.as_deref(), table);
-                (format!("{label} · {driver} — TablePro"), format!("{label} · {driver}"))
+                (
+                    format!("{label} · {name} — TablePro"),
+                    format!("{label} · {name} · {driver}"),
+                )
             }
-            (Some(driver), None) => (format!("{driver} — TablePro"), driver.clone()),
+            (Some(name), Some(driver), None) => (format!("{name} — TablePro"), format!("{name} · {driver}")),
+            (None, Some(driver), _) => (format!("{driver} — TablePro"), driver.clone()),
             _ => ("TablePro".to_string(), String::new()),
         };
         self.window.set_title(Some(&os_title));

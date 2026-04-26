@@ -37,7 +37,6 @@ pub struct App {
     window: adw::ApplicationWindow,
     split_view: adw::OverlaySplitView,
     window_title: adw::WindowTitle,
-    saved_connections_button: gtk::MenuButton,
     disconnect_action: gio::SimpleAction,
     sidebar_factory: FactoryVecDeque<SidebarRow>,
     sidebar_schemas: std::rc::Rc<std::cell::RefCell<Vec<Option<String>>>>,
@@ -46,8 +45,6 @@ pub struct App {
     reconnect_banner: adw::Banner,
     connections_factory: FactoryVecDeque<ConnectionRow>,
     connections_popover: gtk::Popover,
-    edit_button: gtk::Button,
-    health_pill: gtk::Label,
     health_state: Option<ConnectionHealth>,
     row_op_spinner: gtk::Spinner,
     read_only_badge: gtk::Label,
@@ -63,7 +60,21 @@ pub struct App {
     grid_search_bar: gtk::SearchBar,
     grid_search_handler: Option<glib::SignalHandlerId>,
     grid_sender: relm4::Sender<GridMsg>,
-    browse_view: adw::ToolbarView,
+    /// Inner stack for the Browse view-stack page: swaps between the table
+    /// grid (`grid`) and status pages (`status`, `loading`). Replaces the
+    /// previous full-window content swap so the ViewSwitcher tabs remain
+    /// stable while the Browse content updates underneath.
+    browse_inner_stack: gtk::Stack,
+    /// Connected-state content: ViewSwitcher tabs for Browse + Editor.
+    /// Hidden (replaced by `welcome_view`) while disconnected.
+    view_stack: adw::ViewStack,
+    /// Headerbar title-widget: WindowTitle while disconnected, ViewSwitcher
+    /// while connected. Avoids the deprecated AdwViewSwitcherTitle.
+    title_stack: gtk::Stack,
+    /// `true` once the Editor page has been added to view_stack — built
+    /// lazily on first AppMsg::OpenEditor so we don't pay editor setup
+    /// cost during the welcome screen.
+    editor_page_added: std::cell::Cell<bool>,
     dialog: Option<Controller<ConnectDialog>>,
     editor_root: Option<adw::TabOverview>,
     editor_tab_view: Option<adw::TabView>,
@@ -196,7 +207,6 @@ pub struct UndoBatch {
 pub(super) enum StatusKind {
     Info,
     Error,
-    Disconnected,
 }
 
 impl StatusKind {
@@ -204,7 +214,6 @@ impl StatusKind {
         match self {
             StatusKind::Info => "view-grid-symbolic",
             StatusKind::Error => "dialog-error-symbolic",
-            StatusKind::Disconnected => "network-server-symbolic",
         }
     }
 }
@@ -241,6 +250,7 @@ impl SimpleComponent for App {
             set_default_height: 760,
 
             adw::ToolbarView {
+                #[name = "header_bar"]
                 add_top_bar = &adw::HeaderBar {
                     #[name = "window_title"]
                     #[wrap(Some)]
@@ -248,18 +258,12 @@ impl SimpleComponent for App {
                         set_title: "TablePro",
                     },
 
-                    #[name = "new_connection_button"]
-                    pack_start = &gtk::Button {
-                        set_icon_name: "network-server-symbolic",
+                    #[name = "connection_split_button"]
+                    pack_start = &adw::SplitButton {
+                        set_icon_name: "list-add-symbolic",
                         set_tooltip_text: Some(crate::tr!("New connection").as_str()),
+                        set_dropdown_tooltip: crate::tr!("Open saved connection").as_str(),
                         connect_clicked => AppMsg::OpenConnect,
-                    },
-
-                    #[name = "saved_connections_button"]
-                    pack_start = &gtk::MenuButton {
-                        set_icon_name: "folder-open-symbolic",
-                        set_tooltip_text: Some(crate::tr!("Open saved connection").as_str()),
-                        set_visible: false,
 
                         #[wrap(Some)]
                         #[name = "connections_popover"]
@@ -275,27 +279,11 @@ impl SimpleComponent for App {
                         add_css_class: "caption-heading",
                     },
 
-                    #[name = "health_pill"]
-                    pack_end = &gtk::Label {
-                        set_visible: false,
-                        set_margin_end: 6,
-                        add_css_class: "caption-heading",
-                    },
-
                     #[name = "row_op_spinner"]
                     pack_end = &gtk::Spinner {
                         set_visible: false,
                         set_margin_end: 6,
                         set_tooltip_text: Some(crate::tr!("Saving…").as_str()),
-                    },
-
-                    #[name = "edit_button"]
-                    pack_end = &gtk::Button {
-                        set_icon_name: "edit-symbolic",
-                        set_tooltip_text: Some(crate::tr!("SQL editor").as_str()),
-                        set_sensitive: false,
-                        set_visible: false,
-                        connect_clicked => AppMsg::OpenEditor,
                     },
 
                     #[name = "primary_menu_button"]
@@ -624,6 +612,43 @@ impl SimpleComponent for App {
         browse_view.add_bottom_bar(&paginator_bar);
         grid_search_bar.set_key_capture_widget(Some(&browse_view));
 
+        // Inner Browse stack: starts on `status` ("Select a table"),
+        // switches to `grid` once on_rows_loaded populates, or `loading`
+        // during fetch. Defined in code (not view!) so set_loading_page /
+        // set_status_page can rebuild children dynamically.
+        let browse_inner_stack = gtk::Stack::builder()
+            .transition_type(gtk::StackTransitionType::Crossfade)
+            .build();
+        browse_inner_stack.add_named(&browse_view, Some("grid"));
+        let browse_initial_status = adw::StatusPage::builder()
+            .icon_name(StatusKind::Info.icon())
+            .title(crate::tr!("Select a table"))
+            .description(crate::tr!("Pick a table from the sidebar to load its rows."))
+            .build();
+        browse_inner_stack.add_named(&browse_initial_status, Some("status"));
+        browse_inner_stack.set_visible_child_name("status");
+
+        let view_stack = adw::ViewStack::new();
+        let browse_page = view_stack.add_titled_with_icon(
+            &browse_inner_stack,
+            Some("browse"),
+            &crate::tr!("Browse"),
+            "view-grid-symbolic",
+        );
+        let _ = browse_page;
+
+        let view_switcher = adw::ViewSwitcher::builder()
+            .stack(&view_stack)
+            .policy(adw::ViewSwitcherPolicy::Wide)
+            .build();
+        let title_stack = gtk::Stack::builder()
+            .transition_type(gtk::StackTransitionType::Crossfade)
+            .build();
+        title_stack.add_named(&widgets.window_title, Some("title"));
+        title_stack.add_named(&view_switcher, Some("switcher"));
+        title_stack.set_visible_child_name("title");
+        widgets.header_bar.set_title_widget(Some(&title_stack));
+
         let disconnect_action = install_window_actions(&widgets.window, sender.clone());
         install_window_shortcuts(&widgets.window);
         widgets.primary_menu_button.set_menu_model(Some(&primary_menu_model()));
@@ -671,7 +696,6 @@ impl SimpleComponent for App {
             window: root.clone(),
             split_view: widgets.split_view.clone(),
             window_title: widgets.window_title.clone(),
-            saved_connections_button: widgets.saved_connections_button.clone(),
             disconnect_action,
             sidebar_factory,
             sidebar_schemas,
@@ -680,8 +704,6 @@ impl SimpleComponent for App {
             reconnect_banner: widgets.reconnect_banner.clone(),
             connections_factory,
             connections_popover: widgets.connections_popover.clone(),
-            edit_button: widgets.edit_button.clone(),
-            health_pill: widgets.health_pill.clone(),
             health_state: None,
             row_op_spinner: widgets.row_op_spinner.clone(),
             read_only_badge: widgets.read_only_badge.clone(),
@@ -697,7 +719,10 @@ impl SimpleComponent for App {
             grid_search_bar,
             grid_search_handler: None,
             grid_sender,
-            browse_view,
+            browse_inner_stack,
+            view_stack,
+            title_stack,
+            editor_page_added: std::cell::Cell::new(false),
             dialog: None,
             editor_root: None,
             editor_tab_view: None,
@@ -725,14 +750,8 @@ impl SimpleComponent for App {
         model.show_welcome_page(sender.clone());
 
         widgets
-            .new_connection_button
+            .connection_split_button
             .update_property(&[gtk::accessible::Property::Label("New connection")]);
-        widgets
-            .saved_connections_button
-            .update_property(&[gtk::accessible::Property::Label("Open saved connection")]);
-        widgets
-            .edit_button
-            .update_property(&[gtk::accessible::Property::Label("SQL editor")]);
         widgets
             .primary_menu_button
             .update_property(&[gtk::accessible::Property::Label("Main menu")]);

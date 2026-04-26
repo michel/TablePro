@@ -5,12 +5,17 @@ use super::{App, AppMsg, StatusKind, UndoBatch, build_shortcuts_window};
 
 impl App {
     pub(super) fn show_welcome_page(&self, _sender: ComponentSender<Self>) {
-        // Delegated to the WelcomeView managed sub-component, which keeps
-        // its widget tree across calls (factory diffs rows incrementally
-        // instead of rebuilding the whole tree on every welcome show).
+        // Welcome lives outside the ViewStack — it's the disconnected mode.
+        // The ViewStack's view-switcher tabs only make sense once a database
+        // is open, so we replace the entire content area with the welcome view.
+        self.title_stack.set_visible_child_name("title");
         self.content_holder.set_content(Some(self.welcome_view.widget()));
     }
 
+    /// Replaces the Browse view-stack page's content with a busy spinner +
+    /// title + description. The ViewSwitcher tabs stay visible (we're still
+    /// inside the connected ViewStack), only the Browse page's inner stack
+    /// swaps.
     pub(super) fn set_loading_page(&self, title: &str, description: &str) {
         let spinner = gtk::Spinner::new();
         spinner.set_spinning(true);
@@ -36,16 +41,30 @@ impl App {
         outer.append(&spinner);
         outer.append(&title_label);
         outer.append(&description_label);
-        self.content_holder.set_content(Some(&outer));
+        self.replace_browse_status_child("loading", &outer);
+        self.view_stack.set_visible_child_name("browse");
     }
 
+    /// Same idea as `set_loading_page`: swap the Browse page's inner stack
+    /// to show a status page (Select-a-table / Failed / etc).
     pub(super) fn set_status_page(&self, kind: StatusKind, title: &str, description: &str) {
         let page = adw::StatusPage::builder()
             .title(title)
             .description(description)
             .icon_name(kind.icon())
             .build();
-        self.content_holder.set_content(Some(&page));
+        self.replace_browse_status_child("status", &page);
+        self.view_stack.set_visible_child_name("browse");
+    }
+
+    /// Helper: removes the previous child registered under `name` (if any)
+    /// from the Browse inner stack, adds the new one, and shows it.
+    fn replace_browse_status_child(&self, name: &str, child: &impl IsA<gtk::Widget>) {
+        if let Some(prev) = self.browse_inner_stack.child_by_name(name) {
+            self.browse_inner_stack.remove(&prev);
+        }
+        self.browse_inner_stack.add_named(child, Some(name));
+        self.browse_inner_stack.set_visible_child_name(name);
     }
 
     pub(super) fn show_toast(&self, msg: &str) {

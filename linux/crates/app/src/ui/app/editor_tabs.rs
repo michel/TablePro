@@ -8,24 +8,32 @@ use crate::services::database_service;
 use crate::ui::editor::{SqlEditorInput, derive_tab_label};
 use crate::ui::history_dialog::{HistoryDialog, HistoryDialogInit, HistoryDialogOutput};
 
-use super::{App, AppMsg, StatusKind, create_editor_tab_slot, default_tab_label, read_tab_id};
+use super::{App, AppMsg, create_editor_tab_slot, default_tab_label, read_tab_id};
 
 impl App {
     pub(super) fn on_open_editor(&mut self, sender: ComponentSender<Self>) {
         if database_service::instance().active().is_none() {
-            self.set_status_page(
-                StatusKind::Disconnected,
-                &crate::tr!("No connection"),
-                &crate::tr!("Connect to a database first to run SQL."),
-            );
+            // The Editor ViewSwitcher tab is only visible while connected, so
+            // this path is only reachable via Ctrl+E or the menu when no
+            // connection is open — a toast is friendlier than swapping to a
+            // status page since the user can stay on the welcome view.
+            self.show_toast(&crate::tr!("Connect to a database first to run SQL."));
             return;
         }
         if self.editor_root.is_none() {
             self.build_editor_root(sender.clone());
             self.restore_editor_tabs(sender);
         }
+        // Add the Editor page to the ViewStack the first time we open it,
+        // then activate it. Once added, the ViewSwitcher in the headerbar
+        // exposes Browse / Editor as native tabs.
         if let Some(root) = self.editor_root.as_ref() {
-            self.content_holder.set_content(Some(root));
+            if !self.editor_page_added.get() {
+                self.view_stack
+                    .add_titled_with_icon(root, Some("editor"), &crate::tr!("Editor"), "edit-symbolic");
+                self.editor_page_added.set(true);
+            }
+            self.view_stack.set_visible_child_name("editor");
         }
     }
 
@@ -169,7 +177,15 @@ impl App {
         self.persist_editor_state();
 
         if self.editor_tabs.borrow().is_empty() {
-            self.editor_root = None;
+            // Remove the Editor ViewStack page so the next OpenEditor builds
+            // a fresh one — keeps the editor lifecycle aligned with the
+            // existence of any tabs.
+            if let Some(root) = self.editor_root.take()
+                && self.editor_page_added.get()
+            {
+                self.view_stack.remove(&root);
+                self.editor_page_added.set(false);
+            }
             self.editor_tab_view = None;
             self.show_welcome_or_grid_after_editor_close(sender);
         }
@@ -191,11 +207,10 @@ impl App {
 
     pub(super) fn show_welcome_or_grid_after_editor_close(&mut self, sender: ComponentSender<Self>) {
         if self.connected {
-            self.set_status_page(
-                StatusKind::Info,
-                &crate::tr!("Select a table"),
-                &crate::tr!("Pick a table from the left to load rows."),
-            );
+            // Closing the last editor tab returns the user to Browse —
+            // the ViewSwitcher will now only show one tab (Browse) until
+            // they hit Ctrl+E to reopen the editor.
+            self.view_stack.set_visible_child_name("browse");
         } else {
             self.show_welcome_page(sender);
         }

@@ -32,6 +32,12 @@ impl FactoryComponent for SidebarRow {
             set_title: &self.info.name,
             set_activatable: true,
             connect_activated => SidebarRowMsg::Activated,
+
+            add_prefix = &gtk::Image {
+                set_icon_name: Some("view-list-symbolic"),
+                set_pixel_size: 16,
+                add_css_class: "dim-label",
+            },
         }
     }
 
