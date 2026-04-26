@@ -171,14 +171,14 @@ impl SimpleComponent for App {
                     #[name = "new_connection_button"]
                     pack_start = &gtk::Button {
                         set_icon_name: "network-server-symbolic",
-                        set_tooltip_text: Some("New connection"),
+                        set_tooltip_text: Some(crate::tr!("New connection").as_str()),
                         connect_clicked => AppMsg::OpenConnect,
                     },
 
                     #[name = "saved_connections_button"]
                     pack_start = &gtk::MenuButton {
                         set_icon_name: "folder-open-symbolic",
-                        set_tooltip_text: Some("Open saved connection"),
+                        set_tooltip_text: Some(crate::tr!("Open saved connection").as_str()),
                         set_visible: false,
 
                         #[wrap(Some)]
@@ -189,7 +189,7 @@ impl SimpleComponent for App {
                     #[name = "read_only_badge"]
                     pack_end = &gtk::Label {
                         set_visible: false,
-                        set_label: "Read-only",
+                        set_label: &crate::tr!("Read-only"),
                         set_margin_end: 6,
                         add_css_class: "warning",
                     },
@@ -205,13 +205,13 @@ impl SimpleComponent for App {
                     pack_end = &gtk::Spinner {
                         set_visible: false,
                         set_margin_end: 6,
-                        set_tooltip_text: Some("Saving…"),
+                        set_tooltip_text: Some(crate::tr!("Saving…").as_str()),
                     },
 
                     #[name = "edit_button"]
                     pack_end = &gtk::Button {
                         set_icon_name: "edit-symbolic",
-                        set_tooltip_text: Some("SQL editor"),
+                        set_tooltip_text: Some(crate::tr!("SQL editor").as_str()),
                         set_sensitive: false,
                         set_visible: false,
                         connect_clicked => AppMsg::OpenEditor,
@@ -220,7 +220,7 @@ impl SimpleComponent for App {
                     #[name = "primary_menu_button"]
                     pack_end = &gtk::MenuButton {
                         set_icon_name: "open-menu-symbolic",
-                        set_tooltip_text: Some("Main menu"),
+                        set_tooltip_text: Some(crate::tr!("Main menu").as_str()),
                     },
                 },
 
@@ -237,7 +237,7 @@ impl SimpleComponent for App {
 
                         #[name = "table_search"]
                         gtk::SearchEntry {
-                            set_placeholder_text: Some("Filter tables…"),
+                            set_placeholder_text: Some(crate::tr!("Filter tables…").as_str()),
                             set_margin_top: 12,
                             set_margin_bottom: 6,
                             set_margin_start: 12,
@@ -261,14 +261,14 @@ impl SimpleComponent for App {
                             add_top_bar = &adw::Banner {
                                 set_revealed: false,
                                 set_use_markup: false,
-                                set_button_label: Some("Retry"),
+                                set_button_label: Some(crate::tr!("Retry").as_str()),
                             },
 
                             #[wrap(Some)]
                             set_content = &adw::StatusPage {
                                 set_icon_name: Some("network-server-symbolic"),
-                                set_title: "Connect to a database",
-                                set_description: Some("Click the server icon for a new connection or the folder icon to open a saved one."),
+                                set_title: &crate::tr!("Connect to a database"),
+                                set_description: Some(crate::tr!("Click the server icon for a new connection or the folder icon to open a saved one.").as_str()),
                             },
                         },
                     },
@@ -412,12 +412,12 @@ impl SimpleComponent for App {
 
         let prev_button = gtk::Button::builder()
             .icon_name("go-previous-symbolic")
-            .tooltip_text("Previous page")
+            .tooltip_text(crate::tr!("Previous page"))
             .sensitive(false)
             .build();
         let next_button = gtk::Button::builder()
             .icon_name("go-next-symbolic")
-            .tooltip_text("Next page")
+            .tooltip_text(crate::tr!("Next page"))
             .sensitive(false)
             .build();
         let paginator_label = gtk::Label::builder().build();
@@ -441,7 +441,7 @@ impl SimpleComponent for App {
             .position(|n| *n == DEFAULT_PAGE_SIZE)
             .unwrap_or(2) as u32;
         page_size_combo.set_selected(default_idx);
-        page_size_combo.set_tooltip_text(Some("Rows per page"));
+        page_size_combo.set_tooltip_text(Some(&crate::tr!("Rows per page")));
         let sender_for_size = sender.clone();
         page_size_combo.connect_selected_notify(move |dd| {
             let idx = dd.selected() as usize;
@@ -457,17 +457,17 @@ impl SimpleComponent for App {
 
         let insert_button = gtk::Button::builder()
             .icon_name("list-add-symbolic")
-            .tooltip_text("Insert row")
+            .tooltip_text(crate::tr!("Insert row"))
             .sensitive(false)
             .build();
         let edit_row_button = gtk::Button::builder()
             .icon_name("document-edit-symbolic")
-            .tooltip_text("Edit selected row")
+            .tooltip_text(crate::tr!("Edit selected row"))
             .sensitive(false)
             .build();
         let delete_button = gtk::Button::builder()
             .icon_name("user-trash-symbolic")
-            .tooltip_text("Delete selected row")
+            .tooltip_text(crate::tr!("Delete selected row"))
             .sensitive(false)
             .build();
 
@@ -489,11 +489,11 @@ impl SimpleComponent for App {
             .margin_end(12)
             .build();
         let export_menu = gio::Menu::new();
-        export_menu.append(Some("Export as CSV…"), Some("win.export-csv"));
-        export_menu.append(Some("Export as JSON…"), Some("win.export-json"));
+        export_menu.append(Some(&crate::tr!("Export as CSV…")), Some("win.export-csv"));
+        export_menu.append(Some(&crate::tr!("Export as JSON…")), Some("win.export-json"));
         let export_button = gtk::MenuButton::builder()
             .icon_name("document-save-symbolic")
-            .tooltip_text("Export results")
+            .tooltip_text(crate::tr!("Export results"))
             .menu_model(&export_menu)
             .build();
         export_button.add_css_class("flat");
@@ -513,7 +513,9 @@ impl SimpleComponent for App {
             .vexpand(true)
             .build();
 
-        let grid_search = gtk::SearchEntry::builder().placeholder_text("Find in results").build();
+        let grid_search = gtk::SearchEntry::builder()
+            .placeholder_text(crate::tr!("Find in results"))
+            .build();
         let grid_search_bar = gtk::SearchBar::builder()
             .child(&grid_search)
             .show_close_button(true)
@@ -631,7 +633,7 @@ impl SimpleComponent for App {
                 let label = undo
                     .as_ref()
                     .map(|u| u.label.clone())
-                    .unwrap_or_else(|| "Rows updated".to_string());
+                    .unwrap_or_else(|| crate::tr!("Rows updated"));
                 if let Some(u) = undo {
                     self.show_undoable_toast(&label, u, sender.clone());
                 } else {
@@ -642,7 +644,7 @@ impl SimpleComponent for App {
             AppMsg::RowOpStarted => self.set_row_op_in_flight(true),
             AppMsg::ExecuteUndo(batch) => {
                 self.set_row_op_in_flight(true);
-                self.show_toast("Undoing…");
+                self.show_toast(&crate::tr!("Undoing…"));
                 run_undo_batch(sender, batch);
             }
             AppMsg::CellEdited {
@@ -712,8 +714,9 @@ impl App {
         self.push_schema_words();
         self.refresh_window_title();
         self.set_status_page(
-            "Select a table",
-            &format!("Connected to {driver_id}. Pick a table from the left to load up to 100,000 rows."),
+            &crate::tr!("Select a table"),
+            &crate::tr!("Connected to {driver}. Pick a table from the left to load up to 100,000 rows.")
+                .replace("{driver}", &driver_id),
         );
         sender.input(AppMsg::ReloadConnections);
     }
@@ -758,7 +761,10 @@ impl App {
         self.current_total_rows = None;
         self.refresh_window_title();
         let label = qualified_label(schema.as_deref(), &name);
-        self.set_loading_page("Loading…", &format!("Fetching rows from {label}"));
+        self.set_loading_page(
+            &crate::tr!("Loading…"),
+            &crate::tr!("Fetching rows from {table}").replace("{table}", &label),
+        );
         self.fetch_current_page(sender.clone());
         self.fetch_columns(schema.clone(), name.clone(), sender.clone());
         self.fetch_row_count(schema, name, sender);
@@ -875,14 +881,19 @@ impl App {
         let n_rows = result.rows.len();
         if n_rows == 0 {
             self.paginator_label
-                .set_label(&format!("No rows at offset {}", self.current_offset));
+                .set_label(&crate::tr!("No rows at offset {n}").replace("{n}", &self.current_offset.to_string()));
             return;
         }
         let start = self.current_offset + 1;
         let end = self.current_offset + n_rows as u64;
         let label = match self.current_total_rows {
-            Some(total) => format!("Rows {start} – {end} of {total}"),
-            None => format!("Rows {start} – {end}"),
+            Some(total) => crate::tr!("Rows {start} – {end} of {total}")
+                .replace("{start}", &start.to_string())
+                .replace("{end}", &end.to_string())
+                .replace("{total}", &total.to_string()),
+            None => crate::tr!("Rows {start} – {end}")
+                .replace("{start}", &start.to_string())
+                .replace("{end}", &end.to_string()),
         };
         self.paginator_label.set_label(&label);
     }
@@ -936,7 +947,7 @@ impl App {
     fn on_load_failed(&self, msg: String) {
         tracing::warn!(error = %msg, "load failed");
         self.set_row_op_in_flight(false);
-        self.set_status_page("Failed", &msg);
+        self.set_status_page(&crate::tr!("Failed"), &msg);
     }
 
     fn set_row_op_in_flight(&self, in_flight: bool) {
@@ -971,7 +982,7 @@ impl App {
 
     fn on_insert_committed(&mut self, sender: ComponentSender<Self>) {
         self.insert_dialog = None;
-        self.show_toast("Row inserted");
+        self.show_toast(&crate::tr!("Row inserted"));
         self.fetch_current_page(sender);
     }
 
@@ -987,7 +998,10 @@ impl App {
         };
         let positions = selected_positions(&selection);
         if positions.len() != 1 {
-            self.show_error_alert("Cannot edit", "Select exactly one row to edit.");
+            self.show_error_alert(
+                &crate::tr!("Cannot edit"),
+                &crate::tr!("Select exactly one row to edit."),
+            );
             return;
         }
         let position = positions[0] as usize;
@@ -1012,7 +1026,7 @@ impl App {
 
     fn on_edit_committed(&mut self, sender: ComponentSender<Self>) {
         self.edit_dialog = None;
-        self.show_toast("Row updated");
+        self.show_toast(&crate::tr!("Row updated"));
         self.fetch_current_page(sender);
     }
 
@@ -1039,7 +1053,7 @@ impl App {
             .collect();
         if pk_indexes.is_empty() {
             self.show_error_alert(
-                "Cannot delete",
+                &crate::tr!("Cannot delete"),
                 &super::error_text::build_sql_message(&crate::sql_dialect::BuildSqlError::NoPrimaryKey),
             );
             return;
@@ -1048,17 +1062,14 @@ impl App {
 
         let preview = if positions.len() == 1 {
             let row = &result.rows[positions[0] as usize];
-            format!(
-                "Delete row where {}?",
-                preview_pk(&self.current_columns, &pk_indexes, row)
-            )
+            crate::tr!("Delete row where {pk}?").replace("{pk}", &preview_pk(&self.current_columns, &pk_indexes, row))
         } else {
-            format!("Delete {} rows?", positions.len())
+            crate::tr!("Delete {n} rows?").replace("{n}", &positions.len().to_string())
         };
         let confirm_label = if positions.len() == 1 {
-            "Delete".to_string()
+            crate::tr!("Delete")
         } else {
-            format!("Delete {}", positions.len())
+            crate::tr!("Delete {n}").replace("{n}", &positions.len().to_string())
         };
 
         self.confirm_and_execute_many(
@@ -1111,7 +1122,10 @@ impl App {
         ) {
             Ok(t) => t,
             Err(e) => {
-                self.show_error_alert("Cannot update cell", &super::error_text::build_sql_message(&e));
+                self.show_error_alert(
+                    &crate::tr!("Cannot update cell"),
+                    &super::error_text::build_sql_message(&e),
+                );
                 return;
             }
         };
@@ -1125,7 +1139,7 @@ impl App {
         )
         .ok()
         .map(|(s, p)| UndoBatch {
-            label: "Cell updated".into(),
+            label: crate::tr!("Cell updated"),
             statements: vec![(s, p)],
         });
         self.set_row_op_in_flight(true);
@@ -1160,7 +1174,10 @@ impl App {
 
     fn on_open_editor(&mut self) {
         if database_service::instance().active().is_none() {
-            self.set_status_page("No connection", "Connect to a database first to run SQL.");
+            self.set_status_page(
+                &crate::tr!("No connection"),
+                &crate::tr!("Connect to a database first to run SQL."),
+            );
             return;
         }
         let editor = SqlEditor::builder().launch(()).detach();
@@ -1192,7 +1209,10 @@ impl App {
 
     fn on_open_saved(&self, saved: SavedConnection, sender: ComponentSender<Self>) {
         self.connections_popover.popdown();
-        self.set_loading_page("Connecting…", &format!("Opening {}", saved.name));
+        self.set_loading_page(
+            &crate::tr!("Connecting…"),
+            &crate::tr!("Opening {name}").replace("{name}", &saved.name),
+        );
         let driver_id = saved.driver_id.clone();
         let registry = self.registry.clone();
         let sender_clone = sender.clone();
@@ -1415,20 +1435,23 @@ impl App {
             }
             Some(ConnectionHealth::Healthy) => {
                 pill.set_visible(true);
-                pill.set_label("Connected");
+                pill.set_label(&crate::tr!("Connected"));
                 pill.add_css_class("success");
             }
             Some(ConnectionHealth::Reconnecting { attempt }) => {
                 pill.set_visible(true);
-                pill.set_label(&format!("Reconnecting · attempt {attempt} · retrying"));
+                pill.set_label(
+                    &crate::tr!("Reconnecting · attempt {n} · retrying").replace("{n}", &attempt.to_string()),
+                );
                 pill.add_css_class("warning");
             }
         }
         match health {
             Some(ConnectionHealth::Reconnecting { attempt }) => {
-                self.reconnect_banner.set_title(&format!(
-                    "Connection lost — reconnecting (attempt {attempt}, will keep retrying)",
-                ));
+                self.reconnect_banner.set_title(
+                    &crate::tr!("Connection lost — reconnecting (attempt {n}, will keep retrying)")
+                        .replace("{n}", &attempt.to_string()),
+                );
                 self.reconnect_banner.set_revealed(true);
             }
             _ => self.reconnect_banner.set_revealed(false),
@@ -1487,9 +1510,9 @@ impl App {
         }
 
         let undo_label = if positions.len() == 1 {
-            "1 row deleted".to_string()
+            crate::tr!("1 row deleted")
         } else {
-            format!("{} rows deleted", positions.len())
+            crate::tr!("{n} rows deleted").replace("{n}", &positions.len().to_string())
         };
         let undo = if undo_statements.is_empty() {
             None
@@ -1507,12 +1530,12 @@ impl App {
         }
 
         let alert_title = if positions.len() == 1 {
-            "Delete row?".to_string()
+            crate::tr!("Delete row?")
         } else {
-            format!("Delete {} rows?", positions.len())
+            crate::tr!("Delete {n} rows?").replace("{n}", &positions.len().to_string())
         };
         let dialog = adw::AlertDialog::new(Some(&alert_title), Some(preview));
-        dialog.add_response("cancel", "Cancel");
+        dialog.add_response("cancel", &crate::tr!("Cancel"));
         dialog.add_response("delete", confirm_label);
         dialog.set_response_appearance("delete", adw::ResponseAppearance::Destructive);
         dialog.set_default_response(Some("cancel"));
@@ -1895,23 +1918,26 @@ fn build_shortcuts_window(parent: &adw::ApplicationWindow) -> gtk::ShortcutsWind
         .build();
     let section = gtk::ShortcutsSection::builder().section_name("application").build();
 
-    let general = gtk::ShortcutsGroup::builder().title("General").build();
-    general.append(&shortcut_entry("<Primary>e", "Open SQL editor"));
-    general.append(&shortcut_entry("<Primary>f", "Find in results"));
-    general.append(&shortcut_entry("F5", "Refresh table"));
-    general.append(&shortcut_entry("<Primary>comma", "Open Preferences"));
-    general.append(&shortcut_entry("<Primary>question", "Show keyboard shortcuts"));
-    general.append(&shortcut_entry("<Primary>q", "Quit"));
-    general.append(&shortcut_entry("<Primary>w", "Close window"));
+    let general = gtk::ShortcutsGroup::builder().title(crate::tr!("General")).build();
+    general.append(&shortcut_entry("<Primary>e", &crate::tr!("Open SQL editor")));
+    general.append(&shortcut_entry("<Primary>f", &crate::tr!("Find in results")));
+    general.append(&shortcut_entry("F5", &crate::tr!("Refresh table")));
+    general.append(&shortcut_entry("<Primary>comma", &crate::tr!("Open Preferences")));
+    general.append(&shortcut_entry(
+        "<Primary>question",
+        &crate::tr!("Show keyboard shortcuts"),
+    ));
+    general.append(&shortcut_entry("<Primary>q", &crate::tr!("Quit")));
+    general.append(&shortcut_entry("<Primary>w", &crate::tr!("Close window")));
     section.append(&general);
 
-    let editor = gtk::ShortcutsGroup::builder().title("SQL editor").build();
-    editor.append(&shortcut_entry("<Primary>Return", "Run query"));
-    editor.append(&shortcut_entry("Escape", "Cancel running query"));
+    let editor = gtk::ShortcutsGroup::builder().title(crate::tr!("SQL editor")).build();
+    editor.append(&shortcut_entry("<Primary>Return", &crate::tr!("Run query")));
+    editor.append(&shortcut_entry("Escape", &crate::tr!("Cancel running query")));
     section.append(&editor);
 
-    let dialogs = gtk::ShortcutsGroup::builder().title("Dialogs").build();
-    dialogs.append(&shortcut_entry("Escape", "Close dialog"));
+    let dialogs = gtk::ShortcutsGroup::builder().title(crate::tr!("Dialogs")).build();
+    dialogs.append(&shortcut_entry("Escape", &crate::tr!("Close dialog")));
     section.append(&dialogs);
 
     window.add_section(&section);
@@ -1932,7 +1958,7 @@ impl App {
 
     fn on_copy_to_clipboard(&self, text: String) {
         self.window.clipboard().set_text(&text);
-        self.show_toast("Copied to clipboard");
+        self.show_toast(&crate::tr!("Copied to clipboard"));
     }
 
     fn on_set_cell_null(&mut self, table: String, row_position: u32, col_index: usize, sender: ComponentSender<Self>) {
@@ -1959,7 +1985,10 @@ impl App {
         ) {
             Ok(t) => t,
             Err(e) => {
-                self.show_error_alert("Cannot set NULL", &super::error_text::build_sql_message(&e));
+                self.show_error_alert(
+                    &crate::tr!("Cannot set NULL"),
+                    &super::error_text::build_sql_message(&e),
+                );
                 return;
             }
         };
@@ -1973,7 +2002,7 @@ impl App {
         )
         .ok()
         .map(|(s, p)| UndoBatch {
-            label: "Cell cleared".into(),
+            label: crate::tr!("Cell cleared"),
             statements: vec![(s, p)],
         });
         self.set_row_op_in_flight(true);
@@ -1996,7 +2025,7 @@ impl App {
             .collect();
         if pk_indexes.is_empty() {
             self.show_error_alert(
-                "Cannot delete",
+                &crate::tr!("Cannot delete"),
                 &super::error_text::build_sql_message(&crate::sql_dialect::BuildSqlError::NoPrimaryKey),
             );
             return;
@@ -2006,12 +2035,9 @@ impl App {
             .rows
             .get(row_position as usize)
             .map(|r| {
-                format!(
-                    "Delete row where {}?",
-                    preview_pk(&self.current_columns, &pk_indexes, r)
-                )
+                crate::tr!("Delete row where {pk}?").replace("{pk}", &preview_pk(&self.current_columns, &pk_indexes, r))
             })
-            .unwrap_or_else(|| "Delete row?".into());
+            .unwrap_or_else(|| crate::tr!("Delete row?"));
         self.confirm_and_execute_many(
             sender,
             &table,
@@ -2020,7 +2046,7 @@ impl App {
             &[row_position],
             &result.rows,
             &preview,
-            "Delete",
+            &crate::tr!("Delete"),
         );
     }
 
@@ -2048,12 +2074,12 @@ impl App {
             values.join(", "),
         );
         self.window.clipboard().set_text(&sql);
-        self.show_toast("INSERT statement copied");
+        self.show_toast(&crate::tr!("INSERT statement copied"));
     }
 
     fn on_export(&self, format: ExportFormat) {
         let Some(result) = self.current_result.clone() else {
-            self.show_toast("Nothing to export");
+            self.show_toast(&crate::tr!("Nothing to export"));
             return;
         };
         let suggested = match format {
@@ -2063,12 +2089,12 @@ impl App {
         let filter = gtk::FileFilter::new();
         match format {
             ExportFormat::Csv => {
-                filter.set_name(Some("CSV files"));
+                filter.set_name(Some(&crate::tr!("CSV files")));
                 filter.add_mime_type("text/csv");
                 filter.add_suffix("csv");
             }
             ExportFormat::Json => {
-                filter.set_name(Some("JSON files"));
+                filter.set_name(Some(&crate::tr!("JSON files")));
                 filter.add_mime_type("application/json");
                 filter.add_suffix("json");
             }
@@ -2077,8 +2103,8 @@ impl App {
         filters.append(&filter);
         let dialog = gtk::FileDialog::builder()
             .title(match format {
-                ExportFormat::Csv => "Export as CSV",
-                ExportFormat::Json => "Export as JSON",
+                ExportFormat::Csv => crate::tr!("Export as CSV"),
+                ExportFormat::Json => crate::tr!("Export as JSON"),
             })
             .modal(true)
             .initial_name(suggested)
@@ -2095,8 +2121,12 @@ impl App {
                 ExportFormat::Json => render_json(&result),
             };
             match std::fs::write(&path, bytes) {
-                Ok(()) => toast_overlay.add_toast(adw::Toast::new(&format!("Exported to {}", path.display()))),
-                Err(e) => toast_overlay.add_toast(adw::Toast::new(&format!("Export failed: {e}"))),
+                Ok(()) => toast_overlay.add_toast(adw::Toast::new(
+                    &crate::tr!("Exported to {path}").replace("{path}", &path.display().to_string()),
+                )),
+                Err(e) => toast_overlay.add_toast(adw::Toast::new(
+                    &crate::tr!("Export failed: {error}").replace("{error}", &e.to_string()),
+                )),
             }
         });
     }

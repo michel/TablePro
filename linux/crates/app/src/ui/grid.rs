@@ -259,12 +259,12 @@ fn build_column(
 fn attach_context_menu(widget: &gtk::Widget, idx: usize, table: String, sender: relm4::Sender<AppMsg>) {
     let editable = widget.is::<gtk::EditableLabel>();
     let menu = gio::Menu::new();
-    menu.append(Some("Copy value"), Some("cell.copy-value"));
-    menu.append(Some("Copy row as INSERT"), Some("cell.copy-row-insert"));
+    menu.append(Some(&crate::tr!("Copy value")), Some("cell.copy-value"));
+    menu.append(Some(&crate::tr!("Copy row as INSERT")), Some("cell.copy-row-insert"));
     if editable {
         let mutate = gio::Menu::new();
-        mutate.append(Some("Set to NULL"), Some("cell.set-null"));
-        mutate.append(Some("Delete row"), Some("cell.delete-row"));
+        mutate.append(Some(&crate::tr!("Set to NULL")), Some("cell.set-null"));
+        mutate.append(Some(&crate::tr!("Delete row")), Some("cell.delete-row"));
         menu.append_section(None, &mutate);
     }
 

@@ -75,7 +75,7 @@ impl Component for ConnectDialog {
 
     view! {
         adw::Dialog {
-            set_title: "Connect",
+            set_title: &crate::tr!("Connect"),
             set_content_width: 480,
 
             connect_closed => ConnectDialogInput::Closed,
@@ -143,25 +143,37 @@ impl Component for ConnectDialog {
         let names_ref: Vec<&str> = names.iter().map(String::as_str).collect();
         let driver_model = gtk::StringList::new(&names_ref);
 
-        let driver_combo = adw::ComboRow::builder().title("Driver").model(&driver_model).build();
+        let driver_combo = adw::ComboRow::builder()
+            .title(crate::tr!("Driver"))
+            .model(&driver_model)
+            .build();
         let sender_for_combo = sender.clone();
         driver_combo.connect_selected_notify(move |row| {
             sender_for_combo.input(ConnectDialogInput::DriverChanged(row.selected()));
         });
 
-        let host = adw::EntryRow::builder().title("Host").text("localhost").build();
-        let port = adw::EntryRow::builder().title("Port").text("5432").build();
-        let database = adw::EntryRow::builder().title("Database").text("postgres").build();
-        let username = adw::EntryRow::builder().title("Username").text("postgres").build();
-        let password = adw::PasswordEntryRow::builder().title("Password").build();
+        let host = adw::EntryRow::builder()
+            .title(crate::tr!("Host"))
+            .text("localhost")
+            .build();
+        let port = adw::EntryRow::builder().title(crate::tr!("Port")).text("5432").build();
+        let database = adw::EntryRow::builder()
+            .title(crate::tr!("Database"))
+            .text("postgres")
+            .build();
+        let username = adw::EntryRow::builder()
+            .title(crate::tr!("Username"))
+            .text("postgres")
+            .build();
+        let password = adw::PasswordEntryRow::builder().title(crate::tr!("Password")).build();
         let use_tls = adw::SwitchRow::builder()
-            .title("Use TLS")
-            .subtitle("Require encrypted connection")
+            .title(crate::tr!("Use TLS"))
+            .subtitle(crate::tr!("Require encrypted connection"))
             .active(false)
             .build();
         let read_only = adw::SwitchRow::builder()
-            .title("Read-only mode")
-            .subtitle("Block INSERT, UPDATE, DELETE, and DDL on this connection")
+            .title(crate::tr!("Read-only mode"))
+            .subtitle(crate::tr!("Block INSERT, UPDATE, DELETE, and DDL on this connection"))
             .active(false)
             .build();
 
@@ -182,14 +194,14 @@ impl Component for ConnectDialog {
         let s = sender.clone();
         password.connect_changed(move |_| s.input(ConnectDialogInput::InputChanged));
 
-        let test_button = gtk::Button::builder().label("Test").build();
+        let test_button = gtk::Button::builder().label(crate::tr!("Test")).build();
         test_button.add_css_class("pill");
         let sender_for_test = sender.clone();
         test_button.connect_clicked(move |_| {
             sender_for_test.input(ConnectDialogInput::TestConnection);
         });
 
-        let submit = gtk::Button::builder().label("Connect").build();
+        let submit = gtk::Button::builder().label(crate::tr!("Connect")).build();
         submit.add_css_class("suggested-action");
         submit.add_css_class("pill");
         let sender_for_submit = sender.clone();
@@ -223,7 +235,7 @@ impl Component for ConnectDialog {
             if let Some(driver) = model.registry.get(&first.id) {
                 model.apply_driver_form_visibility(driver.as_ref());
             }
-            root.set_title(&format!("Connect to {}", first.display_name));
+            root.set_title(&crate::tr!("Connect to {name}").replace("{name}", &first.display_name));
         }
         model.refresh_validity();
 
@@ -239,7 +251,7 @@ impl Component for ConnectDialog {
                 if let Some(driver) = self.registry.get(&entry.id) {
                     self.apply_driver_form_visibility(driver.as_ref());
                 }
-                root.set_title(&format!("Connect to {}", entry.display_name));
+                root.set_title(&crate::tr!("Connect to {name}").replace("{name}", &entry.display_name));
             }
 
             ConnectDialogInput::SshToggled => {
@@ -258,11 +270,11 @@ impl Component for ConnectDialog {
 
             ConnectDialogInput::Submit => {
                 self.submit.set_sensitive(false);
-                self.status.set_label("Connecting…");
+                self.status.set_label(&crate::tr!("Connecting…"));
 
                 let idx = self.driver_combo.selected() as usize;
                 let Some(entry) = self.drivers.get(idx).cloned() else {
-                    self.status.set_label("no driver selected");
+                    self.status.set_label(&crate::tr!("no driver selected"));
                     self.submit.set_sensitive(true);
                     return;
                 };
@@ -270,7 +282,8 @@ impl Component for ConnectDialog {
                 let driver = match self.registry.get(&entry.id) {
                     Some(d) => d,
                     None => {
-                        self.status.set_label(&format!("driver {} not registered", entry.id));
+                        self.status
+                            .set_label(&crate::tr!("driver {id} not registered").replace("{id}", &entry.id));
                         self.submit.set_sensitive(true);
                         return;
                     }
@@ -320,17 +333,18 @@ impl Component for ConnectDialog {
             ConnectDialogInput::TestConnection => {
                 self.test_button.set_sensitive(false);
                 self.submit.set_sensitive(false);
-                self.status.set_label("Testing…");
+                self.status.set_label(&crate::tr!("Testing…"));
 
                 let idx = self.driver_combo.selected() as usize;
                 let Some(entry) = self.drivers.get(idx).cloned() else {
-                    self.status.set_label("no driver selected");
+                    self.status.set_label(&crate::tr!("no driver selected"));
                     self.test_button.set_sensitive(true);
                     self.submit.set_sensitive(true);
                     return;
                 };
                 let Some(driver) = self.registry.get(&entry.id) else {
-                    self.status.set_label(&format!("driver {} not registered", entry.id));
+                    self.status
+                        .set_label(&crate::tr!("driver {id} not registered").replace("{id}", &entry.id));
                     self.test_button.set_sensitive(true);
                     self.submit.set_sensitive(true);
                     return;
@@ -397,11 +411,13 @@ impl Component for ConnectDialog {
                 self.status.set_label(&e);
             }
             ConnectDialogCmd::TestResult(Ok(table_count)) => {
-                self.status
-                    .set_label(&format!("Connection ok · {table_count} table(s) visible"));
+                self.status.set_label(
+                    &crate::tr!("Connection ok · {n} table(s) visible").replace("{n}", &table_count.to_string()),
+                );
             }
             ConnectDialogCmd::TestResult(Err(e)) => {
-                self.status.set_label(&format!("Test failed: {e}"));
+                self.status
+                    .set_label(&crate::tr!("Test failed: {error}").replace("{error}", &e));
             }
         }
     }
@@ -451,8 +467,11 @@ impl ConnectDialog {
         self.password.set_visible(!file_based);
         self.use_tls.set_visible(!file_based);
         self.ssh.set_enable_visible(!file_based);
-        self.database
-            .set_title(if file_based { "File path" } else { "Database" });
+        self.database.set_title(&if file_based {
+            crate::tr!("File path")
+        } else {
+            crate::tr!("Database")
+        });
     }
 }
 

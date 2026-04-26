@@ -79,7 +79,7 @@ impl SimpleComponent for SqlEditor {
 
                 #[name = "cancel_button"]
                 gtk::Button {
-                    set_label: "Cancel",
+                    set_label: &crate::tr!("Cancel"),
                     set_visible: false,
                     add_css_class: "destructive-action",
                     connect_clicked => SqlEditorInput::Cancel,
@@ -87,7 +87,7 @@ impl SimpleComponent for SqlEditor {
 
                 #[name = "run_button"]
                 gtk::Button {
-                    set_label: "Run",
+                    set_label: &crate::tr!("Run"),
                     add_css_class: "suggested-action",
                     connect_clicked => SqlEditorInput::Run,
                 },
@@ -221,14 +221,14 @@ impl SimpleComponent for SqlEditor {
                 let sql = buffer.text(&start, &end, false).to_string();
                 let trimmed = sql.trim().to_string();
                 if trimmed.is_empty() {
-                    self.status.set_label("empty query");
+                    self.status.set_label(&crate::tr!("empty query"));
                     return;
                 }
 
                 let conn = match database_service::instance().active() {
                     Some(c) => c,
                     None => {
-                        self.status.set_label("no active connection");
+                        self.status.set_label(&crate::tr!("no active connection"));
                         return;
                     }
                 };
@@ -242,7 +242,7 @@ impl SimpleComponent for SqlEditor {
                 self.run_button.set_sensitive(false);
                 self.cancel_button.set_visible(true);
                 self.running_spinner.set_visible(true);
-                self.status.set_label("Running…");
+                self.status.set_label(&crate::tr!("Running…"));
                 clear_box(&self.results_holder);
 
                 let started = std::time::Instant::now();
@@ -289,17 +289,23 @@ impl SimpleComponent for SqlEditor {
                 self.run_button.set_sensitive(true);
                 self.cancel_button.set_visible(false);
                 self.running_spinner.set_visible(false);
+                let n = result.rows.len().to_string();
+                let ms = elapsed_ms.to_string();
                 let label = if result.truncated {
-                    format!("{} row(s) in {} ms (truncated)", result.rows.len(), elapsed_ms)
+                    crate::tr!("{n} row(s) in {ms} ms (truncated)")
+                        .replace("{n}", &n)
+                        .replace("{ms}", &ms)
                 } else {
-                    format!("{} row(s) in {} ms", result.rows.len(), elapsed_ms)
+                    crate::tr!("{n} row(s) in {ms} ms")
+                        .replace("{n}", &n)
+                        .replace("{ms}", &ms)
                 };
                 self.status.set_label(&label);
                 clear_box(&self.results_holder);
                 if result.rows.is_empty() {
                     let placeholder = adw::StatusPage::builder()
-                        .title("No rows")
-                        .description("Query returned no rows.")
+                        .title(crate::tr!("No rows"))
+                        .description(crate::tr!("Query returned no rows."))
                         .icon_name("view-grid-symbolic")
                         .vexpand(true)
                         .build();
@@ -321,10 +327,10 @@ impl SimpleComponent for SqlEditor {
                 self.run_button.set_sensitive(true);
                 self.cancel_button.set_visible(false);
                 self.running_spinner.set_visible(false);
-                self.status.set_label("error");
+                self.status.set_label(&crate::tr!("error"));
                 clear_box(&self.results_holder);
                 let err_page = adw::StatusPage::builder()
-                    .title("Query failed")
+                    .title(crate::tr!("Query failed"))
                     .description(&msg)
                     .icon_name("dialog-error-symbolic")
                     .vexpand(true)
@@ -346,7 +352,7 @@ impl SimpleComponent for SqlEditor {
                 self.run_button.set_sensitive(true);
                 self.cancel_button.set_visible(false);
                 self.running_spinner.set_visible(false);
-                self.status.set_label("cancelled");
+                self.status.set_label(&crate::tr!("cancelled"));
                 clear_box(&self.results_holder);
                 let cancelled_page = adw::StatusPage::builder()
                     .title("Query cancelled")

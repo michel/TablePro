@@ -1,0 +1,658 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR TablePro Authors
+# This file is distributed under the same license as the tablepro package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: tablepro 0.1.0\n"
+"Report-Msgid-Bugs-To: https://github.com/TableProApp/TablePro/issues\n"
+"POT-Creation-Date: 2026-04-26 11:18+0000\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: crates/app/src/ui/app.rs:174 crates/app/src/ui/app.rs:1254 crates/app/src/ui/app.rs:1322
+msgid "New connection"
+msgstr ""
+
+#: crates/app/src/ui/app.rs:181
+msgid "Open saved connection"
+msgstr ""
+
+#: crates/app/src/ui/app.rs:192
+msgid "Read-only"
+msgstr ""
+
+#: crates/app/src/ui/app.rs:208 crates/app/src/ui/edit_dialog.rs:162
+msgid "Saving…"
+msgstr ""
+
+#: crates/app/src/ui/app.rs:214 crates/app/src/ui/app.rs:1934 crates/app/src/ui/preferences.rs:45
+msgid "SQL editor"
+msgstr ""
+
+#: crates/app/src/ui/app.rs:223
+msgid "Main menu"
+msgstr ""
+
+#: crates/app/src/ui/app.rs:240
+msgid "Filter tables…"
+msgstr ""
+
+#: crates/app/src/ui/app.rs:264
+msgid "Retry"
+msgstr ""
+
+#: crates/app/src/ui/app.rs:270 crates/app/src/ui/app.rs:1250
+msgid "Connect to a database"
+msgstr ""
+
+#: crates/app/src/ui/app.rs:271
+msgid "Click the server icon for a new connection or the folder icon to open a saved one."
+msgstr ""
+
+#: crates/app/src/ui/app.rs:396
+msgid "Saved Connections"
+msgstr ""
+
+#: crates/app/src/ui/app.rs:415
+msgid "Previous page"
+msgstr ""
+
+#: crates/app/src/ui/app.rs:420
+msgid "Next page"
+msgstr ""
+
+#: crates/app/src/ui/app.rs:444
+msgid "Rows per page"
+msgstr ""
+
+#: crates/app/src/ui/app.rs:460
+msgid "Insert row"
+msgstr ""
+
+#: crates/app/src/ui/app.rs:465
+msgid "Edit selected row"
+msgstr ""
+
+#: crates/app/src/ui/app.rs:470
+msgid "Delete selected row"
+msgstr ""
+
+#: crates/app/src/ui/app.rs:492
+msgid "Export as CSV…"
+msgstr ""
+
+#: crates/app/src/ui/app.rs:493
+msgid "Export as JSON…"
+msgstr ""
+
+#: crates/app/src/ui/app.rs:496
+msgid "Export results"
+msgstr ""
+
+#: crates/app/src/ui/app.rs:517 crates/app/src/ui/app.rs:1923
+msgid "Find in results"
+msgstr ""
+
+#: crates/app/src/ui/app.rs:636
+msgid "Rows updated"
+msgstr ""
+
+#: crates/app/src/ui/app.rs:647
+msgid "Undoing…"
+msgstr ""
+
+#: crates/app/src/ui/app.rs:717
+msgid "Select a table"
+msgstr ""
+
+#: crates/app/src/ui/app.rs:718
+msgid "Connected to {driver}. Pick a table from the left to load up to 100,000 rows."
+msgstr ""
+
+#: crates/app/src/ui/app.rs:765
+msgid "Loading…"
+msgstr ""
+
+#: crates/app/src/ui/app.rs:766
+msgid "Fetching rows from {table}"
+msgstr ""
+
+#: crates/app/src/ui/app.rs:884
+msgid "No rows at offset {n}"
+msgstr ""
+
+#: crates/app/src/ui/app.rs:890
+msgid "Rows {start} – {end} of {total}"
+msgstr ""
+
+#: crates/app/src/ui/app.rs:894
+msgid "Rows {start} – {end}"
+msgstr ""
+
+#: crates/app/src/ui/app.rs:950
+msgid "Failed"
+msgstr ""
+
+#: crates/app/src/ui/app.rs:985
+msgid "Row inserted"
+msgstr ""
+
+#: crates/app/src/ui/app.rs:1002
+msgid "Cannot edit"
+msgstr ""
+
+#: crates/app/src/ui/app.rs:1003
+msgid "Select exactly one row to edit."
+msgstr ""
+
+#: crates/app/src/ui/app.rs:1029
+msgid "Row updated"
+msgstr ""
+
+#: crates/app/src/ui/app.rs:1056 crates/app/src/ui/app.rs:2028
+msgid "Cannot delete"
+msgstr ""
+
+#: crates/app/src/ui/app.rs:1065 crates/app/src/ui/app.rs:2038
+msgid "Delete row where {pk}?"
+msgstr ""
+
+#: crates/app/src/ui/app.rs:1067 crates/app/src/ui/app.rs:1535
+msgid "Delete {n} rows?"
+msgstr ""
+
+#: crates/app/src/ui/app.rs:1070 crates/app/src/ui/app.rs:2049
+msgid "Delete"
+msgstr ""
+
+#: crates/app/src/ui/app.rs:1072
+msgid "Delete {n}"
+msgstr ""
+
+#: crates/app/src/ui/app.rs:1126
+msgid "Cannot update cell"
+msgstr ""
+
+#: crates/app/src/ui/app.rs:1142
+msgid "Cell updated"
+msgstr ""
+
+#: crates/app/src/ui/app.rs:1178
+msgid "No connection"
+msgstr ""
+
+#: crates/app/src/ui/app.rs:1179
+msgid "Connect to a database first to run SQL."
+msgstr ""
+
+#: crates/app/src/ui/app.rs:1213 crates/app/src/ui/connect_dialog.rs:273
+msgid "Connecting…"
+msgstr ""
+
+#: crates/app/src/ui/app.rs:1214
+msgid "Opening {name}"
+msgstr ""
+
+#: crates/app/src/ui/app.rs:1251
+msgid "Add a connection to get started."
+msgstr ""
+
+#: crates/app/src/ui/app.rs:1285
+msgid "Saved connections"
+msgstr ""
+
+#: crates/app/src/ui/app.rs:1303
+msgid "Remove connection"
+msgstr ""
+
+#: crates/app/src/ui/app.rs:1438
+msgid "Connected"
+msgstr ""
+
+#: crates/app/src/ui/app.rs:1444
+msgid "Reconnecting · attempt {n} · retrying"
+msgstr ""
+
+#: crates/app/src/ui/app.rs:1452
+msgid "Connection lost — reconnecting (attempt {n}, will keep retrying)"
+msgstr ""
+
+#: crates/app/src/ui/app.rs:1513
+msgid "1 row deleted"
+msgstr ""
+
+#: crates/app/src/ui/app.rs:1515
+msgid "{n} rows deleted"
+msgstr ""
+
+#: crates/app/src/ui/app.rs:1533 crates/app/src/ui/app.rs:2040
+msgid "Delete row?"
+msgstr ""
+
+#: crates/app/src/ui/app.rs:1538 crates/app/src/ui/editor.rs:82
+msgid "Cancel"
+msgstr ""
+
+#: crates/app/src/ui/app.rs:1811
+msgid "Disconnect"
+msgstr ""
+
+#: crates/app/src/ui/app.rs:1814 crates/app/src/ui/preferences.rs:8
+msgid "Preferences"
+msgstr ""
+
+#: crates/app/src/ui/app.rs:1817
+msgid "Keyboard Shortcuts"
+msgstr ""
+
+#: crates/app/src/ui/app.rs:1818
+msgid "About TablePro"
+msgstr ""
+
+#: crates/app/src/ui/app.rs:1819 crates/app/src/ui/app.rs:1930
+msgid "Quit"
+msgstr ""
+
+#: crates/app/src/ui/app.rs:1921 crates/app/src/ui/preferences.rs:12
+msgid "General"
+msgstr ""
+
+#: crates/app/src/ui/app.rs:1922
+msgid "Open SQL editor"
+msgstr ""
+
+#: crates/app/src/ui/app.rs:1924
+msgid "Refresh table"
+msgstr ""
+
+#: crates/app/src/ui/app.rs:1925
+msgid "Open Preferences"
+msgstr ""
+
+#: crates/app/src/ui/app.rs:1928
+msgid "Show keyboard shortcuts"
+msgstr ""
+
+#: crates/app/src/ui/app.rs:1931
+msgid "Close window"
+msgstr ""
+
+#: crates/app/src/ui/app.rs:1935
+msgid "Run query"
+msgstr ""
+
+#: crates/app/src/ui/app.rs:1936
+msgid "Cancel running query"
+msgstr ""
+
+#: crates/app/src/ui/app.rs:1939
+msgid "Dialogs"
+msgstr ""
+
+#: crates/app/src/ui/app.rs:1940
+msgid "Close dialog"
+msgstr ""
+
+#: crates/app/src/ui/app.rs:1961
+msgid "Copied to clipboard"
+msgstr ""
+
+#: crates/app/src/ui/app.rs:1989
+msgid "Cannot set NULL"
+msgstr ""
+
+#: crates/app/src/ui/app.rs:2005
+msgid "Cell cleared"
+msgstr ""
+
+#: crates/app/src/ui/app.rs:2077
+msgid "INSERT statement copied"
+msgstr ""
+
+#: crates/app/src/ui/app.rs:2082
+msgid "Nothing to export"
+msgstr ""
+
+#: crates/app/src/ui/app.rs:2092
+msgid "CSV files"
+msgstr ""
+
+#: crates/app/src/ui/app.rs:2097
+msgid "JSON files"
+msgstr ""
+
+#: crates/app/src/ui/app.rs:2106
+msgid "Export as CSV"
+msgstr ""
+
+#: crates/app/src/ui/app.rs:2107
+msgid "Export as JSON"
+msgstr ""
+
+#: crates/app/src/ui/app.rs:2125
+msgid "Exported to {path}"
+msgstr ""
+
+#: crates/app/src/ui/app.rs:2128
+msgid "Export failed: {error}"
+msgstr ""
+
+#: crates/app/src/ui/app.rs:2143
+msgid "TablePro Linux"
+msgstr ""
+
+#: crates/app/src/ui/app.rs:2145
+msgid "TablePro Authors"
+msgstr ""
+
+#: crates/app/src/ui/app.rs:2150
+msgid "© 2025–2026 TablePro Authors"
+msgstr ""
+
+#: crates/app/src/ui/app.rs:2153
+msgid "A native Linux database client built with GTK4 + libadwaita."
+msgstr ""
+
+#: crates/app/src/ui/app.rs:2157
+msgid "translator-credits"
+msgstr ""
+
+#: crates/app/src/ui/connect_dialog.rs:78 crates/app/src/ui/connect_dialog.rs:204
+msgid "Connect"
+msgstr ""
+
+#: crates/app/src/ui/connect_dialog.rs:147
+msgid "Driver"
+msgstr ""
+
+#: crates/app/src/ui/connect_dialog.rs:156
+msgid "Host"
+msgstr ""
+
+#: crates/app/src/ui/connect_dialog.rs:159
+msgid "Port"
+msgstr ""
+
+#: crates/app/src/ui/connect_dialog.rs:161 crates/app/src/ui/connect_dialog.rs:473
+msgid "Database"
+msgstr ""
+
+#: crates/app/src/ui/connect_dialog.rs:165
+msgid "Username"
+msgstr ""
+
+#: crates/app/src/ui/connect_dialog.rs:168 crates/app/src/ui/ssh_section.rs:58
+msgid "Password"
+msgstr ""
+
+#: crates/app/src/ui/connect_dialog.rs:170
+msgid "Use TLS"
+msgstr ""
+
+#: crates/app/src/ui/connect_dialog.rs:171
+msgid "Require encrypted connection"
+msgstr ""
+
+#: crates/app/src/ui/connect_dialog.rs:175
+msgid "Read-only mode"
+msgstr ""
+
+#: crates/app/src/ui/connect_dialog.rs:176
+msgid "Block INSERT, UPDATE, DELETE, and DDL on this connection"
+msgstr ""
+
+#: crates/app/src/ui/connect_dialog.rs:197
+msgid "Test"
+msgstr ""
+
+#: crates/app/src/ui/connect_dialog.rs:238 crates/app/src/ui/connect_dialog.rs:254
+msgid "Connect to {name}"
+msgstr ""
+
+#: crates/app/src/ui/connect_dialog.rs:277 crates/app/src/ui/connect_dialog.rs:340
+msgid "no driver selected"
+msgstr ""
+
+#: crates/app/src/ui/connect_dialog.rs:286 crates/app/src/ui/connect_dialog.rs:347
+msgid "driver {id} not registered"
+msgstr ""
+
+#: crates/app/src/ui/connect_dialog.rs:336
+msgid "Testing…"
+msgstr ""
+
+#: crates/app/src/ui/connect_dialog.rs:415
+msgid "Connection ok · {n} table(s) visible"
+msgstr ""
+
+#: crates/app/src/ui/connect_dialog.rs:420
+msgid "Test failed: {error}"
+msgstr ""
+
+#: crates/app/src/ui/connect_dialog.rs:471
+msgid "File path"
+msgstr ""
+
+#: crates/app/src/ui/edit_dialog.rs:78
+msgid "{name} (read-only · primary key)"
+msgstr ""
+
+#: crates/app/src/ui/edit_dialog.rs:82 crates/app/src/ui/insert_dialog.rs:78
+msgid "{name} (required)"
+msgstr ""
+
+#: crates/app/src/ui/edit_dialog.rs:94
+msgid "Save"
+msgstr ""
+
+#: crates/app/src/ui/edit_dialog.rs:107
+msgid "Edit row in {table}"
+msgstr ""
+
+#: crates/app/src/ui/edit_dialog.rs:129 crates/app/src/ui/editor.rs:231 crates/app/src/ui/insert_dialog.rs:119
+msgid "no active connection"
+msgstr ""
+
+#: crates/app/src/ui/editor.rs:90
+msgid "Run"
+msgstr ""
+
+#: crates/app/src/ui/editor.rs:224
+msgid "empty query"
+msgstr ""
+
+#: crates/app/src/ui/editor.rs:245
+msgid "Running…"
+msgstr ""
+
+#: crates/app/src/ui/editor.rs:295
+msgid "{n} row(s) in {ms} ms (truncated)"
+msgstr ""
+
+#: crates/app/src/ui/editor.rs:299
+msgid "{n} row(s) in {ms} ms"
+msgstr ""
+
+#: crates/app/src/ui/editor.rs:307
+msgid "No rows"
+msgstr ""
+
+#: crates/app/src/ui/editor.rs:308
+msgid "Query returned no rows."
+msgstr ""
+
+#: crates/app/src/ui/editor.rs:330
+msgid "error"
+msgstr ""
+
+#: crates/app/src/ui/editor.rs:333
+msgid "Query failed"
+msgstr ""
+
+#: crates/app/src/ui/editor.rs:355
+msgid "cancelled"
+msgstr ""
+
+#: crates/app/src/ui/error_text.rs:7
+msgid "This table has no primary key. Use the modal Edit dialog instead."
+msgstr ""
+
+#: crates/app/src/ui/error_text.rs:8
+msgid "No changes to save."
+msgstr ""
+
+#: crates/app/src/ui/error_text.rs:10
+msgid "Internal column count mismatch (expected {expected}, got {got})."
+msgstr ""
+
+#: crates/app/src/ui/error_text.rs:20
+msgid "Could not reach the database. Is it running?"
+msgstr ""
+
+#: crates/app/src/ui/error_text.rs:21
+msgid "Username or password is wrong."
+msgstr ""
+
+#: crates/app/src/ui/error_text.rs:22
+msgid "TLS handshake failed: {detail}"
+msgstr ""
+
+#: crates/app/src/ui/error_text.rs:26
+msgid "Query failed (SQLSTATE {sqlstate}): {message}"
+msgstr ""
+
+#: crates/app/src/ui/error_text.rs:29
+msgid "Query failed: {message}"
+msgstr ""
+
+#: crates/app/src/ui/error_text.rs:30
+msgid "The connection was closed. Try reconnecting."
+msgstr ""
+
+#: crates/app/src/ui/error_text.rs:32
+msgid "This connection is read-only. Reopen it without read-only mode to make changes."
+msgstr ""
+
+#: crates/app/src/ui/error_text.rs:34
+msgid "Internal driver error: {detail}"
+msgstr ""
+
+#: crates/app/src/ui/grid.rs:262
+msgid "Copy value"
+msgstr ""
+
+#: crates/app/src/ui/grid.rs:263
+msgid "Copy row as INSERT"
+msgstr ""
+
+#: crates/app/src/ui/grid.rs:266
+msgid "Set to NULL"
+msgstr ""
+
+#: crates/app/src/ui/grid.rs:267
+msgid "Delete row"
+msgstr ""
+
+#: crates/app/src/ui/insert_dialog.rs:85
+msgid "Insert"
+msgstr ""
+
+#: crates/app/src/ui/insert_dialog.rs:98
+msgid "Insert into {table}"
+msgstr ""
+
+#: crates/app/src/ui/insert_dialog.rs:151
+msgid "Inserting…"
+msgstr ""
+
+#: crates/app/src/ui/preferences.rs:17
+msgid "Data browser"
+msgstr ""
+
+#: crates/app/src/ui/preferences.rs:19
+msgid "Tunes the row paginator and destructive-action confirmation."
+msgstr ""
+
+#: crates/app/src/ui/preferences.rs:26
+msgid "Default page size"
+msgstr ""
+
+#: crates/app/src/ui/preferences.rs:27
+msgid "Rows fetched per request when browsing a table"
+msgstr ""
+
+#: crates/app/src/ui/preferences.rs:31
+msgid "Confirm before deleting rows"
+msgstr ""
+
+#: crates/app/src/ui/preferences.rs:32
+msgid "Show a confirmation dialog before each destructive action"
+msgstr ""
+
+#: crates/app/src/ui/preferences.rs:41
+msgid "Editor"
+msgstr ""
+
+#: crates/app/src/ui/preferences.rs:48
+msgid "Editor font size"
+msgstr ""
+
+#: crates/app/src/ui/ssh_section.rs:42
+msgid "Use SSH tunnel"
+msgstr ""
+
+#: crates/app/src/ui/ssh_section.rs:43
+msgid "Reach the database through a bastion host"
+msgstr ""
+
+#: crates/app/src/ui/ssh_section.rs:48
+msgid "SSH tunnel"
+msgstr ""
+
+#: crates/app/src/ui/ssh_section.rs:51
+msgid "SSH host"
+msgstr ""
+
+#: crates/app/src/ui/ssh_section.rs:53
+msgid "SSH port"
+msgstr ""
+
+#: crates/app/src/ui/ssh_section.rs:56
+msgid "SSH user"
+msgstr ""
+
+#: crates/app/src/ui/ssh_section.rs:59
+msgid "Private key"
+msgstr ""
+
+#: crates/app/src/ui/ssh_section.rs:62
+msgid "SSH auth"
+msgstr ""
+
+#: crates/app/src/ui/ssh_section.rs:68
+msgid "SSH password"
+msgstr ""
+
+#: crates/app/src/ui/ssh_section.rs:71
+msgid "Private key path"
+msgstr ""
+
+#: crates/app/src/ui/ssh_section.rs:76
+msgid "Key passphrase"
+msgstr ""
+
+#: crates/app/src/ui/ssh_section.rs:209
+msgid "Browse for private key"
+msgstr ""
+
+#: crates/app/src/ui/ssh_section.rs:216
+msgid "Select SSH private key"
+msgstr ""

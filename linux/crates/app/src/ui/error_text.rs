@@ -4,10 +4,12 @@ use crate::sql_dialect::BuildSqlError;
 
 pub fn build_sql_message(error: &BuildSqlError) -> String {
     match error {
-        BuildSqlError::NoPrimaryKey => "This table has no primary key. Use the modal Edit dialog instead.".into(),
-        BuildSqlError::NothingToUpdate => "No changes to save.".into(),
+        BuildSqlError::NoPrimaryKey => crate::tr!("This table has no primary key. Use the modal Edit dialog instead."),
+        BuildSqlError::NothingToUpdate => crate::tr!("No changes to save."),
         BuildSqlError::LengthMismatch { expected, got } => {
-            format!("Internal column count mismatch (expected {expected}, got {got}).")
+            crate::tr!("Internal column count mismatch (expected {expected}, got {got}).")
+                .replace("{expected}", &expected.to_string())
+                .replace("{got}", &got.to_string())
         }
     }
 }
@@ -15,19 +17,21 @@ pub fn build_sql_message(error: &BuildSqlError) -> String {
 #[allow(dead_code)]
 pub fn driver_message(error: &DriverError) -> String {
     match error {
-        DriverError::ConnectionRefused => "Could not reach the database. Is it running?".into(),
-        DriverError::AuthFailed => "Username or password is wrong.".into(),
-        DriverError::Tls(detail) => format!("TLS handshake failed: {detail}"),
+        DriverError::ConnectionRefused => crate::tr!("Could not reach the database. Is it running?"),
+        DriverError::AuthFailed => crate::tr!("Username or password is wrong."),
+        DriverError::Tls(detail) => crate::tr!("TLS handshake failed: {detail}").replace("{detail}", detail),
         DriverError::Query {
             message,
             sqlstate: Some(s),
-        } => format!("Query failed (SQLSTATE {s}): {message}"),
-        DriverError::Query { message, .. } => format!("Query failed: {message}"),
-        DriverError::Disconnected => "The connection was closed. Try reconnecting.".into(),
+        } => crate::tr!("Query failed (SQLSTATE {sqlstate}): {message}")
+            .replace("{sqlstate}", s)
+            .replace("{message}", message),
+        DriverError::Query { message, .. } => crate::tr!("Query failed: {message}").replace("{message}", message),
+        DriverError::Disconnected => crate::tr!("The connection was closed. Try reconnecting."),
         DriverError::ReadOnly => {
-            "This connection is read-only. Reopen it without read-only mode to make changes.".into()
+            crate::tr!("This connection is read-only. Reopen it without read-only mode to make changes.")
         }
-        DriverError::Internal(detail) => format!("Internal driver error: {detail}"),
+        DriverError::Internal(detail) => crate::tr!("Internal driver error: {detail}").replace("{detail}", detail),
     }
 }
 

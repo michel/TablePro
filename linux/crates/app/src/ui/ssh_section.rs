@@ -39,33 +39,42 @@ pub enum SshSecretToStore {
 impl SshSection {
     pub fn build() -> Self {
         let enable = adw::SwitchRow::builder()
-            .title("Use SSH tunnel")
-            .subtitle("Reach the database through a bastion host")
+            .title(crate::tr!("Use SSH tunnel"))
+            .subtitle(crate::tr!("Reach the database through a bastion host"))
             .active(false)
             .build();
 
         let group = adw::PreferencesGroup::builder()
-            .title("SSH tunnel")
+            .title(crate::tr!("SSH tunnel"))
             .visible(false)
             .build();
-        let host = adw::EntryRow::builder().title("SSH host").build();
-        let port = adw::EntryRow::builder().title("SSH port").text("22").build();
-        let user = adw::EntryRow::builder().title("SSH user").build();
+        let host = adw::EntryRow::builder().title(crate::tr!("SSH host")).build();
+        let port = adw::EntryRow::builder()
+            .title(crate::tr!("SSH port"))
+            .text("22")
+            .build();
+        let user = adw::EntryRow::builder().title(crate::tr!("SSH user")).build();
 
-        let auth_model = gtk::StringList::new(&["Password", "Private key"]);
+        let auth_pwd = crate::tr!("Password");
+        let auth_key = crate::tr!("Private key");
+        let auth_model = gtk::StringList::new(&[auth_pwd.as_str(), auth_key.as_str()]);
         let auth_combo = adw::ComboRow::builder()
-            .title("SSH auth")
+            .title(crate::tr!("SSH auth"))
             .model(&auth_model)
             .selected(SSH_AUTH_PASSWORD)
             .build();
 
-        let password = adw::PasswordEntryRow::builder().title("SSH password").build();
+        let password = adw::PasswordEntryRow::builder()
+            .title(crate::tr!("SSH password"))
+            .build();
         let key_path = adw::EntryRow::builder()
-            .title("Private key path")
+            .title(crate::tr!("Private key path"))
             .text(default_ssh_key_path())
             .build();
         attach_key_browse_button(&key_path);
-        let passphrase = adw::PasswordEntryRow::builder().title("Key passphrase").build();
+        let passphrase = adw::PasswordEntryRow::builder()
+            .title(crate::tr!("Key passphrase"))
+            .build();
 
         group.add(&host);
         group.add(&port);
@@ -197,14 +206,14 @@ fn default_ssh_key_path() -> String {
 fn attach_key_browse_button(key_path: &adw::EntryRow) {
     let button = gtk::Button::builder()
         .icon_name("document-open-symbolic")
-        .tooltip_text("Browse for private key")
+        .tooltip_text(crate::tr!("Browse for private key"))
         .valign(gtk::Align::Center)
         .build();
     button.add_css_class("flat");
     let entry = key_path.clone();
     button.connect_clicked(move |btn| {
         let dialog = gtk::FileDialog::builder()
-            .title("Select SSH private key")
+            .title(crate::tr!("Select SSH private key"))
             .modal(true)
             .build();
         if let Some(home) = std::env::var_os("HOME") {

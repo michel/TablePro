@@ -75,11 +75,11 @@ impl SimpleComponent for EditDialog {
         let mut rows = Vec::with_capacity(init.columns.len());
         for (col, value) in init.columns.iter().zip(init.row.iter()) {
             let title = if col.primary_key {
-                format!("{} (read-only · primary key)", col.name)
+                crate::tr!("{name} (read-only · primary key)").replace("{name}", &col.name)
             } else if col.nullable {
                 col.name.clone()
             } else {
-                format!("{} (required)", col.name)
+                crate::tr!("{name} (required)").replace("{name}", &col.name)
             };
             let row = adw::EntryRow::builder().title(&title).build();
             row.set_text(&value_to_text(value));
@@ -91,7 +91,7 @@ impl SimpleComponent for EditDialog {
         }
 
         let submit = gtk::Button::builder()
-            .label("Save")
+            .label(crate::tr!("Save"))
             .halign(gtk::Align::End)
             .margin_top(12)
             .build();
@@ -104,7 +104,7 @@ impl SimpleComponent for EditDialog {
         status.add_css_class("dim-label");
         status.set_accessible_role(gtk::AccessibleRole::Status);
 
-        root.set_title(&format!("Edit row in {}", init.table));
+        root.set_title(&crate::tr!("Edit row in {table}").replace("{table}", &init.table));
 
         let model = EditDialog {
             table: init.table,
@@ -126,7 +126,7 @@ impl SimpleComponent for EditDialog {
         match msg {
             EditDialogInput::Submit => {
                 let Some(conn) = database_service::instance().active() else {
-                    self.status.set_label("no active connection");
+                    self.status.set_label(&crate::tr!("no active connection"));
                     return;
                 };
 
@@ -159,7 +159,7 @@ impl SimpleComponent for EditDialog {
                 };
 
                 self.submit.set_sensitive(false);
-                self.status.set_label("Saving…");
+                self.status.set_label(&crate::tr!("Saving…"));
 
                 let sender_clone = sender.clone();
                 sender.command(move |_, shutdown| {

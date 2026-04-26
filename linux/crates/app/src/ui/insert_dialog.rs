@@ -75,14 +75,14 @@ impl SimpleComponent for InsertDialog {
             let title = if col.nullable {
                 col.name.clone()
             } else {
-                format!("{} *", col.name)
+                crate::tr!("{name} (required)").replace("{name}", &col.name)
             };
             let row = adw::EntryRow::builder().title(&title).build();
             rows.push(row);
         }
 
         let submit = gtk::Button::builder()
-            .label("Insert")
+            .label(crate::tr!("Insert"))
             .halign(gtk::Align::End)
             .margin_top(12)
             .build();
@@ -95,7 +95,7 @@ impl SimpleComponent for InsertDialog {
         status.add_css_class("dim-label");
         status.set_accessible_role(gtk::AccessibleRole::Status);
 
-        root.set_title(&format!("Insert into {}", init.table));
+        root.set_title(&crate::tr!("Insert into {table}").replace("{table}", &init.table));
 
         let model = InsertDialog {
             table: init.table,
@@ -116,7 +116,7 @@ impl SimpleComponent for InsertDialog {
         match msg {
             InsertDialogInput::Submit => {
                 let Some(conn) = database_service::instance().active() else {
-                    self.status.set_label("no active connection");
+                    self.status.set_label(&crate::tr!("no active connection"));
                     return;
                 };
                 let cols: Vec<String> = self
@@ -148,7 +148,7 @@ impl SimpleComponent for InsertDialog {
                 );
 
                 self.submit.set_sensitive(false);
-                self.status.set_label("Inserting…");
+                self.status.set_label(&crate::tr!("Inserting…"));
 
                 let sender_clone = sender.clone();
                 sender.command(move |_, shutdown| {
