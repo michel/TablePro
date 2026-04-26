@@ -6,7 +6,7 @@ use uuid::Uuid;
 
 use crate::error::StorageError;
 
-const SCHEMA: &str = "com.tablepro.Linux.Password";
+const SCHEMA: &str = "com.tablepro.linux.Password";
 
 const KIND_DB_PASSWORD: &str = "db_password";
 const KIND_SSH_PASSWORD: &str = "ssh_password";

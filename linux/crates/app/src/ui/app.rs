@@ -2085,7 +2085,7 @@ impl App {
     fn on_show_about(&self) {
         let dialog = adw::AboutDialog::builder()
             .application_name(crate::tr!("TablePro Linux"))
-            .application_icon("com.tablepro.Linux")
+            .application_icon("com.tablepro.linux")
             .developer_name(crate::tr!("TablePro Authors"))
             .version(env!("CARGO_PKG_VERSION"))
             .website("https://github.com/TableProApp/TablePro")

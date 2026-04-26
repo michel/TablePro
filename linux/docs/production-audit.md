@@ -43,7 +43,7 @@ That puts the project at a developer-demo level: a contributor on the same machi
 
 A user on Fedora 41 or Ubuntu 24.04:
 
-1. Installs `com.tablepro.Linux` from Flathub via `flatpak install`
+1. Installs `com.tablepro.linux` from Flathub via `flatpak install`
 2. Connects to their everyday Postgres, MySQL, or SQLite database
 3. Browses tables containing real-world data (dates, decimals, JSON, UUIDs, NULLs) and sees correct values
 4. Runs typical queries against tables of arbitrary size (1M+ rows) without OOM or freeze
@@ -168,12 +168,12 @@ The architectural fix is a `DatabaseService` actor (Relm4 Worker) owning a HashM
 
 ### 7. Distribution
 
-**Manifest exists**: `flatpak/com.tablepro.Linux.json` skeleton + desktop file from Phase 0.
+**Manifest exists**: `flatpak/com.tablepro.linux.json` skeleton + desktop file from Phase 0.
 
 **Reality**:
 - Manifest never built locally with `flatpak-builder`
 - `cargo-sources.json` for offline build: not generated
-- `com.tablepro.Linux.metainfo.xml`: missing (Flathub blocker — AppStream metadata is required)
+- `com.tablepro.linux.metainfo.xml`: missing (Flathub blocker — AppStream metadata is required)
 - Icon set: 0 icons. Need 16/32/48/64/128/256/512 PNG + scalable SVG
 - Screenshots: 0. Flathub requires 4-5 high-res
 - Long description, short description: missing

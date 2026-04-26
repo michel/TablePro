@@ -161,7 +161,7 @@ This is where the project sits today. The app is interesting but **not productio
 
 ### Distribution scaffolding (~1 week)
 
-- [ ] `com.tablepro.Linux.metainfo.xml` (AppStream metadata, screenshots refs, license SPDX)
+- [ ] `com.tablepro.linux.metainfo.xml` (AppStream metadata, screenshots refs, license SPDX)
 - [ ] App icon set: 16/32/48/64/128/256/512 PNG + scalable SVG
 - [ ] 4–5 high-resolution screenshots showing key flows
 - [ ] Long description + short description in metainfo
@@ -176,7 +176,7 @@ This is where the project sits today. The app is interesting but **not productio
 - [ ] Crash reporter: panic hook captures backtrace, writes to log, optional anonymous upload (with explicit opt-in)
 - [ ] "Help → Report bug" UI helper that opens the issue tracker pre-filled with sanitized log excerpt
 
-**Exit criterion**: app published to Flathub stable channel; user installs via `flatpak install com.tablepro.Linux`; runs against their Postgres + MySQL daily for one week without unrecoverable failure.
+**Exit criterion**: app published to Flathub stable channel; user installs via `flatpak install com.tablepro.linux`; runs against their Postgres + MySQL daily for one week without unrecoverable failure.
 
 ---
 

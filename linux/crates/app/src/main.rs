@@ -9,7 +9,7 @@ mod services;
 mod sql_dialect;
 mod ui;
 
-const APP_ID: &str = "com.tablepro.Linux";
+const APP_ID: &str = "com.tablepro.linux";
 
 fn main() {
     tracing_subscriber::fmt()

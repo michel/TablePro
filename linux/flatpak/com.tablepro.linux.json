@@ -1,5 +1,5 @@
 {
-    "app-id": "com.tablepro.Linux",
+    "app-id": "com.tablepro.linux",
     "runtime": "org.gnome.Platform",
     "runtime-version": "47",
     "sdk": "org.gnome.Sdk",
@@ -29,9 +29,9 @@
             "build-commands": [
                 "cargo build --release -p tablepro-app",
                 "install -Dm755 target/release/tablepro-app /app/bin/tablepro-app",
-                "install -Dm644 flatpak/com.tablepro.Linux.desktop /app/share/applications/com.tablepro.Linux.desktop",
-                "install -Dm644 flatpak/com.tablepro.Linux.metainfo.xml /app/share/metainfo/com.tablepro.Linux.metainfo.xml",
-                "install -Dm644 flatpak/icons/scalable/com.tablepro.Linux.svg /app/share/icons/hicolor/scalable/apps/com.tablepro.Linux.svg",
+                "install -Dm644 flatpak/com.tablepro.linux.desktop /app/share/applications/com.tablepro.linux.desktop",
+                "install -Dm644 flatpak/com.tablepro.linux.metainfo.xml /app/share/metainfo/com.tablepro.linux.metainfo.xml",
+                "install -Dm644 flatpak/icons/scalable/com.tablepro.linux.svg /app/share/icons/hicolor/scalable/apps/com.tablepro.linux.svg",
                 "if [ -f po/LINGUAS ]; then for lang in $(grep -v '^#' po/LINGUAS | grep -v '^$' || true); do mkdir -p /app/share/locale/$lang/LC_MESSAGES && msgfmt po/$lang.po -o /app/share/locale/$lang/LC_MESSAGES/tablepro.mo; done; fi"
             ],
             "sources": [
