@@ -126,6 +126,24 @@ impl Connection for PgConnection {
         })
     }
 
+    async fn execute_params(&self, sql: &str, params: &[Value]) -> Result<ExecResult, DriverError> {
+        let mut q = sqlx::query(sql);
+        for p in params {
+            q = match p {
+                Value::Null => q.bind(Option::<&str>::None),
+                Value::Bool(b) => q.bind(*b),
+                Value::Int(i) => q.bind(*i),
+                Value::Float(f) => q.bind(*f),
+                Value::Text(s) => q.bind(s.clone()),
+                Value::Bytes(b) => q.bind(b.clone()),
+            };
+        }
+        let res = q.execute(&self.pool).await.map_err(map_sqlx_error)?;
+        Ok(ExecResult {
+            rows_affected: res.rows_affected(),
+        })
+    }
+
     async fn ping(&self) -> Result<(), DriverError> {
         sqlx::query("SELECT 1")
             .execute(&self.pool)

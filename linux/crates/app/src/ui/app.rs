@@ -4,13 +4,14 @@ use relm4::adw::prelude::*;
 use relm4::prelude::*;
 use relm4::{ComponentController, Controller, adw, gtk};
 
-use tablepro_core::{DriverRegistry, QueryResult, TableInfo};
+use tablepro_core::{ColumnInfo, DriverRegistry, QueryResult, TableInfo, Value};
 use tablepro_storage::SavedConnection;
 use uuid::Uuid;
 
 use super::connect_dialog::{ConnectDialog, ConnectDialogInit, ConnectDialogOutput};
 use super::editor::SqlEditor;
 use super::grid::build_column_view;
+use super::insert_dialog::{InsertDialog, InsertDialogInit, InsertDialogOutput};
 use crate::runtime;
 use crate::services::{connection_holder, connection_service};
 
@@ -29,12 +30,19 @@ pub struct App {
     paginator_label: gtk::Label,
     prev_button: gtk::Button,
     next_button: gtk::Button,
+    insert_button: gtk::Button,
+    delete_button: gtk::Button,
     grid_holder: gtk::Box,
     browse_view: gtk::Box,
     dialog: Option<Controller<ConnectDialog>>,
     editor: Option<Controller<SqlEditor>>,
+    insert_dialog: Option<Controller<InsertDialog>>,
     current_table: Option<String>,
     current_offset: u64,
+    current_columns: Vec<ColumnInfo>,
+    current_result: Option<QueryResult>,
+    current_selection: Option<gtk::SingleSelection>,
+    current_driver_id: Option<String>,
     connected: bool,
 }
 
@@ -44,10 +52,15 @@ pub enum AppMsg {
     Connected { tables: Vec<TableInfo>, driver_id: String },
     DialogClosed,
     SelectTable(String),
+    ColumnsLoaded(String, Vec<ColumnInfo>),
     RowsLoaded(String, u64, QueryResult),
     LoadFailed(String),
     PrevPage,
     NextPage,
+    InsertRow,
+    InsertCommitted,
+    DeleteSelectedRow,
+    RowOperationCommitted,
     ReloadConnections,
     ConnectionsLoaded(Vec<SavedConnection>),
     OpenSaved(SavedConnection),
@@ -224,6 +237,24 @@ impl SimpleComponent for App {
         let sender_for_next = sender.clone();
         next_button.connect_clicked(move |_| sender_for_next.input(AppMsg::NextPage));
 
+        let insert_button = gtk::Button::builder()
+            .icon_name("list-add-symbolic")
+            .tooltip_text("Insert row")
+            .sensitive(false)
+            .build();
+        let delete_button = gtk::Button::builder()
+            .icon_name("user-trash-symbolic")
+            .tooltip_text("Delete selected row")
+            .sensitive(false)
+            .build();
+
+        let sender_for_insert = sender.clone();
+        insert_button.connect_clicked(move |_| sender_for_insert.input(AppMsg::InsertRow));
+        let sender_for_delete = sender.clone();
+        delete_button.connect_clicked(move |_| sender_for_delete.input(AppMsg::DeleteSelectedRow));
+
+        let spacer = gtk::Box::builder().hexpand(true).build();
+
         let paginator_bar = gtk::Box::builder()
             .orientation(gtk::Orientation::Horizontal)
             .spacing(8)
@@ -235,6 +266,9 @@ impl SimpleComponent for App {
         paginator_bar.append(&prev_button);
         paginator_bar.append(&next_button);
         paginator_bar.append(&paginator_label);
+        paginator_bar.append(&spacer);
+        paginator_bar.append(&insert_button);
+        paginator_bar.append(&delete_button);
 
         let grid_holder = gtk::Box::builder()
             .orientation(gtk::Orientation::Vertical)
@@ -259,12 +293,19 @@ impl SimpleComponent for App {
             paginator_label,
             prev_button,
             next_button,
+            insert_button,
+            delete_button,
             grid_holder,
             browse_view,
             dialog: None,
             editor: None,
+            insert_dialog: None,
             current_table: None,
             current_offset: 0,
+            current_columns: Vec::new(),
+            current_result: None,
+            current_selection: None,
+            current_driver_id: None,
             connected: false,
         };
         sender.input(AppMsg::ReloadConnections);
@@ -289,6 +330,7 @@ impl SimpleComponent for App {
             AppMsg::Connected { tables, driver_id } => {
                 self.dialog = None;
                 self.connected = true;
+                self.current_driver_id = Some(driver_id.clone());
                 self.edit_button.set_sensitive(true);
                 self.disconnect_button.set_visible(true);
                 self.table_search.set_text("");
@@ -306,9 +348,14 @@ impl SimpleComponent for App {
                 self.editor = None;
                 self.current_table = None;
                 self.current_offset = 0;
+                self.current_columns.clear();
+                self.current_result = None;
+                self.current_selection = None;
+                self.current_driver_id = None;
                 self.connected = false;
                 self.edit_button.set_sensitive(false);
                 self.disconnect_button.set_visible(false);
+                self.refresh_crud_buttons();
                 self.table_search.set_text("");
                 while let Some(child) = self.sidebar.first_child() {
                     self.sidebar.remove(&child);
@@ -328,8 +375,17 @@ impl SimpleComponent for App {
                 self.editor = None;
                 self.current_table = Some(name.clone());
                 self.current_offset = 0;
+                self.current_columns.clear();
                 self.set_status_page("Loading…", &format!("Fetching rows from {name}"));
                 self.fetch_current_page(sender.clone());
+                self.fetch_columns(name, sender.clone());
+            }
+
+            AppMsg::ColumnsLoaded(table, columns) => {
+                if self.current_table.as_deref() == Some(&table) {
+                    self.current_columns = columns;
+                    self.refresh_crud_buttons();
+                }
             }
 
             AppMsg::PrevPage => {
@@ -350,13 +406,16 @@ impl SimpleComponent for App {
                 tracing::info!(table = %table, offset, rows = n_rows, cols = n_cols, "rows loaded");
 
                 clear_box(&self.grid_holder);
-                let column_view = build_column_view(&result);
+                let (column_view, selection) = build_column_view(&result);
+                self.current_selection = Some(selection);
+                self.current_result = Some(result.clone());
                 let scrolled = gtk::ScrolledWindow::builder()
                     .child(&column_view)
                     .hexpand(true)
                     .vexpand(true)
                     .build();
                 self.grid_holder.append(&scrolled);
+                self.refresh_crud_buttons();
 
                 let label = if n_rows == 0 {
                     format!("No rows at offset {offset}")
@@ -375,6 +434,87 @@ impl SimpleComponent for App {
             AppMsg::LoadFailed(msg) => {
                 tracing::warn!(error = %msg, "load failed");
                 self.set_status_page("Failed", &msg);
+            }
+
+            AppMsg::InsertRow => {
+                let Some(table) = self.current_table.clone() else {
+                    return;
+                };
+                if self.current_columns.is_empty() {
+                    return;
+                }
+                let driver_id = self.current_driver_id.clone().unwrap_or_else(|| "postgres".to_string());
+                let dialog = InsertDialog::builder()
+                    .launch(InsertDialogInit {
+                        table: table.clone(),
+                        columns: self.current_columns.clone(),
+                        driver_id,
+                    })
+                    .forward(sender.input_sender(), |out| match out {
+                        InsertDialogOutput::Inserted => AppMsg::InsertCommitted,
+                    });
+                dialog.widget().present(Some(&self.window));
+                self.insert_dialog = Some(dialog);
+            }
+
+            AppMsg::InsertCommitted => {
+                self.insert_dialog = None;
+                self.fetch_current_page(sender.clone());
+            }
+
+            AppMsg::DeleteSelectedRow => {
+                let Some(table) = self.current_table.clone() else {
+                    return;
+                };
+                let Some(selection) = self.current_selection.clone() else {
+                    return;
+                };
+                let Some(result) = self.current_result.clone() else {
+                    return;
+                };
+                let position = selection.selected();
+                if position == gtk::INVALID_LIST_POSITION || (position as usize) >= result.rows.len() {
+                    return;
+                }
+                let row = result.rows[position as usize].clone();
+                let pk_indexes: Vec<usize> = self
+                    .current_columns
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, c)| c.primary_key)
+                    .map(|(i, _)| i)
+                    .collect();
+                if pk_indexes.is_empty() {
+                    self.show_error_alert("Cannot delete", "Table has no primary key.");
+                    return;
+                }
+
+                let driver_id = self.current_driver_id.clone().unwrap_or_else(|| "postgres".to_string());
+                let where_clause: String = pk_indexes
+                    .iter()
+                    .enumerate()
+                    .map(|(i, col_idx)| {
+                        let name = &self.current_columns[*col_idx].name;
+                        let placeholder = placeholder_for(&driver_id, i);
+                        format!("{} = {}", quote_ident(&driver_id, name), placeholder)
+                    })
+                    .collect::<Vec<_>>()
+                    .join(" AND ");
+                let sql = format!("DELETE FROM {} WHERE {}", quote_ident(&driver_id, &table), where_clause);
+                let params: Vec<Value> = pk_indexes.iter().map(|i| row[*i].clone()).collect();
+                let preview = preview_pk(&self.current_columns, &pk_indexes, &row);
+
+                self.confirm_and_execute(
+                    sender.clone(),
+                    &table,
+                    sql,
+                    params,
+                    &format!("Delete row where {preview}?"),
+                );
+            }
+
+            AppMsg::RowOperationCommitted => {
+                self.fetch_current_page(sender.clone());
             }
 
             AppMsg::ReloadConnections => {
@@ -488,6 +628,125 @@ impl App {
             }
         });
     }
+
+    fn fetch_columns(&self, table: String, sender: ComponentSender<App>) {
+        let conn = match connection_holder::get() {
+            Some(c) => c,
+            None => return,
+        };
+        let table_for_task = table.clone();
+        let (tx, rx) = async_channel::bounded(1);
+        runtime::handle().spawn(async move {
+            let result = conn.fetch_columns(&table_for_task).await;
+            let _ = tx.send(result).await;
+        });
+        let sender_recv = sender.clone();
+        glib::spawn_future_local(async move {
+            if let Ok(Ok(columns)) = rx.recv().await {
+                sender_recv.input(AppMsg::ColumnsLoaded(table, columns));
+            }
+        });
+    }
+
+    fn refresh_crud_buttons(&self) {
+        let has_table = self.current_table.is_some() && !self.current_columns.is_empty();
+        self.insert_button.set_sensitive(has_table);
+        self.delete_button
+            .set_sensitive(has_table && self.current_result.is_some());
+    }
+
+    fn show_error_alert(&self, title: &str, message: &str) {
+        let dialog = adw::AlertDialog::new(Some(title), Some(message));
+        dialog.add_response("ok", "OK");
+        dialog.set_default_response(Some("ok"));
+        dialog.present(Some(&self.window));
+    }
+
+    fn confirm_and_execute(
+        &self,
+        sender: ComponentSender<App>,
+        table: &str,
+        sql: String,
+        params: Vec<Value>,
+        preview: &str,
+    ) {
+        let dialog = adw::AlertDialog::new(Some("Confirm"), Some(preview));
+        dialog.add_response("cancel", "Cancel");
+        dialog.add_response("delete", "Delete");
+        dialog.set_response_appearance("delete", adw::ResponseAppearance::Destructive);
+        dialog.set_default_response(Some("cancel"));
+        dialog.set_close_response("cancel");
+
+        let table = table.to_string();
+        dialog.connect_response(None, move |dialog, response| {
+            dialog.close();
+            if response != "delete" {
+                return;
+            }
+            let Some(conn) = connection_holder::get() else {
+                return;
+            };
+            let sql = sql.clone();
+            let params = params.clone();
+            let table = table.clone();
+            let sender_clone = sender.clone();
+            let (tx, rx) = async_channel::bounded(1);
+            runtime::handle().spawn(async move {
+                let result = conn.execute_params(&sql, &params).await;
+                let _ = tx.send((table, result)).await;
+            });
+            glib::spawn_future_local(async move {
+                if let Ok((_, result)) = rx.recv().await {
+                    match result {
+                        Ok(exec) => {
+                            tracing::info!(rows = exec.rows_affected, "delete ok");
+                            sender_clone.input(AppMsg::RowOperationCommitted);
+                        }
+                        Err(e) => {
+                            tracing::warn!(error = %e, "delete failed");
+                            sender_clone.input(AppMsg::LoadFailed(format!("delete: {e}")));
+                        }
+                    }
+                }
+            });
+        });
+        dialog.present(Some(&self.window));
+    }
+}
+
+fn quote_ident(driver_id: &str, name: &str) -> String {
+    if driver_id == "mysql" {
+        format!("`{}`", name.replace('`', ""))
+    } else {
+        format!("\"{}\"", name.replace('"', ""))
+    }
+}
+
+fn placeholder_for(driver_id: &str, index: usize) -> String {
+    if driver_id == "postgres" {
+        format!("${}", index + 1)
+    } else {
+        "?".to_string()
+    }
+}
+
+fn preview_pk(columns: &[ColumnInfo], pk_indexes: &[usize], row: &[Value]) -> String {
+    pk_indexes
+        .iter()
+        .map(|i| {
+            let name = &columns[*i].name;
+            let value = match &row[*i] {
+                Value::Null => "NULL".to_string(),
+                Value::Bool(b) => b.to_string(),
+                Value::Int(i) => i.to_string(),
+                Value::Float(f) => f.to_string(),
+                Value::Text(s) => format!("'{}'", s),
+                Value::Bytes(b) => format!("<{} bytes>", b.len()),
+            };
+            format!("{name} = {value}")
+        })
+        .collect::<Vec<_>>()
+        .join(" AND ")
 }
 
 fn clear_box(b: &gtk::Box) {

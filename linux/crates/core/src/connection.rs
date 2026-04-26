@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 
 use crate::error::DriverError;
-use crate::query::{ColumnInfo, ExecResult, QueryResult, TableInfo};
+use crate::query::{ColumnInfo, ExecResult, QueryResult, TableInfo, Value};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ConnectOptions {
@@ -34,6 +34,7 @@ pub trait Connection: Send + Sync {
     async fn fetch_rows(&self, table: &str, offset: u64, limit: u64) -> Result<QueryResult, DriverError>;
     async fn query(&self, sql: &str) -> Result<QueryResult, DriverError>;
     async fn execute(&self, sql: &str) -> Result<ExecResult, DriverError>;
+    async fn execute_params(&self, sql: &str, params: &[Value]) -> Result<ExecResult, DriverError>;
     async fn ping(&self) -> Result<(), DriverError>;
     async fn close(self: Box<Self>) -> Result<(), DriverError>;
 }

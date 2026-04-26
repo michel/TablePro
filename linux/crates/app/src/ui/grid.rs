@@ -5,7 +5,7 @@ use tablepro_core::{ColumnInfo, QueryResult, Value};
 
 use super::row_object::RowObject;
 
-pub fn build_column_view(result: &QueryResult) -> gtk::ColumnView {
+pub fn build_column_view(result: &QueryResult) -> (gtk::ColumnView, gtk::SingleSelection) {
     let store = gtk4::gio::ListStore::new::<RowObject>();
     for row in &result.rows {
         let cells = row.iter().map(value_to_string).collect();
@@ -22,7 +22,7 @@ pub fn build_column_view(result: &QueryResult) -> gtk::ColumnView {
         column_view.append_column(&build_column(column, i));
     }
 
-    column_view
+    (column_view, selection)
 }
 
 fn build_column(info: &ColumnInfo, idx: usize) -> gtk::ColumnViewColumn {

@@ -186,7 +186,7 @@ impl SimpleComponent for SqlEditor {
                         .build();
                     self.results_holder.append(&placeholder);
                 } else {
-                    let column_view = build_column_view(&result);
+                    let (column_view, _selection) = build_column_view(&result);
                     let scrolled = gtk::ScrolledWindow::builder()
                         .child(&column_view)
                         .hexpand(true)
