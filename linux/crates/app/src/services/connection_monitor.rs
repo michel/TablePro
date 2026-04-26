@@ -7,7 +7,7 @@ use tablepro_core::Connection;
 use tablepro_ssh::SshTunnel;
 
 use super::connection_service;
-use super::database_service::{EntryInner, ReconnectParams};
+use super::database_service::{ConnectionHealth, EntryInner, ReconnectParams};
 
 const PING_INTERVAL: Duration = Duration::from_secs(30);
 const BACKOFF_INITIAL: Duration = Duration::from_secs(5);
@@ -45,6 +45,7 @@ async fn reconnect_loop(
 ) -> Result<(), ()> {
     let mut delay = BACKOFF_INITIAL;
     let mut attempt: u32 = 1;
+    set_health(inner, ConnectionHealth::Reconnecting { attempt });
     loop {
         tokio::select! {
             _ = cancel.cancelled() => return Err(()),
@@ -54,12 +55,14 @@ async fn reconnect_loop(
         match try_reconnect(params).await {
             Ok((conn, tunnel)) => {
                 swap_connection(inner, conn, tunnel);
+                set_health(inner, ConnectionHealth::Healthy);
                 tracing::info!(attempt, "reconnect succeeded");
                 return Ok(());
             }
             Err(e) => {
                 tracing::warn!(error = %e, attempt, delay_secs = delay.as_secs(), "reconnect failed; backing off");
                 attempt += 1;
+                set_health(inner, ConnectionHealth::Reconnecting { attempt });
                 delay = next_delay(delay);
             }
         }
@@ -85,6 +88,12 @@ fn swap_connection(inner: &Arc<Mutex<EntryInner>>, conn: Box<dyn Connection>, tu
     if let Ok(mut g) = inner.lock() {
         g.connection = arc;
         g.tunnel = tunnel;
+    }
+}
+
+fn set_health(inner: &Arc<Mutex<EntryInner>>, health: ConnectionHealth) {
+    if let Ok(mut g) = inner.lock() {
+        g.health = health;
     }
 }
 

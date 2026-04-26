@@ -18,6 +18,13 @@ pub fn instance() -> &'static DatabaseService {
 pub(super) struct EntryInner {
     pub(super) connection: Arc<dyn Connection>,
     pub(super) tunnel: Option<SshTunnel>,
+    pub(super) health: ConnectionHealth,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ConnectionHealth {
+    Healthy,
+    Reconnecting { attempt: u32 },
 }
 
 pub struct ReconnectParams {
@@ -59,6 +66,7 @@ impl DatabaseService {
         let inner = Arc::new(Mutex::new(EntryInner {
             connection: arc,
             tunnel,
+            health: ConnectionHealth::Healthy,
         }));
         let cancel = CancellationToken::new();
         let monitor = tokio::spawn(connection_monitor::run(inner.clone(), params, cancel.clone()));
@@ -89,6 +97,14 @@ impl DatabaseService {
 
     pub fn active_id(&self) -> Option<Uuid> {
         *self.active.lock().expect("database_service lock")
+    }
+
+    pub fn active_health(&self) -> Option<ConnectionHealth> {
+        let id = self.active_id()?;
+        let entries = self.connections.lock().expect("database_service lock");
+        let entry = entries.get(&id)?;
+        let inner = entry.inner.lock().expect("entry inner lock");
+        Some(inner.health.clone())
     }
 
     pub fn is_active_read_only(&self) -> bool {

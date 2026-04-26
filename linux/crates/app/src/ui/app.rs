@@ -13,6 +13,7 @@ use super::edit_dialog::{EditDialog, EditDialogInit, EditDialogOutput};
 use super::editor::SqlEditor;
 use super::grid::build_column_view;
 use super::insert_dialog::{InsertDialog, InsertDialogInit, InsertDialogOutput};
+use crate::services::database_service::ConnectionHealth;
 use crate::services::{connection_service, database_service};
 use crate::sql_dialect::{placeholder_for, quote_ident};
 
@@ -27,6 +28,8 @@ pub struct App {
     connections_popover: gtk::Popover,
     edit_button: gtk::Button,
     disconnect_button: gtk::Button,
+    health_pill: gtk::Label,
+    health_state: Option<ConnectionHealth>,
     table_search: gtk::SearchEntry,
     paginator_label: gtk::Label,
     prev_button: gtk::Button,
@@ -81,6 +84,7 @@ pub enum AppMsg {
     DeleteConnection(Uuid),
     OpenEditor,
     Disconnect,
+    PollHealth,
 }
 
 #[relm4::component(pub)]
@@ -113,6 +117,12 @@ impl SimpleComponent for App {
                         #[wrap(Some)]
                         #[name = "connections_popover"]
                         set_popover = &gtk::Popover {},
+                    },
+
+                    #[name = "health_pill"]
+                    pack_end = &gtk::Label {
+                        set_visible: false,
+                        set_margin_end: 6,
                     },
 
                     #[name = "edit_button"]
@@ -311,6 +321,8 @@ impl SimpleComponent for App {
             connections_popover: widgets.connections_popover.clone(),
             edit_button: widgets.edit_button.clone(),
             disconnect_button: widgets.disconnect_button.clone(),
+            health_pill: widgets.health_pill.clone(),
+            health_state: None,
             table_search: widgets.table_search.clone(),
             paginator_label,
             prev_button,
@@ -333,6 +345,13 @@ impl SimpleComponent for App {
             connected: false,
         };
         sender.input(AppMsg::ReloadConnections);
+
+        let poll_sender = sender.clone();
+        glib::timeout_add_seconds_local(1, move || {
+            poll_sender.input(AppMsg::PollHealth);
+            glib::ControlFlow::Continue
+        });
+
         ComponentParts { model, widgets }
     }
 
@@ -672,6 +691,14 @@ impl SimpleComponent for App {
                 self.editor = Some(editor);
             }
 
+            AppMsg::PollHealth => {
+                let current = database_service::instance().active_health();
+                if current != self.health_state {
+                    self.refresh_health_pill(current.clone());
+                    self.health_state = current;
+                }
+            }
+
             AppMsg::DeleteConnection(id) => {
                 let sender_clone = sender.clone();
                 sender.command(move |_, shutdown| {
@@ -752,6 +779,27 @@ impl App {
                 })
                 .drop_on_shutdown()
         });
+    }
+
+    fn refresh_health_pill(&self, health: Option<ConnectionHealth>) {
+        let pill = &self.health_pill;
+        pill.remove_css_class("success");
+        pill.remove_css_class("warning");
+        match health {
+            None => {
+                pill.set_visible(false);
+            }
+            Some(ConnectionHealth::Healthy) => {
+                pill.set_visible(true);
+                pill.set_label("Connected");
+                pill.add_css_class("success");
+            }
+            Some(ConnectionHealth::Reconnecting { attempt }) => {
+                pill.set_visible(true);
+                pill.set_label(&format!("Reconnecting (attempt {attempt})"));
+                pill.add_css_class("warning");
+            }
+        }
     }
 
     fn refresh_crud_buttons(&self) {
