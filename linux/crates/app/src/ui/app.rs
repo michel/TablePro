@@ -357,383 +357,399 @@ impl SimpleComponent for App {
 
     fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>) {
         match msg {
-            AppMsg::OpenConnect => {
-                let dialog = ConnectDialog::builder()
-                    .launch(ConnectDialogInit {
-                        registry: self.registry.clone(),
-                    })
-                    .forward(sender.input_sender(), |out| match out {
-                        ConnectDialogOutput::Connected { tables, driver_id } => AppMsg::Connected { tables, driver_id },
-                        ConnectDialogOutput::Closed => AppMsg::DialogClosed,
-                    });
-                dialog.widget().present(Some(&self.window));
-                self.dialog = Some(dialog);
-            }
-
-            AppMsg::Connected { tables, driver_id } => {
-                self.dialog = None;
-                self.connected = true;
-                self.current_driver_id = Some(driver_id.clone());
-                self.edit_button.set_sensitive(true);
-                self.disconnect_button.set_visible(true);
-                self.table_search.set_text("");
-                tracing::info!(driver = %driver_id, table_count = tables.len(), "workspace ready");
-                rebuild_sidebar(&self.sidebar, &tables, sender.clone());
-                self.set_status_page(
-                    "Select a table",
-                    &format!("Connected to {driver_id}. Pick a table from the left to load up to 100,000 rows."),
-                );
-                sender.input(AppMsg::ReloadConnections);
-            }
-
-            AppMsg::Disconnect => {
-                let svc = database_service::instance();
-                if let Some(id) = svc.active_id() {
-                    svc.remove(id);
-                } else {
-                    svc.clear_all();
-                }
-                self.editor = None;
-                self.current_table = None;
-                self.current_offset = 0;
-                self.current_columns.clear();
-                self.current_result = None;
-                self.current_selection = None;
-                self.current_driver_id = None;
-                self.connected = false;
-                self.edit_button.set_sensitive(false);
-                self.disconnect_button.set_visible(false);
-                self.refresh_crud_buttons();
-                self.table_search.set_text("");
-                while let Some(child) = self.sidebar.first_child() {
-                    self.sidebar.remove(&child);
-                }
-                self.set_status_page(
-                    "Connect to a database",
-                    "Click the server icon for a new connection or the folder icon to open a saved one.",
-                );
-                tracing::info!("disconnected");
-            }
-
-            AppMsg::DialogClosed => {
-                self.dialog = None;
-            }
-
-            AppMsg::SelectTable(name) => {
-                self.editor = None;
-                self.current_table = Some(name.clone());
-                self.current_offset = 0;
-                self.current_columns.clear();
-                self.set_status_page("Loading…", &format!("Fetching rows from {name}"));
-                self.fetch_current_page(sender.clone());
-                self.fetch_columns(name, sender.clone());
-            }
-
-            AppMsg::ColumnsLoaded(table, columns) => {
-                if self.current_table.as_deref() != Some(&table) {
-                    return;
-                }
-                self.current_columns = columns;
-                self.refresh_crud_buttons();
-                if self.current_result.is_some() {
-                    self.fetch_current_page(sender.clone());
-                }
-            }
-
-            AppMsg::PrevPage => {
-                if self.current_offset >= PAGE_SIZE {
-                    self.current_offset -= PAGE_SIZE;
-                    self.fetch_current_page(sender.clone());
-                }
-            }
-
-            AppMsg::NextPage => {
-                self.current_offset += PAGE_SIZE;
-                self.fetch_current_page(sender.clone());
-            }
-
-            AppMsg::RowsLoaded(table, offset, result) => {
-                if self.current_table.as_deref() != Some(&table) {
-                    return;
-                }
-                let n_rows = result.rows.len();
-                let n_cols = result.columns.len();
-                tracing::info!(table = %table, offset, rows = n_rows, cols = n_cols, "rows loaded");
-
-                clear_box(&self.grid_holder);
-                let read_only = database_service::instance().is_active_read_only();
-                let edit_sender = if read_only {
-                    None
-                } else {
-                    Some(sender.input_sender().clone())
-                };
-                let (column_view, selection) = build_column_view(&result, &self.current_columns, &table, edit_sender);
-                self.current_selection = Some(selection);
-                self.current_result = Some(result.clone());
-                let scrolled = gtk::ScrolledWindow::builder()
-                    .child(&column_view)
-                    .hexpand(true)
-                    .vexpand(true)
-                    .build();
-                self.grid_holder.append(&scrolled);
-                self.refresh_crud_buttons();
-
-                let label = if n_rows == 0 {
-                    format!("No rows at offset {offset}")
-                } else {
-                    let start = offset + 1;
-                    let end = offset + n_rows as u64;
-                    format!("Rows {start} – {end}")
-                };
-                self.paginator_label.set_label(&label);
-                self.prev_button.set_sensitive(offset > 0);
-                self.next_button.set_sensitive(n_rows as u64 == PAGE_SIZE);
-
-                self.content_holder.set_content(Some(&self.browse_view));
-            }
-
-            AppMsg::LoadFailed(msg) => {
-                tracing::warn!(error = %msg, "load failed");
-                self.set_status_page("Failed", &msg);
-            }
-
-            AppMsg::InsertRow => {
-                let Some(table) = self.current_table.clone() else {
-                    return;
-                };
-                if self.current_columns.is_empty() {
-                    return;
-                }
-                let driver_id = self.current_driver_id.clone().unwrap_or_else(|| "postgres".to_string());
-                let dialog = InsertDialog::builder()
-                    .launch(InsertDialogInit {
-                        table: table.clone(),
-                        columns: self.current_columns.clone(),
-                        driver_id,
-                    })
-                    .forward(sender.input_sender(), |out| match out {
-                        InsertDialogOutput::Inserted => AppMsg::InsertCommitted,
-                    });
-                dialog.widget().present(Some(&self.window));
-                self.insert_dialog = Some(dialog);
-            }
-
-            AppMsg::InsertCommitted => {
-                self.insert_dialog = None;
-                self.fetch_current_page(sender.clone());
-            }
-
-            AppMsg::EditSelectedRow => {
-                let Some(table) = self.current_table.clone() else {
-                    return;
-                };
-                let Some(selection) = self.current_selection.clone() else {
-                    return;
-                };
-                let Some(result) = self.current_result.clone() else {
-                    return;
-                };
-                let position = selection.selected();
-                if position == gtk::INVALID_LIST_POSITION || (position as usize) >= result.rows.len() {
-                    return;
-                }
-                let row = result.rows[position as usize].clone();
-                let driver_id = self.current_driver_id.clone().unwrap_or_else(|| "postgres".to_string());
-                let dialog = EditDialog::builder()
-                    .launch(EditDialogInit {
-                        table,
-                        columns: self.current_columns.clone(),
-                        driver_id,
-                        row,
-                    })
-                    .forward(sender.input_sender(), |out| match out {
-                        EditDialogOutput::Updated => AppMsg::EditCommitted,
-                    });
-                dialog.widget().present(Some(&self.window));
-                self.edit_dialog = Some(dialog);
-            }
-
-            AppMsg::EditCommitted => {
-                self.edit_dialog = None;
-                self.fetch_current_page(sender.clone());
-            }
-
-            AppMsg::DeleteSelectedRow => {
-                let Some(table) = self.current_table.clone() else {
-                    return;
-                };
-                let Some(selection) = self.current_selection.clone() else {
-                    return;
-                };
-                let Some(result) = self.current_result.clone() else {
-                    return;
-                };
-                let position = selection.selected();
-                if position == gtk::INVALID_LIST_POSITION || (position as usize) >= result.rows.len() {
-                    return;
-                }
-                let row = result.rows[position as usize].clone();
-                let pk_indexes: Vec<usize> = self
-                    .current_columns
-                    .iter()
-                    .enumerate()
-                    .filter(|(_, c)| c.primary_key)
-                    .map(|(i, _)| i)
-                    .collect();
-                if pk_indexes.is_empty() {
-                    self.show_error_alert(
-                        "Cannot delete",
-                        &super::error_text::build_sql_message(&crate::sql_dialect::BuildSqlError::NoPrimaryKey),
-                    );
-                    return;
-                }
-
-                let driver_id = self.current_driver_id.clone().unwrap_or_else(|| "postgres".to_string());
-                let where_clause: String = pk_indexes
-                    .iter()
-                    .enumerate()
-                    .map(|(i, col_idx)| {
-                        let name = &self.current_columns[*col_idx].name;
-                        let placeholder = placeholder_for(&driver_id, i);
-                        format!("{} = {}", quote_ident(&driver_id, name), placeholder)
-                    })
-                    .collect::<Vec<_>>()
-                    .join(" AND ");
-                let sql = format!("DELETE FROM {} WHERE {}", quote_ident(&driver_id, &table), where_clause);
-                let params: Vec<Value> = pk_indexes.iter().map(|i| row[*i].clone()).collect();
-                let preview = preview_pk(&self.current_columns, &pk_indexes, &row);
-
-                self.confirm_and_execute(
-                    sender.clone(),
-                    &table,
-                    sql,
-                    params,
-                    &format!("Delete row where {preview}?"),
-                );
-            }
-
-            AppMsg::RowOperationCommitted => {
-                self.fetch_current_page(sender.clone());
-            }
-
+            AppMsg::OpenConnect => self.on_open_connect(sender),
+            AppMsg::Connected { tables, driver_id } => self.on_connected(tables, driver_id, sender),
+            AppMsg::Disconnect => self.on_disconnect(),
+            AppMsg::DialogClosed => self.dialog = None,
+            AppMsg::SelectTable(name) => self.on_select_table(name, sender),
+            AppMsg::ColumnsLoaded(table, columns) => self.on_columns_loaded(table, columns, sender),
+            AppMsg::PrevPage => self.on_prev_page(sender),
+            AppMsg::NextPage => self.on_next_page(sender),
+            AppMsg::RowsLoaded(table, offset, result) => self.on_rows_loaded(table, offset, result, sender),
+            AppMsg::LoadFailed(msg) => self.on_load_failed(msg),
+            AppMsg::InsertRow => self.on_insert_row(sender),
+            AppMsg::InsertCommitted => self.on_insert_committed(sender),
+            AppMsg::EditSelectedRow => self.on_edit_selected_row(sender),
+            AppMsg::EditCommitted => self.on_edit_committed(sender),
+            AppMsg::DeleteSelectedRow => self.on_delete_selected_row(sender),
+            AppMsg::RowOperationCommitted => self.fetch_current_page(sender),
             AppMsg::CellEdited {
                 table,
                 row_position,
                 col_index,
                 new_value,
-            } => {
-                if self.current_table.as_deref() != Some(&table) {
-                    return;
-                }
-                let (Some(driver_id), Some(result)) = (self.current_driver_id.clone(), self.current_result.clone())
-                else {
-                    return;
-                };
-                let Some(row) = result.rows.get(row_position as usize).cloned() else {
-                    return;
-                };
-                if col_index >= self.current_columns.len() {
-                    return;
-                }
-                let col = &self.current_columns[col_index];
-
-                let value = if new_value.is_empty() && col.nullable {
-                    Value::Null
-                } else {
-                    Value::Text(new_value)
-                };
-                let (sql, params) = match crate::sql_dialect::build_single_cell_update(
-                    &driver_id,
-                    &table,
-                    &self.current_columns,
-                    &row,
-                    col_index,
-                    value,
-                ) {
-                    Ok(t) => t,
-                    Err(e) => {
-                        self.show_error_alert("Cannot update cell", &super::error_text::build_sql_message(&e));
-                        return;
-                    }
-                };
-                self.run_execute_then_refetch(sender.clone(), sql, params);
-            }
-
-            AppMsg::ReloadConnections => {
-                let sender_clone = sender.clone();
-                sender.command(move |_, shutdown| {
-                    shutdown
-                        .register(async move {
-                            if let Ok(connections) = tablepro_storage::load_connections().await {
-                                sender_clone.input(AppMsg::ConnectionsLoaded(connections));
-                            }
-                        })
-                        .drop_on_shutdown()
-                });
-            }
-
-            AppMsg::ConnectionsLoaded(connections) => {
-                rebuild_connections_listbox(
-                    &self.connections_listbox,
-                    &connections,
-                    sender.clone(),
-                    self.connections_popover.clone(),
-                );
-            }
-
-            AppMsg::OpenEditor => {
-                if database_service::instance().active().is_none() {
-                    self.set_status_page("No connection", "Connect to a database first to run SQL.");
-                    return;
-                }
-                let editor = SqlEditor::builder().launch(()).detach();
-                self.content_holder.set_content(Some(editor.widget()));
-                self.editor = Some(editor);
-            }
-
-            AppMsg::PollHealth => {
-                let current = database_service::instance().active_health();
-                if current != self.health_state {
-                    self.refresh_health_pill(current.clone());
-                    self.health_state = current;
-                }
-            }
-
-            AppMsg::DeleteConnection(id) => {
-                let sender_clone = sender.clone();
-                sender.command(move |_, shutdown| {
-                    shutdown
-                        .register(async move {
-                            let _ = tablepro_storage::delete_connection(id).await;
-                            let _ = tablepro_storage::delete_password(id).await;
-                            sender_clone.input(AppMsg::ReloadConnections);
-                        })
-                        .drop_on_shutdown()
-                });
-            }
-
-            AppMsg::OpenSaved(saved) => {
-                self.connections_popover.popdown();
-                self.set_status_page("Connecting…", &format!("Opening {}", saved.name));
-                let driver_id = saved.driver_id.clone();
-                let registry = self.registry.clone();
-                let sender_clone = sender.clone();
-                sender.command(move |_, shutdown| {
-                    shutdown
-                        .register(async move {
-                            match connection_service::open_saved(registry, saved).await {
-                                Ok(tables) => sender_clone.input(AppMsg::Connected { tables, driver_id }),
-                                Err(e) => sender_clone.input(AppMsg::LoadFailed(e)),
-                            }
-                        })
-                        .drop_on_shutdown()
-                });
-            }
+            } => self.on_cell_edited(table, row_position, col_index, new_value, sender),
+            AppMsg::ReloadConnections => self.on_reload_connections(sender),
+            AppMsg::ConnectionsLoaded(connections) => self.on_connections_loaded(&connections, sender),
+            AppMsg::OpenEditor => self.on_open_editor(),
+            AppMsg::PollHealth => self.on_poll_health(),
+            AppMsg::DeleteConnection(id) => self.on_delete_connection(id, sender),
+            AppMsg::OpenSaved(saved) => self.on_open_saved(saved, sender),
         }
     }
 }
 
 impl App {
+    fn on_open_connect(&mut self, sender: ComponentSender<Self>) {
+        let dialog = ConnectDialog::builder()
+            .launch(ConnectDialogInit {
+                registry: self.registry.clone(),
+            })
+            .forward(sender.input_sender(), |out| match out {
+                ConnectDialogOutput::Connected { tables, driver_id } => AppMsg::Connected { tables, driver_id },
+                ConnectDialogOutput::Closed => AppMsg::DialogClosed,
+            });
+        dialog.widget().present(Some(&self.window));
+        self.dialog = Some(dialog);
+    }
+
+    fn on_connected(&mut self, tables: Vec<TableInfo>, driver_id: String, sender: ComponentSender<Self>) {
+        self.dialog = None;
+        self.connected = true;
+        self.current_driver_id = Some(driver_id.clone());
+        self.edit_button.set_sensitive(true);
+        self.disconnect_button.set_visible(true);
+        self.table_search.set_text("");
+        tracing::info!(driver = %driver_id, table_count = tables.len(), "workspace ready");
+        rebuild_sidebar(&self.sidebar, &tables, sender.clone());
+        self.set_status_page(
+            "Select a table",
+            &format!("Connected to {driver_id}. Pick a table from the left to load up to 100,000 rows."),
+        );
+        sender.input(AppMsg::ReloadConnections);
+    }
+
+    fn on_disconnect(&mut self) {
+        let svc = database_service::instance();
+        if let Some(id) = svc.active_id() {
+            svc.remove(id);
+        } else {
+            svc.clear_all();
+        }
+        self.editor = None;
+        self.current_table = None;
+        self.current_offset = 0;
+        self.current_columns.clear();
+        self.current_result = None;
+        self.current_selection = None;
+        self.current_driver_id = None;
+        self.connected = false;
+        self.edit_button.set_sensitive(false);
+        self.disconnect_button.set_visible(false);
+        self.refresh_crud_buttons();
+        self.table_search.set_text("");
+        while let Some(child) = self.sidebar.first_child() {
+            self.sidebar.remove(&child);
+        }
+        self.set_status_page(
+            "Connect to a database",
+            "Click the server icon for a new connection or the folder icon to open a saved one.",
+        );
+        tracing::info!("disconnected");
+    }
+
+    fn on_select_table(&mut self, name: String, sender: ComponentSender<Self>) {
+        self.editor = None;
+        self.current_table = Some(name.clone());
+        self.current_offset = 0;
+        self.current_columns.clear();
+        self.set_status_page("Loading…", &format!("Fetching rows from {name}"));
+        self.fetch_current_page(sender.clone());
+        self.fetch_columns(name, sender);
+    }
+
+    fn on_columns_loaded(&mut self, table: String, columns: Vec<ColumnInfo>, sender: ComponentSender<Self>) {
+        if self.current_table.as_deref() != Some(&table) {
+            return;
+        }
+        self.current_columns = columns;
+        self.refresh_crud_buttons();
+        if self.current_result.is_some() {
+            self.fetch_current_page(sender);
+        }
+    }
+
+    fn on_prev_page(&mut self, sender: ComponentSender<Self>) {
+        if self.current_offset >= PAGE_SIZE {
+            self.current_offset -= PAGE_SIZE;
+            self.fetch_current_page(sender);
+        }
+    }
+
+    fn on_next_page(&mut self, sender: ComponentSender<Self>) {
+        self.current_offset += PAGE_SIZE;
+        self.fetch_current_page(sender);
+    }
+
+    fn on_rows_loaded(&mut self, table: String, offset: u64, result: QueryResult, sender: ComponentSender<Self>) {
+        if self.current_table.as_deref() != Some(&table) {
+            return;
+        }
+        let n_rows = result.rows.len();
+        let n_cols = result.columns.len();
+        tracing::info!(table = %table, offset, rows = n_rows, cols = n_cols, "rows loaded");
+
+        clear_box(&self.grid_holder);
+        let read_only = database_service::instance().is_active_read_only();
+        let edit_sender = if read_only {
+            None
+        } else {
+            Some(sender.input_sender().clone())
+        };
+        let (column_view, selection) = build_column_view(&result, &self.current_columns, &table, edit_sender);
+        self.current_selection = Some(selection);
+        self.current_result = Some(result.clone());
+        let scrolled = gtk::ScrolledWindow::builder()
+            .child(&column_view)
+            .hexpand(true)
+            .vexpand(true)
+            .build();
+        self.grid_holder.append(&scrolled);
+        self.refresh_crud_buttons();
+
+        let label = if n_rows == 0 {
+            format!("No rows at offset {offset}")
+        } else {
+            let start = offset + 1;
+            let end = offset + n_rows as u64;
+            format!("Rows {start} – {end}")
+        };
+        self.paginator_label.set_label(&label);
+        self.prev_button.set_sensitive(offset > 0);
+        self.next_button.set_sensitive(n_rows as u64 == PAGE_SIZE);
+
+        self.content_holder.set_content(Some(&self.browse_view));
+    }
+
+    fn on_load_failed(&self, msg: String) {
+        tracing::warn!(error = %msg, "load failed");
+        self.set_status_page("Failed", &msg);
+    }
+
+    fn on_insert_row(&mut self, sender: ComponentSender<Self>) {
+        let Some(table) = self.current_table.clone() else {
+            return;
+        };
+        if self.current_columns.is_empty() {
+            return;
+        }
+        let driver_id = self.current_driver_id.clone().unwrap_or_else(|| "postgres".to_string());
+        let dialog = InsertDialog::builder()
+            .launch(InsertDialogInit {
+                table: table.clone(),
+                columns: self.current_columns.clone(),
+                driver_id,
+            })
+            .forward(sender.input_sender(), |out| match out {
+                InsertDialogOutput::Inserted => AppMsg::InsertCommitted,
+            });
+        dialog.widget().present(Some(&self.window));
+        self.insert_dialog = Some(dialog);
+    }
+
+    fn on_insert_committed(&mut self, sender: ComponentSender<Self>) {
+        self.insert_dialog = None;
+        self.fetch_current_page(sender);
+    }
+
+    fn on_edit_selected_row(&mut self, sender: ComponentSender<Self>) {
+        let Some(table) = self.current_table.clone() else {
+            return;
+        };
+        let Some(selection) = self.current_selection.clone() else {
+            return;
+        };
+        let Some(result) = self.current_result.clone() else {
+            return;
+        };
+        let position = selection.selected();
+        if position == gtk::INVALID_LIST_POSITION || (position as usize) >= result.rows.len() {
+            return;
+        }
+        let row = result.rows[position as usize].clone();
+        let driver_id = self.current_driver_id.clone().unwrap_or_else(|| "postgres".to_string());
+        let dialog = EditDialog::builder()
+            .launch(EditDialogInit {
+                table,
+                columns: self.current_columns.clone(),
+                driver_id,
+                row,
+            })
+            .forward(sender.input_sender(), |out| match out {
+                EditDialogOutput::Updated => AppMsg::EditCommitted,
+            });
+        dialog.widget().present(Some(&self.window));
+        self.edit_dialog = Some(dialog);
+    }
+
+    fn on_edit_committed(&mut self, sender: ComponentSender<Self>) {
+        self.edit_dialog = None;
+        self.fetch_current_page(sender);
+    }
+
+    fn on_delete_selected_row(&mut self, sender: ComponentSender<Self>) {
+        let Some(table) = self.current_table.clone() else {
+            return;
+        };
+        let Some(selection) = self.current_selection.clone() else {
+            return;
+        };
+        let Some(result) = self.current_result.clone() else {
+            return;
+        };
+        let position = selection.selected();
+        if position == gtk::INVALID_LIST_POSITION || (position as usize) >= result.rows.len() {
+            return;
+        }
+        let row = result.rows[position as usize].clone();
+        let pk_indexes: Vec<usize> = self
+            .current_columns
+            .iter()
+            .enumerate()
+            .filter(|(_, c)| c.primary_key)
+            .map(|(i, _)| i)
+            .collect();
+        if pk_indexes.is_empty() {
+            self.show_error_alert(
+                "Cannot delete",
+                &super::error_text::build_sql_message(&crate::sql_dialect::BuildSqlError::NoPrimaryKey),
+            );
+            return;
+        }
+
+        let driver_id = self.current_driver_id.clone().unwrap_or_else(|| "postgres".to_string());
+        let where_clause: String = pk_indexes
+            .iter()
+            .enumerate()
+            .map(|(i, col_idx)| {
+                let name = &self.current_columns[*col_idx].name;
+                let placeholder = placeholder_for(&driver_id, i);
+                format!("{} = {}", quote_ident(&driver_id, name), placeholder)
+            })
+            .collect::<Vec<_>>()
+            .join(" AND ");
+        let sql = format!("DELETE FROM {} WHERE {}", quote_ident(&driver_id, &table), where_clause);
+        let params: Vec<Value> = pk_indexes.iter().map(|i| row[*i].clone()).collect();
+        let preview = preview_pk(&self.current_columns, &pk_indexes, &row);
+
+        self.confirm_and_execute(sender, sql, params, &format!("Delete row where {preview}?"));
+    }
+
+    fn on_cell_edited(
+        &mut self,
+        table: String,
+        row_position: u32,
+        col_index: usize,
+        new_value: String,
+        sender: ComponentSender<Self>,
+    ) {
+        if self.current_table.as_deref() != Some(&table) {
+            return;
+        }
+        let (Some(driver_id), Some(result)) = (self.current_driver_id.clone(), self.current_result.clone()) else {
+            return;
+        };
+        let Some(row) = result.rows.get(row_position as usize).cloned() else {
+            return;
+        };
+        if col_index >= self.current_columns.len() {
+            return;
+        }
+        let col = &self.current_columns[col_index];
+
+        let value = if new_value.is_empty() && col.nullable {
+            Value::Null
+        } else {
+            Value::Text(new_value)
+        };
+        let (sql, params) = match crate::sql_dialect::build_single_cell_update(
+            &driver_id,
+            &table,
+            &self.current_columns,
+            &row,
+            col_index,
+            value,
+        ) {
+            Ok(t) => t,
+            Err(e) => {
+                self.show_error_alert("Cannot update cell", &super::error_text::build_sql_message(&e));
+                return;
+            }
+        };
+        execute_then_refetch(sender, sql, params);
+    }
+
+    fn on_reload_connections(&self, sender: ComponentSender<Self>) {
+        let sender_clone = sender.clone();
+        sender.command(move |_, shutdown| {
+            shutdown
+                .register(async move {
+                    if let Ok(connections) = tablepro_storage::load_connections().await {
+                        sender_clone.input(AppMsg::ConnectionsLoaded(connections));
+                    }
+                })
+                .drop_on_shutdown()
+        });
+    }
+
+    fn on_connections_loaded(&self, connections: &[SavedConnection], sender: ComponentSender<Self>) {
+        rebuild_connections_listbox(
+            &self.connections_listbox,
+            connections,
+            sender,
+            self.connections_popover.clone(),
+        );
+    }
+
+    fn on_open_editor(&mut self) {
+        if database_service::instance().active().is_none() {
+            self.set_status_page("No connection", "Connect to a database first to run SQL.");
+            return;
+        }
+        let editor = SqlEditor::builder().launch(()).detach();
+        self.content_holder.set_content(Some(editor.widget()));
+        self.editor = Some(editor);
+    }
+
+    fn on_poll_health(&mut self) {
+        let current = database_service::instance().active_health();
+        if current != self.health_state {
+            self.refresh_health_pill(current.clone());
+            self.health_state = current;
+        }
+    }
+
+    fn on_delete_connection(&self, id: Uuid, sender: ComponentSender<Self>) {
+        let sender_clone = sender.clone();
+        sender.command(move |_, shutdown| {
+            shutdown
+                .register(async move {
+                    let _ = tablepro_storage::delete_connection(id).await;
+                    let _ = tablepro_storage::delete_password(id).await;
+                    sender_clone.input(AppMsg::ReloadConnections);
+                })
+                .drop_on_shutdown()
+        });
+    }
+
+    fn on_open_saved(&self, saved: SavedConnection, sender: ComponentSender<Self>) {
+        self.connections_popover.popdown();
+        self.set_status_page("Connecting…", &format!("Opening {}", saved.name));
+        let driver_id = saved.driver_id.clone();
+        let registry = self.registry.clone();
+        let sender_clone = sender.clone();
+        sender.command(move |_, shutdown| {
+            shutdown
+                .register(async move {
+                    match connection_service::open_saved(registry, saved).await {
+                        Ok(tables) => sender_clone.input(AppMsg::Connected { tables, driver_id }),
+                        Err(e) => sender_clone.input(AppMsg::LoadFailed(e)),
+                    }
+                })
+                .drop_on_shutdown()
+        });
+    }
+
     fn set_status_page(&self, title: &str, description: &str) {
         let page = adw::StatusPage::builder()
             .title(title)
@@ -824,18 +840,7 @@ impl App {
         dialog.present(Some(&self.window));
     }
 
-    fn run_execute_then_refetch(&self, sender: ComponentSender<App>, sql: String, params: Vec<Value>) {
-        execute_then_refetch(sender, sql, params);
-    }
-
-    fn confirm_and_execute(
-        &self,
-        sender: ComponentSender<App>,
-        table: &str,
-        sql: String,
-        params: Vec<Value>,
-        preview: &str,
-    ) {
+    fn confirm_and_execute(&self, sender: ComponentSender<App>, sql: String, params: Vec<Value>, preview: &str) {
         let dialog = adw::AlertDialog::new(Some("Confirm"), Some(preview));
         dialog.add_response("cancel", "Cancel");
         dialog.add_response("delete", "Delete");
@@ -843,7 +848,6 @@ impl App {
         dialog.set_default_response(Some("cancel"));
         dialog.set_close_response("cancel");
 
-        let _ = table;
         dialog.connect_response(None, move |dialog, response| {
             dialog.close();
             if response != "delete" {
