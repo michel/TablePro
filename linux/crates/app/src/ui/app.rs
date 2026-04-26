@@ -1363,7 +1363,7 @@ impl App {
         }
     }
 
-    fn close_active_editor_tab(&mut self, sender: ComponentSender<Self>) {
+    fn close_active_editor_tab(&mut self, _sender: ComponentSender<Self>) {
         let Some(tab_view) = self.editor_tab_view.as_ref() else {
             self.window.close();
             return;
@@ -1371,10 +1371,10 @@ impl App {
         let Some(page) = tab_view.selected_page() else {
             return;
         };
-        let Some(id) = read_tab_id(&page) else {
-            return;
-        };
-        self.close_editor_tab_by_id(id, sender);
+        // Initiate via AdwTabView so the page enters the "closing" state;
+        // the close-page signal handler emits EditorTabClosed(id), which then
+        // calls close_page_finish to actually finalise the close.
+        tab_view.close_page(&page);
     }
 
     fn show_welcome_or_grid_after_editor_close(&mut self, sender: ComponentSender<Self>) {
