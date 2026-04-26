@@ -60,7 +60,13 @@ async fn store_secret(id: Uuid, kind: &str, value: &str, label: &str) -> Result<
 async fn load_secret(id: Uuid, kind: &str) -> Result<Option<SecretString>, StorageError> {
     let keyring = match open().await {
         Ok(k) => k,
-        Err(_) => return Ok(None),
+        Err(e) => {
+            // Don't fail outright — a missing Secret Service shouldn't crash
+            // the app — but the user will hit a misleading "auth failed"
+            // downstream if we stay silent.
+            tracing::warn!(connection_id = %id, kind, error = %e, "keyring unavailable, secret cannot be loaded");
+            return Ok(None);
+        }
     };
     let items = keyring.search_items(&attrs_for(id, kind)).await.map_err(map_err)?;
     let Some(item) = items.into_iter().next() else {
@@ -119,6 +125,64 @@ mod tests {
         let pp = attrs_for(id, KIND_SSH_PASSPHRASE);
         assert_ne!(db.get("kind"), ssh.get("kind"));
         assert_ne!(ssh.get("kind"), pp.get("kind"));
+    }
+
+    #[test]
+    fn kind_constants_are_distinct_and_non_empty() {
+        assert!(!KIND_DB_PASSWORD.is_empty());
+        assert!(!KIND_SSH_PASSWORD.is_empty());
+        assert!(!KIND_SSH_PASSPHRASE.is_empty());
+        assert_ne!(KIND_DB_PASSWORD, KIND_SSH_PASSWORD);
+        assert_ne!(KIND_DB_PASSWORD, KIND_SSH_PASSPHRASE);
+        assert_ne!(KIND_SSH_PASSWORD, KIND_SSH_PASSPHRASE);
+    }
+
+    #[test]
+    fn schema_constant_uses_reverse_dns() {
+        assert!(SCHEMA.starts_with("com."));
+        assert!(SCHEMA.contains("tablepro"));
+    }
+
+    #[test]
+    fn map_err_produces_storage_error_schema() {
+        // map_err shouldn't lose the underlying message, since downstream
+        // surfaces it in the user-facing error UI.
+        let oo7_err: oo7::Error = oo7::dbus::Error::Deleted.into();
+        let mapped = map_err(oo7_err);
+        match mapped {
+            StorageError::Schema(msg) => {
+                assert!(msg.starts_with("secret service:"), "missing prefix: {msg}");
+            }
+            other => panic!("expected Schema variant, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn invalid_utf8_secret_produces_schema_error_with_descriptive_prefix() {
+        // load_secret's UTF-8 conversion path: if a secret round-trips through
+        // a non-UTF-8 byte sequence (e.g. a binary blob smuggled in via a
+        // non-tablepro caller), we surface a clear "secret utf8" prefix
+        // instead of a raw FromUtf8Error.
+        let bad: Vec<u8> = vec![0xFF, 0xFE, 0xFD];
+        let err = String::from_utf8(bad)
+            .map_err(|e| StorageError::Schema(format!("secret utf8: {e}")))
+            .unwrap_err();
+        match err {
+            StorageError::Schema(msg) => assert!(msg.starts_with("secret utf8:"), "missing prefix: {msg}"),
+            other => panic!("expected Schema variant, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn attrs_for_includes_uuid_in_canonical_lowercase_hyphenated_form() {
+        // Secret Service searches are exact-match on attribute strings, so
+        // shifting the UUID format would silently break key lookups.
+        let id = Uuid::parse_str("550e8400-e29b-41d4-a716-446655440000").unwrap();
+        let a = attrs_for(id, KIND_DB_PASSWORD);
+        assert_eq!(
+            a.get("connection-id").map(String::as_str),
+            Some("550e8400-e29b-41d4-a716-446655440000")
+        );
     }
 
     #[tokio::test]

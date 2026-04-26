@@ -100,6 +100,12 @@ impl App {
             guard.push_back(saved.clone());
         }
         drop(guard);
+        let _ = self
+            .welcome_view
+            .sender()
+            .send(crate::ui::welcome_view::WelcomeViewInput::SetConnections(
+                self.saved_connections.clone(),
+            ));
         if !self.connected {
             self.show_welcome_page(sender);
         }

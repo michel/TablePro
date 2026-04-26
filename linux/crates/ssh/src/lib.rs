@@ -251,19 +251,20 @@ fn map_connect_error(
     known_hosts: &Path,
     outcome: &Arc<Mutex<Option<HostKeyOutcome>>>,
 ) -> SshError {
-    if let Some(HostKeyOutcome::Changed { fingerprint, line }) = outcome.lock().ok().and_then(|s| s.clone()) {
-        return SshError::HostKeyMismatch {
+    // Recover a poisoned mutex so a panic during host-key verification
+    // never silently downgrades a HostKeyMismatch to a generic Connect error.
+    let captured = outcome.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).clone();
+    match captured {
+        Some(HostKeyOutcome::Changed { fingerprint, line }) => SshError::HostKeyMismatch {
             host: host.to_string(),
             port,
             new_fingerprint: fingerprint,
             line,
             known_hosts: known_hosts.to_path_buf(),
-        };
+        },
+        Some(HostKeyOutcome::KnownHostsIo(e)) => SshError::KnownHosts(e),
+        _ => SshError::Connect(err.to_string()),
     }
-    if let Some(HostKeyOutcome::KnownHostsIo(e)) = outcome.lock().ok().and_then(|s| s.clone()) {
-        return SshError::KnownHosts(e);
-    }
-    SshError::Connect(err.to_string())
 }
 
 async fn forwarder_loop(

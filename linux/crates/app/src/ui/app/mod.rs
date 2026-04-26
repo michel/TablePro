@@ -24,6 +24,7 @@ use super::grid::GridMsg;
 use super::history_dialog::HistoryDialog;
 use super::insert_dialog::InsertDialog;
 use super::sidebar_row::{SidebarRow, SidebarRowOutput};
+use super::welcome_view::{WelcomeView, WelcomeViewInit, WelcomeViewOutput};
 use crate::services::database_service;
 use crate::services::database_service::ConnectionHealth;
 use tablepro_core::sql_dialect::{placeholder_for, quote_ident};
@@ -66,11 +67,12 @@ pub struct App {
     dialog: Option<Controller<ConnectDialog>>,
     editor_root: Option<adw::TabOverview>,
     editor_tab_view: Option<adw::TabView>,
-    editor_tabs: std::rc::Rc<std::cell::RefCell<Vec<EditorTabSlot>>>,
+    editor_tabs: std::rc::Rc<std::cell::RefCell<std::collections::HashMap<Uuid, EditorTabSlot>>>,
     schema_buffer: gtk::TextBuffer,
     insert_dialog: Option<Controller<InsertDialog>>,
     edit_dialog: Option<Controller<EditDialog>>,
     history_dialog: Option<Controller<HistoryDialog>>,
+    welcome_view: Controller<WelcomeView>,
     current_table: Option<String>,
     current_schema: Option<String>,
     current_offset: u64,
@@ -93,7 +95,13 @@ pub struct EditorTabSlot {
     pub query: String,
 }
 
-const EDITOR_TAB_ID_KEY: &str = "tp-editor-tab-id";
+// Quark-keyed qdata avoids the type-unsafety contract of string-keyed
+// `set_data`/`data` (a foreign caller could collide with the same string
+// key for a different type). The Quark is interned once and cached.
+fn editor_tab_id_quark() -> glib::Quark {
+    static QUARK: std::sync::OnceLock<glib::Quark> = std::sync::OnceLock::new();
+    *QUARK.get_or_init(|| glib::Quark::from_str("tp-editor-tab-id"))
+}
 
 #[derive(Debug)]
 pub enum AppMsg {
@@ -609,6 +617,15 @@ impl SimpleComponent for App {
             GridMsg::DeleteRowAt { table, row_position } => AppMsg::DeleteRowAt { table, row_position },
         }));
 
+        let welcome_view =
+            WelcomeView::builder()
+                .launch(WelcomeViewInit)
+                .forward(sender.input_sender(), |out| match out {
+                    WelcomeViewOutput::OpenConnect => AppMsg::OpenConnect,
+                    WelcomeViewOutput::OpenSaved(saved) => AppMsg::OpenSaved(saved),
+                    WelcomeViewOutput::Delete(id) => AppMsg::DeleteConnection(id),
+                });
+
         let model = App {
             registry,
             window: root.clone(),
@@ -644,11 +661,12 @@ impl SimpleComponent for App {
             dialog: None,
             editor_root: None,
             editor_tab_view: None,
-            editor_tabs: std::rc::Rc::new(std::cell::RefCell::new(Vec::new())),
+            editor_tabs: std::rc::Rc::new(std::cell::RefCell::new(std::collections::HashMap::new())),
             schema_buffer: build_schema_buffer(),
             insert_dialog: None,
             edit_dialog: None,
             history_dialog: None,
+            welcome_view,
             current_table: None,
             current_schema: None,
             current_offset: 0,
@@ -999,11 +1017,6 @@ fn qualified_label(schema: Option<&str>, table: &str) -> String {
     }
 }
 
-// SAFETY contract for EDITOR_TAB_ID_KEY: write_tab_id is the sole writer
-// and only stores values of type Uuid; read_tab_id is the sole reader and
-// only interprets the qdata as Uuid. The key is private to this module
-// (`pub(super)` would be a stricter encoding but the const itself is private),
-// so external code cannot corrupt the type association.
 fn default_tab_label(n: usize) -> String {
     crate::tr!("Query {n}").replace("{n}", &n.to_string())
 }
@@ -1040,14 +1053,14 @@ fn create_editor_tab_slot(
 
 fn write_tab_id(page: &adw::TabPage, id: Uuid) {
     unsafe {
-        page.set_data(EDITOR_TAB_ID_KEY, id);
+        page.set_qdata(editor_tab_id_quark(), id);
     }
 }
 
 fn read_tab_id(page: &adw::TabPage) -> Option<Uuid> {
-    // GObject returns null (Option::None here) for unknown qdata keys, so a
-    // foreign TabPage that was never tagged simply yields None.
-    unsafe { page.data::<Uuid>(EDITOR_TAB_ID_KEY).map(|p| *p.as_ref()) }
+    // GObject returns null (None here) for unknown qdata keys, so a foreign
+    // TabPage that was never tagged simply yields None.
+    unsafe { page.qdata::<Uuid>(editor_tab_id_quark()).map(|p| *p.as_ref()) }
 }
 
 fn primary_menu_model() -> gio::Menu {

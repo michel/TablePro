@@ -1,8 +1,9 @@
 use std::collections::HashMap;
-use std::path::PathBuf;
 use std::sync::Mutex;
 
 use uuid::Uuid;
+
+use super::config_io::{atomic_write_json, xdg_config_path};
 
 type Widths = HashMap<String, i32>;
 type Tables = HashMap<String, Widths>;
@@ -29,39 +30,24 @@ pub fn save(connection_id: Uuid, table: &str, column: &str, width: i32) {
         .insert(column.to_string(), width);
     let snapshot = map.clone();
     drop(guard);
-    std::thread::spawn(move || {
-        if let Err(e) = save_to_disk(&snapshot) {
+    // Column resize fires this rapidly during a drag; using `relm4::spawn`
+    // shares the existing tokio runtime instead of creating a fresh OS
+    // thread per width change.
+    relm4::spawn(async move {
+        if let Some(path) = xdg_config_path("column_widths.json")
+            && let Err(e) = atomic_write_json(&path, &snapshot)
+        {
             tracing::warn!(error = %e, "column_widths: persist failed");
         }
     });
 }
 
 fn load_from_disk() -> Connections {
-    let Some(path) = config_path() else {
+    let Some(path) = xdg_config_path("column_widths.json") else {
         return HashMap::new();
     };
     let Ok(bytes) = std::fs::read(path) else {
         return HashMap::new();
     };
     serde_json::from_slice(&bytes).unwrap_or_default()
-}
-
-fn save_to_disk(map: &Connections) -> std::io::Result<()> {
-    let Some(path) = config_path() else {
-        return Ok(());
-    };
-    if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent)?;
-    }
-    let json = serde_json::to_vec_pretty(map).unwrap_or_default();
-    let tmp = path.with_extension("json.tmp");
-    std::fs::write(&tmp, json)?;
-    std::fs::rename(tmp, path)
-}
-
-fn config_path() -> Option<PathBuf> {
-    let base = std::env::var_os("XDG_CONFIG_HOME")
-        .map(PathBuf::from)
-        .or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".config")))?;
-    Some(base.join("tablepro").join("column_widths.json"))
 }

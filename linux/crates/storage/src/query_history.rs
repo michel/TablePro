@@ -172,14 +172,19 @@ fn pool() -> Result<&'static SqlitePool, StorageError> {
 }
 
 fn to_unix(t: SystemTime) -> i64 {
-    t.duration_since(UNIX_EPOCH).map(|d| d.as_secs() as i64).unwrap_or(0)
+    // System clocks before 1970 (clock skew, VM snapshots) should not collapse
+    // every record to epoch — preserve the negative offset so timestamps round-trip.
+    match t.duration_since(UNIX_EPOCH) {
+        Ok(d) => d.as_secs() as i64,
+        Err(e) => -(e.duration().as_secs() as i64),
+    }
 }
 
 fn from_unix(s: i64) -> SystemTime {
-    if s < 0 {
-        UNIX_EPOCH
-    } else {
+    if s >= 0 {
         UNIX_EPOCH + std::time::Duration::from_secs(s as u64)
+    } else {
+        UNIX_EPOCH - std::time::Duration::from_secs((-s) as u64)
     }
 }
 

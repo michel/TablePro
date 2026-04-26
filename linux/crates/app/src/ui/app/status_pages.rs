@@ -1,109 +1,14 @@
 use relm4::adw::prelude::*;
-use relm4::{ComponentSender, adw, gtk};
+use relm4::{ComponentController, ComponentSender, adw, gtk};
 
 use super::{App, AppMsg, UndoBatch, build_shortcuts_window};
 
 impl App {
-    pub(super) fn show_welcome_page(&self, sender: ComponentSender<Self>) {
-        if self.saved_connections.is_empty() {
-            let page = adw::StatusPage::builder()
-                .icon_name("network-server-symbolic")
-                .title(crate::tr!("Connect to a database"))
-                .description(crate::tr!("Add a connection to get started."))
-                .build();
-            let new_btn = gtk::Button::builder()
-                .label(crate::tr!("New connection"))
-                .halign(gtk::Align::Center)
-                .build();
-            new_btn.add_css_class("suggested-action");
-            new_btn.add_css_class("pill");
-            let s = sender;
-            new_btn.connect_clicked(move |_| s.input(AppMsg::OpenConnect));
-            page.set_child(Some(&new_btn));
-            self.content_holder.set_content(Some(&page));
-            new_btn.grab_focus();
-            return;
-        }
-
-        let scroller = gtk::ScrolledWindow::builder()
-            .hexpand(true)
-            .vexpand(true)
-            .hscrollbar_policy(gtk::PolicyType::Never)
-            .build();
-        let outer = gtk::Box::builder()
-            .orientation(gtk::Orientation::Vertical)
-            .spacing(12)
-            .margin_top(24)
-            .margin_bottom(24)
-            .margin_start(24)
-            .margin_end(24)
-            .halign(gtk::Align::Center)
-            .valign(gtk::Align::Center)
-            .build();
-        outer.set_size_request(560, -1);
-
-        let group = adw::PreferencesGroup::builder()
-            .title(crate::tr!("Saved connections"))
-            .build();
-        let header_new_btn = gtk::Button::builder()
-            .icon_name("list-add-symbolic")
-            .tooltip_text(crate::tr!("New connection"))
-            .valign(gtk::Align::Center)
-            .build();
-        header_new_btn.add_css_class("flat");
-        let s_header = sender.clone();
-        header_new_btn.connect_clicked(move |_| s_header.input(AppMsg::OpenConnect));
-        group.set_header_suffix(Some(&header_new_btn));
-        let mut first_row: Option<adw::ActionRow> = None;
-        for saved in &self.saved_connections {
-            let subtitle = if saved.driver_id == "sqlite" {
-                format!("sqlite · {}", saved.database)
-            } else {
-                format!("{} · {}@{}:{}", saved.driver_id, saved.username, saved.host, saved.port)
-            };
-            let row = adw::ActionRow::builder()
-                .title(&saved.name)
-                .subtitle(&subtitle)
-                .activatable(true)
-                .build();
-
-            let delete = gtk::Button::builder()
-                .icon_name("user-trash-symbolic")
-                .valign(gtk::Align::Center)
-                .tooltip_text(crate::tr!("Remove connection"))
-                .build();
-            delete.add_css_class("flat");
-            let saved_id = saved.id;
-            let s_del = sender.clone();
-            delete.connect_clicked(move |_| s_del.input(AppMsg::DeleteConnection(saved_id)));
-            row.add_suffix(&delete);
-
-            let saved_clone = saved.clone();
-            let s = sender.clone();
-            row.connect_activated(move |_| s.input(AppMsg::OpenSaved(saved_clone.clone())));
-            if first_row.is_none() {
-                first_row = Some(row.clone());
-            }
-            group.add(&row);
-        }
-        outer.append(&group);
-
-        let new_btn = gtk::Button::builder()
-            .label(crate::tr!("New connection"))
-            .halign(gtk::Align::Center)
-            .margin_top(8)
-            .build();
-        new_btn.add_css_class("suggested-action");
-        new_btn.add_css_class("pill");
-        let s = sender;
-        new_btn.connect_clicked(move |_| s.input(AppMsg::OpenConnect));
-        outer.append(&new_btn);
-
-        scroller.set_child(Some(&outer));
-        self.content_holder.set_content(Some(&scroller));
-        if let Some(row) = first_row {
-            row.grab_focus();
-        }
+    pub(super) fn show_welcome_page(&self, _sender: ComponentSender<Self>) {
+        // Delegated to the WelcomeView managed sub-component, which keeps
+        // its widget tree across calls (factory diffs rows incrementally
+        // instead of rebuilding the whole tree on every welcome show).
+        self.content_holder.set_content(Some(self.welcome_view.widget()));
     }
 
     pub(super) fn set_loading_page(&self, title: &str, description: &str) {

@@ -54,6 +54,7 @@ impl App {
                     {
                         let count = match value {
                             tablepro_core::Value::Int(i) if *i >= 0 => Some(*i as u64),
+                            tablepro_core::Value::Float(f) if *f >= 0.0 && f.is_finite() => Some(*f as u64),
                             tablepro_core::Value::Decimal(d) => d.to_string().parse::<u64>().ok(),
                             _ => None,
                         };

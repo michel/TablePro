@@ -96,7 +96,7 @@ impl App {
             let page = slot.page.clone();
             {
                 let mut tabs = tabs_for_create.borrow_mut();
-                tabs.push(slot);
+                tabs.insert(slot.id, slot);
             }
             sender_for_create.input(AppMsg::EditorTabsChanged);
             page
@@ -130,10 +130,12 @@ impl App {
         for tab in &saved.tabs {
             self.append_editor_tab(Some(tab.query.clone()), sender.clone());
         }
+        // After restore, walk the AdwTabView's page model — that's the
+        // truth source for display order — to find the page at active_idx.
         if let Some(tab_view) = self.editor_tab_view.as_ref() {
-            let tabs = self.editor_tabs.borrow();
-            if let Some(slot) = tabs.get(saved.active_idx as usize) {
-                tab_view.set_selected_page(&slot.page);
+            let pages = tab_view.pages();
+            if let Some(page) = pages.item(saved.active_idx).and_downcast::<adw::TabPage>() {
+                tab_view.set_selected_page(&page);
             }
         }
     }
@@ -148,7 +150,7 @@ impl App {
         };
         let slot = create_editor_tab_slot(&tab_view, &self.schema_buffer, initial_query, &label, &sender);
         tab_view.set_selected_page(&slot.page);
-        self.editor_tabs.borrow_mut().push(slot);
+        self.editor_tabs.borrow_mut().insert(slot.id, slot);
         self.push_schema_words();
         self.persist_editor_state();
     }
@@ -157,12 +159,8 @@ impl App {
         let Some(tab_view) = self.editor_tab_view.clone() else {
             return;
         };
-        let removed = {
-            let mut tabs = self.editor_tabs.borrow_mut();
-            let Some(idx) = tabs.iter().position(|s| s.id == id) else {
-                return;
-            };
-            tabs.remove(idx)
+        let Some(removed) = self.editor_tabs.borrow_mut().remove(&id) else {
+            return;
         };
         let _ = removed.controller.sender().send(SqlEditorInput::Cancel);
         tab_view.close_page_finish(&removed.page, true);
@@ -202,7 +200,7 @@ impl App {
     }
 
     pub(super) fn on_editor_tab_run_state_changed(&self, id: Uuid, running: bool) {
-        if let Some(slot) = self.editor_tabs.borrow().iter().find(|s| s.id == id) {
+        if let Some(slot) = self.editor_tabs.borrow().get(&id) {
             slot.page.set_loading(running);
         }
     }
@@ -213,7 +211,7 @@ impl App {
         } else {
             derive_tab_label(&query)
         };
-        if let Some(slot) = self.editor_tabs.borrow_mut().iter_mut().find(|s| s.id == id) {
+        if let Some(slot) = self.editor_tabs.borrow_mut().get_mut(&id) {
             slot.page.set_title(&label);
             slot.page.set_tooltip(&label);
             slot.query = query;
@@ -222,18 +220,33 @@ impl App {
     }
 
     pub(super) fn persist_editor_state(&self) {
+        // Use AdwTabView's page model as the source of display order
+        // (HashMap<Uuid, …> doesn't preserve insertion order — and the
+        // user's drag-to-reorder would invalidate it anyway).
         let tabs = self.editor_tabs.borrow();
-        let active_idx = self
-            .editor_tab_view
-            .as_ref()
-            .and_then(|tv| tv.selected_page())
-            .and_then(|p| read_tab_id(&p))
-            .and_then(|id| tabs.iter().position(|s| s.id == id))
-            .unwrap_or(0) as u32;
-        let tab_states: Vec<crate::services::editor_state::EditorTab> = tabs
-            .iter()
-            .map(|s| crate::services::editor_state::EditorTab { query: s.query.clone() })
-            .collect();
+        let Some(tab_view) = self.editor_tab_view.as_ref() else {
+            return;
+        };
+        let pages = tab_view.pages();
+        let n = pages.n_items();
+        let active_page = tab_view.selected_page();
+        let mut tab_states: Vec<crate::services::editor_state::EditorTab> = Vec::with_capacity(n as usize);
+        let mut active_idx: u32 = 0;
+        for i in 0..n {
+            let Some(page) = pages.item(i).and_downcast::<adw::TabPage>() else {
+                continue;
+            };
+            if active_page.as_ref() == Some(&page) {
+                active_idx = i;
+            }
+            if let Some(id) = read_tab_id(&page)
+                && let Some(slot) = tabs.get(&id)
+            {
+                tab_states.push(crate::services::editor_state::EditorTab {
+                    query: slot.query.clone(),
+                });
+            }
+        }
         let state = crate::services::editor_state::EditorState {
             tabs: tab_states,
             active_idx,
@@ -242,7 +255,7 @@ impl App {
     }
 
     pub(super) fn cancel_all_editor_runs(&self) {
-        for slot in self.editor_tabs.borrow().iter() {
+        for slot in self.editor_tabs.borrow().values() {
             let _ = slot.controller.sender().send(SqlEditorInput::Cancel);
         }
     }
@@ -269,7 +282,7 @@ impl App {
         let Some(id) = read_tab_id(&active_page) else {
             return;
         };
-        if let Some(slot) = self.editor_tabs.borrow().iter().find(|s| s.id == id) {
+        if let Some(slot) = self.editor_tabs.borrow().get(&id) {
             let _ = slot.controller.sender().send(SqlEditorInput::ReplaceQuery(text));
         }
     }
