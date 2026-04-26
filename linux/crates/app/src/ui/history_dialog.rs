@@ -278,7 +278,11 @@ impl Component for HistoryDialog {
             .vexpand(true)
             .build();
 
-        let stack = gtk::Stack::builder().vhomogeneous(false).vexpand(true).build();
+        let stack = gtk::Stack::builder()
+            .vhomogeneous(false)
+            .vexpand(true)
+            .margin_top(12)
+            .build();
         stack.add_named(&scroll, Some("list"));
         stack.add_named(&status_page, Some("empty"));
 
