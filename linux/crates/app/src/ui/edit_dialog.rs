@@ -53,19 +53,39 @@ impl SimpleComponent for EditDialog {
                 add_top_bar = &adw::HeaderBar {},
 
                 #[wrap(Some)]
-                set_content = &gtk::Box {
+                set_content = &gtk::ScrolledWindow {
+                    set_propagate_natural_height: true,
+
+                    #[wrap(Some)]
+                    set_child = &gtk::Box {
+                        set_orientation: gtk::Orientation::Vertical,
+                        set_spacing: 12,
+                        set_margin_top: 24,
+                        set_margin_bottom: 24,
+                        set_margin_start: 24,
+                        set_margin_end: 24,
+
+                        #[name = "group"]
+                        adw::PreferencesGroup {},
+                    },
+                },
+
+                add_bottom_bar = &gtk::Box {
                     set_orientation: gtk::Orientation::Vertical,
-                    set_spacing: 12,
-                    set_margin_top: 24,
-                    set_margin_bottom: 24,
-                    set_margin_start: 24,
-                    set_margin_end: 24,
+                    set_spacing: 6,
+                    set_margin_top: 8,
+                    set_margin_bottom: 12,
+                    set_margin_start: 12,
+                    set_margin_end: 12,
 
-                    #[name = "group"]
-                    adw::PreferencesGroup {},
-
-                    append: &model.submit,
                     append: &model.status,
+
+                    gtk::Box {
+                        set_orientation: gtk::Orientation::Horizontal,
+                        set_halign: gtk::Align::End,
+
+                        append: &model.submit,
+                    },
                 },
             },
         }
@@ -90,11 +110,7 @@ impl SimpleComponent for EditDialog {
             rows.push(row);
         }
 
-        let submit = gtk::Button::builder()
-            .label(crate::tr!("Save"))
-            .halign(gtk::Align::End)
-            .margin_top(12)
-            .build();
+        let submit = gtk::Button::builder().label(crate::tr!("Save")).build();
         submit.add_css_class("suggested-action");
         submit.add_css_class("pill");
         let sender_for_submit = sender.clone();

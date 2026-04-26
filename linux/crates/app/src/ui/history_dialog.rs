@@ -163,17 +163,12 @@ impl Component for HistoryDialog {
         header.pack_start(&select_button);
 
         let menu = gio::Menu::new();
-        let selection_section = gio::Menu::new();
-        selection_section.append(Some(&crate::tr!("Export selected as SQL")), Some("history.export-sql"));
-        selection_section.append(Some(&crate::tr!("Export selected as CSV")), Some("history.export-csv"));
-        selection_section.append(Some(&crate::tr!("Delete selected")), Some("history.delete-selected"));
-        menu.append_section(None, &selection_section);
-        let danger_section = gio::Menu::new();
-        danger_section.append(Some(&crate::tr!("Clear all history…")), Some("history.clear-all"));
-        menu.append_section(None, &danger_section);
         let storage_section = gio::Menu::new();
         storage_section.append(Some(&crate::tr!("Show storage location")), Some("history.show-storage"));
         menu.append_section(None, &storage_section);
+        let danger_section = gio::Menu::new();
+        danger_section.append(Some(&crate::tr!("Clear all history…")), Some("history.clear-all"));
+        menu.append_section(None, &danger_section);
         let menu_button = gtk::MenuButton::builder()
             .icon_name("view-more-symbolic")
             .menu_model(&menu)
@@ -213,10 +208,24 @@ impl Component for HistoryDialog {
 
         let search_bar = gtk::SearchBar::builder()
             .child(&search)
-            .show_close_button(false)
-            .search_mode_enabled(true)
+            .show_close_button(true)
+            .search_mode_enabled(false)
             .build();
         search_bar.connect_entry(&search);
+
+        let search_toggle = gtk::ToggleButton::builder()
+            .icon_name("system-search-symbolic")
+            .tooltip_text(crate::tr!("Search"))
+            .build();
+        let search_bar_for_toggle = search_bar.clone();
+        search_toggle.connect_toggled(move |btn| {
+            search_bar_for_toggle.set_search_mode(btn.is_active());
+        });
+        let toggle_for_close = search_toggle.clone();
+        search_bar.connect_search_mode_enabled_notify(move |bar| {
+            toggle_for_close.set_active(bar.is_search_mode());
+        });
+        header.pack_end(&search_toggle);
 
         let inner = gtk::Box::builder().orientation(gtk::Orientation::Vertical).build();
         inner.append(&search_bar);
@@ -287,9 +296,25 @@ impl Component for HistoryDialog {
         stack.add_named(&status_page, Some("empty"));
 
         inner.append(&stack);
+        search_bar.set_key_capture_widget(Some(&inner));
 
         let selection_label = gtk::Label::builder().xalign(0.0).hexpand(true).build();
         selection_label.add_css_class("dim-label");
+
+        let export_menu = gio::Menu::new();
+        export_menu.append(Some(&crate::tr!("Export as SQL")), Some("history.export-sql"));
+        export_menu.append(Some(&crate::tr!("Export as CSV")), Some("history.export-csv"));
+        let export_button = gtk::MenuButton::builder()
+            .label(crate::tr!("Export"))
+            .always_show_arrow(true)
+            .menu_model(&export_menu)
+            .build();
+
+        let delete_button = gtk::Button::builder().label(crate::tr!("Delete")).build();
+        delete_button.add_css_class("destructive-action");
+        let s_del_bar = sender.clone();
+        delete_button.connect_clicked(move |_| s_del_bar.input(HistoryDialogInput::DeleteSelected));
+
         let selection_bar_inner = gtk::Box::builder()
             .orientation(gtk::Orientation::Horizontal)
             .spacing(8)
@@ -299,6 +324,8 @@ impl Component for HistoryDialog {
             .margin_end(12)
             .build();
         selection_bar_inner.append(&selection_label);
+        selection_bar_inner.append(&export_button);
+        selection_bar_inner.append(&delete_button);
         let selection_bar = gtk::Revealer::builder()
             .child(&selection_bar_inner)
             .transition_type(gtk::RevealerTransitionType::SlideUp)

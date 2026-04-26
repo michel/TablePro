@@ -110,18 +110,26 @@ impl Component for ConnectDialog {
                         },
 
                         append: &model.ssh.group,
+                    },
+                },
 
-                        gtk::Box {
-                            set_orientation: gtk::Orientation::Horizontal,
-                            set_spacing: 8,
-                            set_halign: gtk::Align::End,
-                            set_margin_top: 12,
+                add_bottom_bar = &gtk::Box {
+                    set_orientation: gtk::Orientation::Vertical,
+                    set_spacing: 6,
+                    set_margin_top: 8,
+                    set_margin_bottom: 12,
+                    set_margin_start: 12,
+                    set_margin_end: 12,
 
-                            append: &model.test_button,
-                            append: &model.submit,
-                        },
+                    append: &model.status,
 
-                        append: &model.status,
+                    gtk::Box {
+                        set_orientation: gtk::Orientation::Horizontal,
+                        set_spacing: 8,
+                        set_halign: gtk::Align::End,
+
+                        append: &model.test_button,
+                        append: &model.submit,
                     },
                 },
             },
