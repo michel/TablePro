@@ -6287,6 +6287,9 @@
         }
       }
     },
+    "Auto-detects from ~/.ssh/config and default key locations." : {
+
+    },
     "Auto-indent" : {
       "extractionState" : "stale",
       "localizations" : {
