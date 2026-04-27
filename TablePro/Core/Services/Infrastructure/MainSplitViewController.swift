@@ -459,6 +459,10 @@ internal final class MainSplitViewController: NSSplitViewController, InspectorVi
         UserDefaults.standard.set(false, forKey: Self.inspectorPresentedKey)
     }
 
+    @objc override func toggleInspector(_ sender: Any?) {
+        toggleInspector()
+    }
+
     // MARK: - Sidebar
 
     var isSidebarCollapsed: Bool {
