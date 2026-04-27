@@ -345,6 +345,11 @@ build_for_arch() {
         CODE_SIGN_IDENTITY="$SIGN_IDENTITY" \
         CODE_SIGN_STYLE=Manual \
         DEVELOPMENT_TEAM="$TEAM_ID" \
+        GCC_OPTIMIZATION_LEVEL=s \
+        SWIFT_OPTIMIZATION_LEVEL=-O \
+        LLVM_LTO=YES_THIN \
+        CLANG_COVERAGE_MAPPING=NO \
+        ENABLE_CODE_COVERAGE=NO \
         ${ANALYTICS_HMAC_SECRET:+ANALYTICS_HMAC_SECRET="$ANALYTICS_HMAC_SECRET"} \
         -skipPackagePluginValidation \
         -clonedSourcePackagesDirPath "$SPM_CACHE_DIR" \
@@ -428,6 +433,20 @@ build_for_arch() {
         after=$(ls -lh "$main_binary" | awk '{print $5}')
         echo "🔪 Main binary: $before → $after"
     fi
+
+    # Strip helper executables in Contents/MacOS
+    for helper in "$BUILD_DIR/$OUTPUT_NAME/Contents/MacOS"/*; do
+        [ -f "$helper" ] || continue
+        [ "$(basename "$helper")" = "TablePro" ] && continue
+        local hname
+        hname=$(basename "$helper")
+        local before
+        before=$(ls -lh "$helper" | awk '{print $5}')
+        strip -x "$helper"
+        local after
+        after=$(ls -lh "$helper" | awk '{print $5}')
+        echo "   $hname: $before → $after"
+    done
 
     # Strip PluginKit framework
     local pluginkit_binary="$BUILD_DIR/$OUTPUT_NAME/Contents/Frameworks/TableProPluginKit.framework/Versions/A/TableProPluginKit"
