@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.36.0] - 2026-04-27
+
 ### Added
 
 - GitHub Copilot: inline suggestions, chat, OAuth sign-in, schema context
@@ -1476,7 +1478,8 @@ TablePro is a native macOS database client built with SwiftUI and AppKit, design
     - Custom SQL query templates
     - Performance optimized for large datasets
 
-[Unreleased]: https://github.com/TableProApp/TablePro/compare/v0.35.0...HEAD
+[Unreleased]: https://github.com/TableProApp/TablePro/compare/v0.36.0...HEAD
+[0.36.0]: https://github.com/TableProApp/TablePro/compare/v0.35.0...v0.36.0
 [0.35.0]: https://github.com/TableProApp/TablePro/compare/v0.34.0...v0.35.0
 [0.34.0]: https://github.com/TableProApp/TablePro/compare/v0.33.0...v0.34.0
 [0.33.0]: https://github.com/TableProApp/TablePro/compare/v0.32.1...v0.33.0
