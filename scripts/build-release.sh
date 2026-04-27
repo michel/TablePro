@@ -489,6 +489,14 @@ build_for_arch() {
         done
     fi
 
+    # Sign helper executables in Contents/MacOS (e.g., mcp-server)
+    MACOS_DIR="$BUILD_DIR/$OUTPUT_NAME/Contents/MacOS"
+    for helper in "$MACOS_DIR"/*; do
+        [ -f "$helper" ] || continue
+        [ "$(basename "$helper")" = "TablePro" ] && continue
+        codesign -fs "$SIGN_IDENTITY" --force --options runtime --timestamp "$helper"
+    done
+
     # Embed provisioning profile (required for iCloud entitlements)
     PROFILE=$(find ~/Library/MobileDevice/Provisioning\ Profiles -name "*.provisionprofile" -print -quit 2>/dev/null)
     if [ -n "$PROFILE" ]; then
