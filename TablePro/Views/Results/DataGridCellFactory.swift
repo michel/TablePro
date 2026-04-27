@@ -326,8 +326,11 @@ final class DataGridCellFactory {
     ) {
         cell.placeholderString = nil
 
+        let cellTextField = cell as? CellTextField
+
         if rawValue == nil {
             cell.stringValue = ""
+            cellTextField?.originalValue = nil
             cell.font = ThemeEngine.shared.dataGridFonts.italic
             cell.tag = DataGridFontVariant.italic
             if !isLargeDataset {
@@ -336,6 +339,7 @@ final class DataGridCellFactory {
             cell.textColor = .secondaryLabelColor
         } else if rawValue == "__DEFAULT__" {
             cell.stringValue = ""
+            cellTextField?.originalValue = nil
             cell.font = ThemeEngine.shared.dataGridFonts.medium
             cell.tag = DataGridFontVariant.medium
             if !isLargeDataset {
@@ -344,6 +348,7 @@ final class DataGridCellFactory {
             cell.textColor = .systemBlue
         } else if rawValue == "" {
             cell.stringValue = ""
+            cellTextField?.originalValue = nil
             cell.font = ThemeEngine.shared.dataGridFonts.italic
             cell.tag = DataGridFontVariant.italic
             if !isLargeDataset {
@@ -352,7 +357,7 @@ final class DataGridCellFactory {
             cell.textColor = .secondaryLabelColor
         } else {
             cell.stringValue = displayValue ?? ""
-            (cell as? CellTextField)?.originalValue = rawValue
+            cellTextField?.originalValue = rawValue
             cell.textColor = .labelColor
             cell.font = ThemeEngine.shared.dataGridFonts.regular
             cell.tag = DataGridFontVariant.regular

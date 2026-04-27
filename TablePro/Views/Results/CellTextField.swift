@@ -24,12 +24,10 @@ final class CellTextField: NSTextField {
     }
 
     override func becomeFirstResponder() -> Bool {
-        let result = super.becomeFirstResponder()
-        if result, let original = originalValue {
-            // Show full value when entering edit mode
+        if let original = originalValue {
             super.stringValue = original
         }
-        return result
+        return super.becomeFirstResponder()
     }
 
     /// Call this when editing ends to restore truncated display

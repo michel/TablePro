@@ -157,9 +157,9 @@ extension TableViewCoordinator {
             return true
         }
 
-        let newValue: String? = textField.stringValue
-
+        let rawInput = textField.stringValue
         let oldValue = rowProvider.value(atRow: row, column: columnIndex)
+        let newValue: String? = rawInput.isEmpty && oldValue == nil ? nil : rawInput
 
         guard oldValue != newValue else { return true }
 
