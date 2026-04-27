@@ -315,6 +315,10 @@ build_for_arch() {
     prepare_libmongoc "$arch"
     prepare_hiredis "$arch"
 
+    # Create OpenSSL shared dylibs for this architecture
+    echo "📦 Creating OpenSSL shared dylibs for $arch..."
+    scripts/create-openssl-dylibs.sh "$arch"
+
     # Persistent SPM package cache (speeds up CI on self-hosted runners)
     SPM_CACHE_DIR="${HOME}/.spm-cache"
     mkdir -p "$SPM_CACHE_DIR"
@@ -455,6 +459,17 @@ build_for_arch() {
         echo "   TableProPluginKit framework stripped"
     fi
 
+    # Remove development rpaths (absolute source paths) from all binaries
+    echo "🔧 Stripping development rpaths..."
+    for binary in "$main_binary" \
+        "$BUILD_DIR/$OUTPUT_NAME/Contents/MacOS"/* \
+        "$PLUGINS_DIR"/*.tableplugin/Contents/MacOS/*; do
+        [ -f "$binary" ] || continue
+        otool -l "$binary" 2>/dev/null | grep "Libs/dylibs" | awk '{print $2}' | while read -r rpath; do
+            install_name_tool -delete_rpath "$rpath" "$binary" 2>/dev/null || true
+        done
+    done
+
     # Strip Sparkle helper binaries
     local sparkle_dir="$BUILD_DIR/$OUTPUT_NAME/Contents/Frameworks/Sparkle.framework/Versions/B"
     for sparkle_bin in \
@@ -472,7 +487,21 @@ build_for_arch() {
         echo "   Removed Sparkle XPC services (non-sandboxed app)"
     fi
 
-    # Bundle non-system dynamic libraries (libpq, OpenSSL, etc.)
+    # Copy shared OpenSSL dylibs into Frameworks
+    echo "📦 Copying OpenSSL shared dylibs to Frameworks/..."
+    FRAMEWORKS_EMBED_DIR="$BUILD_DIR/$OUTPUT_NAME/Contents/Frameworks"
+    mkdir -p "$FRAMEWORKS_EMBED_DIR"
+    for lib in libcrypto.3.dylib libssl.3.dylib; do
+        if [ -f "Libs/dylibs/$lib" ]; then
+            cp -f "Libs/dylibs/$lib" "$FRAMEWORKS_EMBED_DIR/$lib"
+            chmod 644 "$FRAMEWORKS_EMBED_DIR/$lib"
+            echo "   Copied $lib"
+        else
+            echo "   WARNING: Libs/dylibs/$lib not found"
+        fi
+    done
+
+    # Bundle non-system dynamic libraries (libpq, etc.)
     bundle_dylibs "$BUILD_DIR/$OUTPUT_NAME"
 
     # Sign the entire app bundle with Developer ID.
