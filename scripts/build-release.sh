@@ -455,11 +455,27 @@ build_for_arch() {
         echo "   TableProPluginKit framework stripped"
     fi
 
+    # Strip Sparkle helper binaries
+    local sparkle_dir="$BUILD_DIR/$OUTPUT_NAME/Contents/Frameworks/Sparkle.framework/Versions/B"
+    for sparkle_bin in \
+        "$sparkle_dir/Autoupdate" \
+        "$sparkle_dir/Updater.app/Contents/MacOS/Updater"; do
+        if [ -f "$sparkle_bin" ]; then
+            strip -x "$sparkle_bin"
+            echo "   $(basename "$sparkle_bin") (Sparkle) stripped"
+        fi
+    done
+
+    # Remove Sparkle XPC services (not needed for non-sandboxed apps)
+    if [ -d "$sparkle_dir/XPCServices" ]; then
+        rm -rf "$sparkle_dir/XPCServices"
+        echo "   Removed Sparkle XPC services (non-sandboxed app)"
+    fi
+
     # Bundle non-system dynamic libraries (libpq, OpenSSL, etc.)
     bundle_dylibs "$BUILD_DIR/$OUTPUT_NAME"
 
     # Sign the entire app bundle with Developer ID.
-    # Must deep-sign all nested executables (Sparkle has XPC services, helper apps).
     # Sign from inside out: nested binaries → frameworks → dylibs → app.
     echo "🔏 Signing app bundle with: $SIGN_IDENTITY"
     FRAMEWORKS_DIR="$BUILD_DIR/$OUTPUT_NAME/Contents/Frameworks"
