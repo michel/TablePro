@@ -262,8 +262,10 @@ extension TableViewCoordinator {
         let options: [String]
         if let custom = customDropdownOptions?[columnIndex] {
             options = custom
+        } else if let dbType = databaseType, PluginManager.shared.usesTrueFalseBooleans(for: dbType) {
+            options = ["true", "false"]
         } else {
-            options = ["YES", "NO"]
+            options = ["1", "0"]
         }
 
         let menu = NSMenu()
