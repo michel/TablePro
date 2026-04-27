@@ -7,74 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Changed
-
-- AI settings rewritten as a single tab modeled on Xcode's Intelligence settings: pick one active provider from a configured list, drill down to configure each provider in a sheet
-- Inline suggestions toggle moved into AI settings; provider follows the active AI provider (Copilot or any chat provider)
-- Removed the separate Copilot settings tab and the per-feature routing UI
-- Existing AI providers are preserved on upgrade; the first one is auto-set as active
-- Filter value field uses a native SwiftUI suggestion dropdown instead of the AppKit autocomplete popup
-- MCP bridge now pins the server's TLS certificate fingerprint instead of accepting any certificate
-- Replaced custom search field with native NSSearchField in keyboard shortcuts, database switcher, and quick switcher
-- Column layout and filter state storage migrated from UserDefaults to file-based storage
-- Refactored welcome screen to properly separate view model and view layer responsibilities
-
 ### Added
 
-- Plugin auto-update: outdated plugins are silently updated from the registry at launch, with an actionable alert if auto-update fails
-- Plugin update detection in Settings: update badges on installed plugins, one-click update from both Installed and Browse tabs
-- Query parameters: write `:name` placeholders in SQL, fill values in an inline panel, execute with native prepared statement binding
-- AI provider registry for extensible provider management
-- GitHub Copilot integration: inline suggestions, chat via LSP conversation protocol, OAuth sign-in, schema context
-- Connection sharing: Share submenu with Copy Connection String, Copy TablePro Link, Copy as JSON, and rich deep links carrying all connection fields
+- GitHub Copilot: inline suggestions, chat, OAuth sign-in, schema context
+- Query parameters: `:name` placeholders in SQL with inline value panel and native prepared statement binding
+- Plugin auto-update at launch and one-click update in Settings
+- Connection sharing: Copy Connection String, Copy TablePro Link, Copy as JSON via Share menu
+- MCP server: token auth with permission tiers, TLS, remote access, rate limiting, stdio bridge, one-click setup for Claude Code/Desktop/Cursor
 - Edit > Find menu item (Cmd+F)
-- MCP server: Bearer token authentication with multi-token management
-- MCP server: three permission tiers (Read Only, Read & Write, Full Access) with per-token connection allowlists
-- MCP server: TLS with auto-generated self-signed certificates for remote access
-- MCP server: optional remote access (bind to all network interfaces)
-- MCP server: rate limiting on failed authentication attempts
-- MCP server: stdio bridge CLI for zero-config local client setup
-- MCP server: one-click auto-setup for Claude Code, Claude Desktop, and Cursor
+
+### Changed
+
+- AI settings rewritten as single tab with one active provider, per-provider config sheets
+- Filter value field uses native SwiftUI suggestion dropdown
+- MCP bridge pins TLS certificate fingerprint
+- Native NSSearchField in keyboard shortcuts, database switcher, quick switcher
+- About window uses standard macOS panel
 
 ### Fixed
 
-- Miscellaneous HIG view cleanup: use ClipboardService, remove deprecated cornerRadius, fix window tabbing state, consistent double-click detection
-- Added runtime guard against DriverPlugin ABI mismatch for user-installed plugins
-- Hardened SQL parameter escaping in plugin fallback to handle control characters and edge-case numeric formats
-- Query parameter conversion handles Bool, Date, Data, and non-finite numbers correctly
-- Plugin default query methods handle trailing semicolons and whitespace correctly
-- ER diagram no longer uses a polling loop to wait for database connection
-- MCP server now shuts down reliably on app quit
-- Result tab bar and history panel follow macOS HIG patterns
-- Improved keyboard and VoiceOver accessibility for interactive rows across the app
-- Compiled theme fallback colors now match the default theme JSON files
-- TablePlus import: correctly map all SSL/TLS modes instead of treating Prefer as disabled
-- DBeaver import: parse SSL configuration from handler properties
-- Sequel Ace import: read SSH port as number, not string
-- TablePlus import: import SSH key passphrases from keychain
-- Filter value field now works correctly with Chinese, Japanese, and Korean input methods (#878)
-- Saving a filter preset with a duplicate name no longer silently overwrites the existing preset
-- Raw SQL filter accepting destructive statements and comment injection
-- MCP server: schema and history resources now enforce connection access policies
-- Export "Don't show again" preference lost when clicking "Open Folder"
-- Connection failure error not shown on welcome screen
-- Window position not restored between launches
-- Export multi-table race condition on PostgreSQL
-- List selection requiring two clicks in Quick Switcher and Database Switcher
-- AI provider and connection test states not clearing on field changes
-- Export stop button missing confirmation dialog
-- SSH profile test showing modal alert instead of inline error
-- DDL results showing misleading "0 row(s) affected"
-- Export dialog missing empty state when no tables found
-- Save-changes error messages, duplicated connection "(Copy)" suffix, query window title fallback, preview window subtitle, and inspector row count not localized
-- Filter settings popover options not localized
-
-### Changed
-
-- About window uses standard macOS panel
-- Consolidated double-click detection into single shared component
-- Accessibility improvements: VoiceOver labels, semantic fonts, larger tap targets
-- iOS: TabView navigation with ConnectionCoordinator extraction
+- Plugin ABI mismatch guard for user-installed plugins
+- SQL parameter escaping for control characters and edge-case formats
+- Query parameter conversion for Bool, Date, Data, non-finite numbers
+- Filter preset duplicate name overwrite
+- Raw SQL filter injection and destructive statement validation
+- IME input (Chinese, Japanese, Korean) in filter value field
+- MCP server shutdown on app quit and access policy enforcement
+- Foreign app import: SSL/SSH parsing for TablePlus, DBeaver, Sequel Ace
+- Export race condition, missing confirmation dialog, empty state
+- Window position restore, connection error display, list selection clicks
+- Localization for error messages, connection labels, filter options
 
 ## [0.35.0] - 2026-04-25
 
