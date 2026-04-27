@@ -193,7 +193,7 @@ actor LSPTransport {
     }
 
     /// Blocking read loop that runs on a dedicated DispatchQueue to avoid blocking the actor executor.
-    private nonisolated func readLoopSync(handle: FileHandle) {
+    nonisolated private func readLoopSync(handle: FileHandle) {
         var buffer = Data()
 
         while true {

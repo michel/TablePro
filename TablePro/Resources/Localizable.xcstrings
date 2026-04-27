@@ -5045,6 +5045,12 @@
         }
       }
     },
+    "Always Hide" : {
+
+    },
+    "Always Show" : {
+
+    },
     "An external link wants to add a database connection:\n\nName: %@\n%@" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -5256,6 +5262,9 @@
           }
         }
       }
+    },
+    "Any Column" : {
+
     },
     "API Key" : {
       "localizations" : {
@@ -8477,6 +8486,7 @@
 
     },
     "Close preview" : {
+      "extractionState" : "stale",
       "localizations" : {
         "tr" : {
           "stringUnit" : {
@@ -21145,6 +21155,9 @@
         }
       }
     },
+    "Incompatible plugin version" : {
+
+    },
     "Incorrect passphrase" : {
       "localizations" : {
         "tr" : {
@@ -28541,6 +28554,9 @@
         }
       }
     },
+    "Open Plugin Settings" : {
+
+    },
     "Open Query" : {
       "localizations" : {
         "tr" : {
@@ -30055,6 +30071,9 @@
           }
         }
       }
+    },
+    "Plugin Update Failed" : {
+
     },
     "Plugin was built with PluginKit version %d, but version %d is required. Please update the plugin." : {
       "localizations" : {
@@ -33672,6 +33691,9 @@
         }
       }
     },
+    "Restore Last Filter" : {
+
+    },
     "Results" : {
       "localizations" : {
         "tr" : {
@@ -33782,6 +33804,9 @@
           }
         }
       }
+    },
+    "Retry Update" : {
+
     },
     "Retry Validation" : {
       "localizations" : {
@@ -35285,7 +35310,6 @@
       }
     },
     "Search shortcuts..." : {
-      "extractionState" : "stale",
       "localizations" : {
         "tr" : {
           "stringUnit" : {
@@ -35308,7 +35332,6 @@
       }
     },
     "Search tables, views, databases..." : {
-      "extractionState" : "stale",
       "localizations" : {
         "tr" : {
           "stringUnit" : {
@@ -40457,6 +40480,7 @@
       }
     },
     "The following plugins were rejected:\n\n%@\n\nPlease update them from the plugin registry." : {
+      "extractionState" : "stale",
       "localizations" : {
         "tr" : {
           "stringUnit" : {
@@ -40477,6 +40501,9 @@
           }
         }
       }
+    },
+    "The following plugins were rejected:\n\n%@\n\nYou can update them from the plugin registry in Settings." : {
+
     },
     "The license has been suspended." : {
       "localizations" : {
@@ -43310,6 +43337,9 @@
         }
       }
     },
+    "Update" : {
+
+    },
     "UPDATE Statement(s)" : {
       "localizations" : {
         "tr" : {
@@ -43332,6 +43362,9 @@
         }
       }
     },
+    "Update to v%@" : {
+
+    },
     "Updated" : {
       "localizations" : {
         "tr" : {
@@ -43353,6 +43386,12 @@
           }
         }
       }
+    },
+    "Updated to v%@" : {
+
+    },
+    "Updating..." : {
+
     },
     "Uptime" : {
       "localizations" : {
@@ -43778,6 +43817,9 @@
           }
         }
       }
+    },
+    "v%@ available" : {
+
     },
     "v%@+" : {
       "localizations" : {

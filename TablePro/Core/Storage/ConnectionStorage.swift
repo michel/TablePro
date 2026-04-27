@@ -386,7 +386,6 @@ final class ConnectionStorage {
 // MARK: - Stored Connection (Codable wrapper)
 
 private struct StoredConnection: Codable {
-
     let id: UUID
     let name: String
     let host: String

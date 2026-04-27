@@ -418,5 +418,4 @@ extension View {
             .background(Color(nsColor: .controlBackgroundColor))
             .clipShape(RoundedRectangle(cornerRadius: 6))
     }
-
 }

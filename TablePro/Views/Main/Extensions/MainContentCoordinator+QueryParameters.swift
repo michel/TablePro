@@ -167,50 +167,18 @@ extension MainContentCoordinator {
 
                 let metadata = schemaResult.map { self.parseSchemaMetadata($0) }
 
-                await MainActor.run { [weak self] in
-                    guard let self else { return }
-                    currentQueryTask = nil
-                    if PluginManager.shared.supportsQueryProgress(for: self.connection.type) {
-                        self.clearClickHouseProgress()
-                    }
-                    toolbarState.setExecuting(false)
-                    toolbarState.lastQueryDuration = safeExecutionTime
-
-                    if capturedGeneration != queryGeneration || Task.isCancelled {
-                        if let idx = tabManager.tabs.firstIndex(where: { $0.id == tabId }) {
-                            tabManager.tabs[idx].isExecuting = false
-                        }
-                        return
-                    }
-
-                    applyPhase1Result(
-                        tabId: tabId,
-                        columns: safeColumns,
-                        columnTypes: safeColumnTypes,
-                        rows: safeRows,
-                        executionTime: safeExecutionTime,
-                        rowsAffected: safeRowsAffected,
-                        statusMessage: safeStatusMessage,
-                        tableName: tableName,
-                        isEditable: isEditable,
-                        metadata: metadata,
-                        hasSchema: schemaResult != nil,
-                        sql: sql,
-                        connection: conn,
-                        queryPageContext: pageContext,
-                        queryParameterValues: originalParameters
-                    )
-
-                    if let idx = tabManager.tabs.firstIndex(where: { $0.id == tabId }) {
-                        tabManager.tabs[idx].pagination.baseQueryParameterValues =
-                            parameters.map { value in
-                                if let stringValue = value as? String {
-                                    return stringValue
-                                }
-                                return nil
-                            }
-                    }
-                }
+                await applyParameterizedResult(
+                    tabId: tabId,
+                    fetchResult: fetchResult,
+                    schemaResult: schemaResult,
+                    tableName: tableName,
+                    isEditable: isEditable,
+                    sql: sql,
+                    connection: conn,
+                    capturedGeneration: capturedGeneration,
+                    originalParameters: originalParameters,
+                    nativeParameters: parameters
+                )
 
                 if isEditable, let tableName = tableName {
                     if needsMetadataFetch {
@@ -407,70 +375,153 @@ extension MainContentCoordinator {
                     )
                 }
             } catch {
-                if let driver = DatabaseManager.shared.driver(for: conn.id), driver.supportsTransactions {
-                    do {
-                        try await driver.rollbackTransaction()
-                    } catch {
-                        paramLog.error("Rollback failed: \(error.localizedDescription, privacy: .public)")
-                    }
-                }
-
-                if capturedGeneration != queryGeneration {
-                    await MainActor.run { [weak self] in
-                        guard let self else { return }
-                        if let idx = tabManager.tabs.firstIndex(where: { $0.id == tabId }) {
-                            tabManager.tabs[idx].isExecuting = false
-                        }
-                        currentQueryTask = nil
-                        toolbarState.setExecuting(false)
-                    }
-                    return
-                }
-
-                let failedStmtIndex = executedCount + 1
-                let contextMsg = "Statement \(failedStmtIndex)/\(totalCount) failed: "
-                    + error.localizedDescription
-
-                let errorRS = ResultSet(label: "Error \(failedStmtIndex)")
-                errorRS.errorMessage = error.localizedDescription
-                newResultSets.append(errorRS)
-
-                await MainActor.run {
-                    currentQueryTask = nil
-                    toolbarState.setExecuting(false)
-
-                    if let idx = tabManager.tabs.firstIndex(where: { $0.id == tabId }) {
-                        var errTab = tabManager.tabs[idx]
-                        errTab.errorMessage = contextMsg
-                        errTab.isExecuting = false
-                        errTab.executionTime = cumulativeTime
-
-                        let pinnedResults = errTab.resultSets.filter(\.isPinned)
-                        errTab.resultSets = pinnedResults + newResultSets
-                        errTab.activeResultSetId = newResultSets.last?.id
-
-                        tabManager.tabs[idx] = errTab
-                    }
-
-                    let rawSQL = failedSQL ?? statements[min(executedCount, totalCount - 1)]
-                    let recordSQL = rawSQL.hasSuffix(";") ? rawSQL : rawSQL + ";"
-                    QueryHistoryManager.shared.recordQuery(
-                        query: recordSQL,
-                        connectionId: conn.id,
-                        databaseName: conn.database,
-                        executionTime: cumulativeTime,
-                        rowCount: 0,
-                        wasSuccessful: false,
-                        errorMessage: error.localizedDescription
-                    )
-
-                    AlertHelper.showErrorSheet(
-                        title: String(localized: "Query Execution Failed"),
-                        message: contextMsg,
-                        window: contentWindow
-                    )
-                }
+                await handleMultiStatementError(
+                    error: error,
+                    connection: conn,
+                    tabId: tabId,
+                    capturedGeneration: capturedGeneration,
+                    statements: statements,
+                    executedCount: executedCount,
+                    totalCount: totalCount,
+                    cumulativeTime: cumulativeTime,
+                    failedSQL: failedSQL,
+                    resultSets: &newResultSets
+                )
             }
+        }
+    }
+
+    private func applyParameterizedResult(
+        tabId: UUID,
+        fetchResult: QueryFetchResult,
+        schemaResult: SchemaResult?,
+        tableName: String?,
+        isEditable: Bool,
+        sql: String,
+        connection: DatabaseConnection,
+        capturedGeneration: Int,
+        originalParameters: [QueryParameter],
+        nativeParameters: [Any?]
+    ) async {
+        let metadata = schemaResult.map { self.parseSchemaMetadata($0) }
+
+        await MainActor.run { [weak self] in
+            guard let self else { return }
+            currentQueryTask = nil
+            if PluginManager.shared.supportsQueryProgress(for: self.connection.type) {
+                self.clearClickHouseProgress()
+            }
+            toolbarState.setExecuting(false)
+            toolbarState.lastQueryDuration = fetchResult.executionTime
+
+            if capturedGeneration != queryGeneration || Task.isCancelled {
+                if let idx = tabManager.tabs.firstIndex(where: { $0.id == tabId }) {
+                    tabManager.tabs[idx].isExecuting = false
+                }
+                return
+            }
+
+            applyPhase1Result(
+                tabId: tabId,
+                columns: fetchResult.columns,
+                columnTypes: fetchResult.columnTypes,
+                rows: fetchResult.rows,
+                executionTime: fetchResult.executionTime,
+                rowsAffected: fetchResult.rowsAffected,
+                statusMessage: fetchResult.statusMessage,
+                tableName: tableName,
+                isEditable: isEditable,
+                metadata: metadata,
+                hasSchema: schemaResult != nil,
+                sql: sql,
+                connection: connection,
+                queryPageContext: fetchResult.pageContext,
+                queryParameterValues: originalParameters
+            )
+
+            if let idx = tabManager.tabs.firstIndex(where: { $0.id == tabId }) {
+                tabManager.tabs[idx].pagination.baseQueryParameterValues =
+                    nativeParameters.map { $0 as? String }
+            }
+        }
+    }
+
+    private func handleMultiStatementError(
+        error: Error,
+        connection: DatabaseConnection,
+        tabId: UUID,
+        capturedGeneration: Int,
+        statements: [String],
+        executedCount: Int,
+        totalCount: Int,
+        cumulativeTime: TimeInterval,
+        failedSQL: String?,
+        resultSets: inout [ResultSet]
+    ) async {
+        if let driver = DatabaseManager.shared.driver(for: connection.id), driver.supportsTransactions {
+            do {
+                try await driver.rollbackTransaction()
+            } catch {
+                paramLog.error("Rollback failed: \(error.localizedDescription, privacy: .public)")
+            }
+        }
+
+        if capturedGeneration != queryGeneration {
+            await MainActor.run { [weak self] in
+                guard let self else { return }
+                if let idx = tabManager.tabs.firstIndex(where: { $0.id == tabId }) {
+                    tabManager.tabs[idx].isExecuting = false
+                }
+                currentQueryTask = nil
+                toolbarState.setExecuting(false)
+            }
+            return
+        }
+
+        let failedStmtIndex = executedCount + 1
+        let contextMsg = "Statement \(failedStmtIndex)/\(totalCount) failed: "
+            + error.localizedDescription
+
+        let errorRS = ResultSet(label: "Error \(failedStmtIndex)")
+        errorRS.errorMessage = error.localizedDescription
+        resultSets.append(errorRS)
+
+        let capturedResultSets = resultSets
+        await MainActor.run { [weak self] in
+            guard let self else { return }
+            currentQueryTask = nil
+            toolbarState.setExecuting(false)
+
+            if let idx = tabManager.tabs.firstIndex(where: { $0.id == tabId }) {
+                var errTab = tabManager.tabs[idx]
+                errTab.errorMessage = contextMsg
+                errTab.isExecuting = false
+                errTab.executionTime = cumulativeTime
+
+                let pinnedResults = errTab.resultSets.filter(\.isPinned)
+                errTab.resultSets = pinnedResults + capturedResultSets
+                errTab.activeResultSetId = capturedResultSets.last?.id
+
+                tabManager.tabs[idx] = errTab
+            }
+
+            let rawSQL = failedSQL ?? statements[min(executedCount, totalCount - 1)]
+            let recordSQL = rawSQL.hasSuffix(";") ? rawSQL : rawSQL + ";"
+            QueryHistoryManager.shared.recordQuery(
+                query: recordSQL,
+                connectionId: connection.id,
+                databaseName: connection.database,
+                executionTime: cumulativeTime,
+                rowCount: 0,
+                wasSuccessful: false,
+                errorMessage: error.localizedDescription
+            )
+
+            AlertHelper.showErrorSheet(
+                title: String(localized: "Query Execution Failed"),
+                message: contextMsg,
+                window: contentWindow
+            )
         }
     }
 }

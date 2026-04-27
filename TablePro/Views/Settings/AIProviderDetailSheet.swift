@@ -458,7 +458,7 @@ struct AIProviderDetailSheet: View {
         }
     }
 
-    private func testProvider() {
+    func testProvider() {
         let trimmed = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
         if draft.type.authStyle == .apiKey, trimmed.isEmpty {
             testResult = .failure(String(localized: "API key is required"))

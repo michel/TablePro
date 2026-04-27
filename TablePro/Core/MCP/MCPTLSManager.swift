@@ -59,8 +59,7 @@ actor MCPTLSManager {
             throw MCPTLSError.identityNotFound
         }
 
-        // CFTypeRef from kSecClassIdentity + kSecReturnRef is always SecIdentity
-        let identity = ref as! SecIdentity
+        let identity = (ref as! SecIdentity) // swiftlint:disable:this force_cast
 
         var secCert: SecCertificate?
         let certStatus = SecIdentityCopyCertificate(identity, &secCert)
@@ -195,7 +194,7 @@ actor MCPTLSManager {
             throw MCPTLSError.identityNotFound
         }
 
-        return (ref as! SecIdentity)
+        return (ref as! SecIdentity) // swiftlint:disable:this force_cast
     }
 
     // MARK: - Keychain Cleanup

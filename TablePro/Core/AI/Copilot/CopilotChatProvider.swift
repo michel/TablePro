@@ -81,7 +81,6 @@ final class CopilotChatProvider: AIProvider {
                         let result = try await client.conversationTurn(params: params)
                         self.turnIds.append(result.turnId)
                     }
-
                 } catch {
                     self.progressHandlers.withLock { $0.removeValue(forKey: token) }
                     continuation.finish(throwing: error)
