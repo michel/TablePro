@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Inspector: dense field list, PK/FK key icons, Set NULL/DEFAULT in picker dropdowns, toolbar tracking separator
 - OpenSSL shared as dylib across app and plugins, saving ~15MB in bundle size
 - Data grid uses single cell reuse identifier with typed stored properties instead of 3 identifiers and viewWithTag
+- Boolean dropdown menu includes Set NULL option for nullable columns
 
 ### Fixed
 

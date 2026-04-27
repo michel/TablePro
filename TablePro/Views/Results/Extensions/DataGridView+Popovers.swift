@@ -276,6 +276,22 @@ extension TableViewCoordinator {
             menu.addItem(item)
         }
 
+        let columnName = rowProvider.columns[columnIndex]
+        let isNullable = rowProvider.columnNullable[columnName] ?? true
+        if isNullable && customDropdownOptions?[columnIndex] == nil {
+            menu.addItem(.separator())
+            let nullItem = NSMenuItem(
+                title: String(localized: "Set NULL"),
+                action: #selector(dropdownMenuNullSelected(_:)),
+                keyEquivalent: ""
+            )
+            nullItem.target = self
+            if currentValue == nil {
+                nullItem.state = .on
+            }
+            menu.addItem(nullItem)
+        }
+
         let cellRect = tableView.rect(ofRow: row).intersection(tableView.rect(ofColumn: column))
         menu.popUp(positioning: nil, at: NSPoint(x: cellRect.minX, y: cellRect.maxY), in: tableView)
     }
@@ -288,6 +304,17 @@ extension TableViewCoordinator {
             column: pendingDropdownColumn + 1,
             columnIndex: pendingDropdownColumn,
             newValue: sender.title
+        )
+    }
+
+    @objc func dropdownMenuNullSelected(_ sender: NSMenuItem) {
+        guard let tableView = pendingDropdownTableView else { return }
+        commitPopoverEdit(
+            tableView: tableView,
+            row: pendingDropdownRow,
+            column: pendingDropdownColumn + 1,
+            columnIndex: pendingDropdownColumn,
+            newValue: nil
         )
     }
 

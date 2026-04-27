@@ -14987,6 +14987,9 @@
         }
       }
     },
+    "Edit Values..." : {
+
+    },
     "Edit View Definition" : {
       "localizations" : {
         "tr" : {
@@ -18326,6 +18329,7 @@
       }
     },
     "FIELDS" : {
+      "extractionState" : "stale",
       "localizations" : {
         "tr" : {
           "stringUnit" : {
@@ -34526,6 +34530,9 @@
         }
       }
     },
+    "Save & Connect" : {
+
+    },
     "Save and load filter presets" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -35179,6 +35186,9 @@
         }
       }
     },
+    "Search fields..." : {
+
+    },
     "Search for connection..." : {
       "localizations" : {
         "tr" : {
@@ -35202,6 +35212,7 @@
       }
     },
     "Search for field..." : {
+      "extractionState" : "stale",
       "localizations" : {
         "tr" : {
           "stringUnit" : {
