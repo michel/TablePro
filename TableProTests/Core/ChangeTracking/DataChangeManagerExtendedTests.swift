@@ -17,6 +17,10 @@ struct DataChangeManagerExtendedTests {
         pk: String? = "id"
     ) -> DataChangeManager {
         let manager = DataChangeManager()
+        let undoManager = UndoManager()
+        undoManager.levelsOfUndo = 100
+        undoManager.groupsByEvent = false
+        manager.undoManagerProvider = { undoManager }
         manager.configureForTable(
             tableName: "test_table",
             columns: columns,
@@ -659,12 +663,12 @@ struct DataChangeManagerExtendedTests {
 
     // MARK: - Edge Cases
 
-    @Test("Recording deletion for already-deleted row adds duplicate entry")
+    @Test("Recording deletion for already-deleted row is idempotent")
     func recordDeletionForAlreadyDeletedRow() {
         let manager = makeManager()
         manager.recordRowDeletion(rowIndex: 0, originalRow: ["1", "Alice", "a@test.com"])
         manager.recordRowDeletion(rowIndex: 0, originalRow: ["1", "Alice", "a@test.com"])
-        #expect(manager.changes.count == 2)
+        #expect(manager.changes.count == 1)
     }
 
     @Test("changedRowIndices includes all operation types")
@@ -676,9 +680,10 @@ struct DataChangeManagerExtendedTests {
         )
         manager.recordRowDeletion(rowIndex: 1, originalRow: ["2", "Charlie", "c@test.com"])
         manager.recordRowInsertion(rowIndex: 2, values: ["x", "y", "z"])
-        #expect(manager.changedRowIndices.contains(0))
-        #expect(manager.changedRowIndices.contains(1))
-        #expect(manager.changedRowIndices.contains(2))
+        let changed = manager.consumeChangedRowIndices()
+        #expect(changed.contains(0))
+        #expect(changed.contains(1))
+        #expect(changed.contains(2))
     }
 
     @Test("configureForTable with triggerReload false does not increment reloadVersion")
@@ -781,6 +786,23 @@ struct DataChangeManagerExtendedTests {
         _ = manager.redoLastChange()
         #expect(manager.isCellModified(rowIndex: 0, columnIndex: 1))
         #expect(!manager.changes.isEmpty)
+    }
+
+    @Test("Edit -> undo -> redo -> undo collapses cleanly (no orphan modifiedCells)")
+    func editUndoRedoUndoCollapses() {
+        let manager = makeManager()
+        manager.recordCellChange(
+            rowIndex: 0, columnIndex: 1, columnName: "name",
+            oldValue: "Alice", newValue: "Bob"
+        )
+        _ = manager.undoLastChange()
+        _ = manager.redoLastChange()
+        #expect(manager.isCellModified(rowIndex: 0, columnIndex: 1))
+
+        _ = manager.undoLastChange()
+        #expect(!manager.isCellModified(rowIndex: 0, columnIndex: 1))
+        #expect(manager.changes.isEmpty)
+        #expect(!manager.hasChanges)
     }
 
     @Test("Inserted row edit consistency between changes and insertedRowData")
