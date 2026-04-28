@@ -118,25 +118,17 @@ final class KeyHandlingTableView: NSTableView {
         coordinator?.delegate?.dataGridCopyRows(Set(selectedRowIndexes))
     }
 
-    /// Paste rows from clipboard
     @objc func paste(_ sender: Any?) {
         guard coordinator?.isEditable == true else { return }
+        if focusedRow >= 0, focusedColumn >= 1 {
+            let dataCol = DataGridView.dataColumnIndex(for: focusedColumn)
+            if coordinator?.pasteCellsFromClipboard(anchorRow: focusedRow, anchorColumn: dataCol) == true {
+                return
+            }
+        }
         coordinator?.delegate?.dataGridPasteRows()
     }
 
-    /// Undo last change
-    @objc func undo(_ sender: Any?) {
-        guard coordinator?.isEditable == true else { return }
-        coordinator?.delegate?.dataGridUndo()
-    }
-
-    /// Redo last undone change
-    @objc func redo(_ sender: Any?) {
-        guard coordinator?.isEditable == true else { return }
-        coordinator?.delegate?.dataGridRedo()
-    }
-
-    /// Validate menu items and shortcuts
     override func validateUserInterfaceItem(_ item: NSValidatedUserInterfaceItem) -> Bool {
         switch item.action {
         case #selector(delete(_:)), #selector(deleteBackward(_:)):
@@ -145,14 +137,10 @@ final class KeyHandlingTableView: NSTableView {
             return !selectedRowIndexes.isEmpty
         case #selector(paste(_:)):
             return coordinator?.isEditable == true && coordinator?.delegate != nil
-        case #selector(undo(_:)):
-            return coordinator?.isEditable == true && (coordinator?.canUndo() ?? false)
-        case #selector(redo(_:)):
-            return coordinator?.isEditable == true && (coordinator?.canRedo() ?? false)
         case #selector(insertNewline(_:)):
             return selectedRow >= 0 && focusedColumn >= 1 && coordinator?.isEditable == true
         case #selector(cancelOperation(_:)):
-            return focusedRow >= 0 || focusedColumn >= 0
+            return false
         default:
             return super.validateUserInterfaceItem(item)
         }
@@ -170,16 +158,18 @@ final class KeyHandlingTableView: NSTableView {
 
         // Handle Tab manually (NSTableView cell navigation requires custom logic)
         if key == .tab {
-            handleTabKey()
+            if event.modifierFlags.contains(.shift) {
+                handleShiftTabKey()
+            } else {
+                handleTabKey()
+            }
             return
         }
 
-        // Handle arrow keys (custom Shift+selection logic)
         let row = selectedRow
         let modifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
         let isShiftHeld = modifiers.contains(.shift)
 
-        // Ctrl+HJKL navigation (arrow key alternatives for keyboards without dedicated arrows)
         if modifiers.contains(.control) {
             switch key {
             case .h:
@@ -280,8 +270,6 @@ final class KeyHandlingTableView: NSTableView {
     }
 
     @objc override func cancelOperation(_ sender: Any?) {
-        focusedRow = -1
-        focusedColumn = -1
     }
 
     // MARK: - Arrow Key and Tab Helpers
@@ -308,7 +296,6 @@ final class KeyHandlingTableView: NSTableView {
         }
     }
 
-    /// Handle Tab key - navigate to next cell (manual implementation required for NSTableView)
     private func handleTabKey() {
         let row = selectedRow
         guard row >= 0, focusedColumn >= 1 else { return }
@@ -330,6 +317,29 @@ final class KeyHandlingTableView: NSTableView {
         focusedColumn = nextColumn
         scrollRowToVisible(nextRow)
         scrollColumnToVisible(nextColumn)
+    }
+
+    private func handleShiftTabKey() {
+        let row = selectedRow
+        guard row >= 0, focusedColumn >= 1 else { return }
+
+        var prevColumn = focusedColumn - 1
+        var prevRow = row
+
+        if prevColumn < 1 {
+            prevColumn = numberOfColumns - 1
+            prevRow -= 1
+        }
+        if prevRow < 0 {
+            prevRow = 0
+            prevColumn = 1
+        }
+
+        selectRowIndexes(IndexSet(integer: prevRow), byExtendingSelection: false)
+        focusedRow = prevRow
+        focusedColumn = prevColumn
+        scrollRowToVisible(prevRow)
+        scrollColumnToVisible(prevColumn)
     }
 
     // MARK: - Arrow Key Selection Helpers
