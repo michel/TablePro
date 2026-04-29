@@ -22,6 +22,14 @@ extension MainContentCoordinator {
         columnVisibilityManager.restoreLastHiddenColumns(for: tableName, connectionId: connectionId)
     }
 
+    func saveColumnVisibilityForActiveTable() {
+        guard let tab = tabManager.selectedTab,
+              tab.tabType == .table,
+              let tableName = tab.tableContext.tableName,
+              !tableName.isEmpty else { return }
+        columnVisibilityManager.saveLastHiddenColumns(for: tableName, connectionId: connectionId)
+    }
+
     /// Prune hidden columns that no longer exist in the current result set
     func pruneHiddenColumns(currentColumns: [String]) {
         columnVisibilityManager.pruneStaleColumns(currentColumns)

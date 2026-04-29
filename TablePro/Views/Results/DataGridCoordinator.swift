@@ -25,28 +25,63 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
     var primaryKeyColumns: [String] = []
     var primaryKeyColumn: String? { primaryKeyColumns.first }
     var tabType: TabType?
+    var layoutPersister: any ColumnLayoutPersisting
+    var onColumnLayoutDidChange: ((ColumnLayoutState) -> Void)?
+    private(set) var identitySchema: ColumnIdentitySchema = .empty
+    var currentSortState = SortState()
 
-    func persistColumnLayoutToStorage() {
-        guard tabType == .table else { return }
-        guard let tableView, let connectionId, let tableName, !tableName.isEmpty else { return }
+    func columnIdentifier(for dataIndex: Int) -> NSUserInterfaceItemIdentifier? {
+        identitySchema.identifier(for: dataIndex)
+    }
+
+    func dataColumnIndex(from identifier: NSUserInterfaceItemIdentifier) -> Int? {
+        identitySchema.dataIndex(from: identifier)
+    }
+
+    func savedColumnLayout(binding: ColumnLayoutState) -> ColumnLayoutState? {
+        if tabType == .table,
+           let connectionId,
+           let tableName,
+           !tableName.isEmpty,
+           let stored = layoutPersister.load(for: tableName, connectionId: connectionId) {
+            return stored
+        }
+        if binding.columnWidths.isEmpty && binding.columnOrder == nil {
+            return nil
+        }
+        return binding
+    }
+
+    func captureColumnLayout() -> ColumnLayoutState? {
+        guard let tableView else { return nil }
         let tableRows = tableRowsProvider()
-        guard !tableRows.columns.isEmpty else { return }
+        guard !tableRows.columns.isEmpty else { return nil }
 
         var widths: [String: CGFloat] = [:]
         var order: [String] = []
-        for column in tableView.tableColumns where column.identifier.rawValue != "__rowNumber__" {
-            guard let colIndex = DataGridView.dataColumnIndex(from: column.identifier),
+        for column in tableView.tableColumns
+        where column.identifier != ColumnIdentitySchema.rowNumberIdentifier {
+            guard let colIndex = dataColumnIndex(from: column.identifier),
                   colIndex < tableRows.columns.count else { continue }
             let name = tableRows.columns[colIndex]
             widths[name] = column.width
             order.append(name)
         }
 
-        guard !widths.isEmpty else { return }
+        guard !widths.isEmpty else { return nil }
         var layout = ColumnLayoutState()
         layout.columnWidths = widths
         layout.columnOrder = order
-        ColumnLayoutStorage.shared.save(layout, for: tableName, connectionId: connectionId)
+        return layout
+    }
+
+    func persistColumnLayoutToStorage() {
+        guard let layout = captureColumnLayout() else { return }
+        onColumnLayoutDidChange?(layout)
+
+        if tabType == .table, let connectionId, let tableName, !tableName.isEmpty {
+            layoutPersister.save(layout, for: tableName, connectionId: connectionId)
+        }
     }
 
     weak var tableView: NSTableView?
@@ -67,8 +102,6 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
     var isSyncingSortDescriptors: Bool = false
     var isSyncingSelection = false
     var isRebuildingColumns: Bool = false
-    var hasUserResizedColumns: Bool = false
-    var isWritingColumnLayout: Bool = false
     var isEscapeCancelling = false
     var isCommittingCellEdit = false
     var layoutPersistTask: Task<Void, Never>?
@@ -87,12 +120,14 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
         changeManager: AnyChangeManager,
         isEditable: Bool,
         selectedRowIndices: Binding<Set<Int>>,
-        delegate: (any DataGridViewDelegate)?
+        delegate: (any DataGridViewDelegate)?,
+        layoutPersister: any ColumnLayoutPersisting
     ) {
         self.changeManager = changeManager
         self.isEditable = isEditable
         self._selectedRowIndices = selectedRowIndices
         self.delegate = delegate
+        self.layoutPersister = layoutPersister
         self.lastDataGridSettings = AppSettingsManager.shared.dataGrid
         super.init()
         updateCache()
@@ -430,8 +465,8 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
         let tableRows = tableRowsProvider()
         let fkColumnIndices = IndexSet(
             tableView.tableColumns.enumerated().compactMap { displayIndex, tableColumn in
-                guard tableColumn.identifier.rawValue != "__rowNumber__",
-                      let modelIndex = DataGridView.dataColumnIndex(from: tableColumn.identifier),
+                guard tableColumn.identifier != ColumnIdentitySchema.rowNumberIdentifier,
+                      let modelIndex = dataColumnIndex(from: tableColumn.identifier),
                       modelIndex < tableRows.columns.count else { return nil }
                 let columnName = tableRows.columns[modelIndex]
                 return tableRows.columnForeignKeys[columnName] != nil ? displayIndex : nil
@@ -473,6 +508,11 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
         }
         enumOrSetColumns = enumSet
         fkColumns = fkSet
+
+        let nextSchema = ColumnIdentitySchema(columns: columns)
+        if nextSchema != identitySchema {
+            identitySchema = nextSchema
+        }
     }
 
     // MARK: - Font Updates
