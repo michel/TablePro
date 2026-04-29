@@ -5,6 +5,82 @@
 
 import AppKit
 
+enum HeaderSortAction: Equatable {
+    case sort(columnIndex: Int, ascending: Bool, isMultiSort: Bool)
+    case removeMultiSort(columnIndex: Int)
+    case clear
+}
+
+struct HeaderSortTransition: Equatable {
+    let action: HeaderSortAction
+    let newState: SortState
+}
+
+enum HeaderSortCycle {
+    static func nextTransition(
+        state: SortState,
+        clickedColumn: Int,
+        isMultiSort: Bool
+    ) -> HeaderSortTransition {
+        if isMultiSort {
+            return multiSortTransition(state: state, clickedColumn: clickedColumn)
+        }
+        return singleSortTransition(state: state, clickedColumn: clickedColumn)
+    }
+
+    private static func multiSortTransition(state: SortState, clickedColumn: Int) -> HeaderSortTransition {
+        guard let existingIndex = state.columns.firstIndex(where: { $0.columnIndex == clickedColumn }) else {
+            var newState = state
+            newState.columns.append(SortColumn(columnIndex: clickedColumn, direction: .ascending))
+            return HeaderSortTransition(
+                action: .sort(columnIndex: clickedColumn, ascending: true, isMultiSort: true),
+                newState: newState
+            )
+        }
+
+        let existing = state.columns[existingIndex]
+        switch existing.direction {
+        case .ascending:
+            var newState = state
+            newState.columns[existingIndex].direction = .descending
+            return HeaderSortTransition(
+                action: .sort(columnIndex: clickedColumn, ascending: false, isMultiSort: true),
+                newState: newState
+            )
+        case .descending:
+            var newState = state
+            newState.columns.remove(at: existingIndex)
+            return HeaderSortTransition(
+                action: .removeMultiSort(columnIndex: clickedColumn),
+                newState: newState
+            )
+        }
+    }
+
+    private static func singleSortTransition(state: SortState, clickedColumn: Int) -> HeaderSortTransition {
+        guard let primary = state.columns.first, primary.columnIndex == clickedColumn else {
+            var newState = SortState()
+            newState.columns = [SortColumn(columnIndex: clickedColumn, direction: .ascending)]
+            return HeaderSortTransition(
+                action: .sort(columnIndex: clickedColumn, ascending: true, isMultiSort: false),
+                newState: newState
+            )
+        }
+
+        switch primary.direction {
+        case .ascending:
+            var newState = SortState()
+            newState.columns = [SortColumn(columnIndex: clickedColumn, direction: .descending)]
+            return HeaderSortTransition(
+                action: .sort(columnIndex: clickedColumn, ascending: false, isMultiSort: false),
+                newState: newState
+            )
+        case .descending:
+            return HeaderSortTransition(action: .clear, newState: SortState())
+        }
+    }
+}
+
 @MainActor
 final class SortableHeaderView: NSTableHeaderView {
     weak var coordinator: TableViewCoordinator?
@@ -78,10 +154,24 @@ final class SortableHeaderView: NSTableHeaderView {
         return view
     }
 
+    private static let clickDragThreshold: CGFloat = 4
+
+    private var pendingClickStartLocation: NSPoint?
+    private var dragOccurredDuringClick = false
+
+    override func mouseDragged(with event: NSEvent) {
+        if let start = pendingClickStartLocation {
+            let current = convert(event.locationInWindow, from: nil)
+            if abs(current.x - start.x) > Self.clickDragThreshold ||
+                abs(current.y - start.y) > Self.clickDragThreshold {
+                dragOccurredDuringClick = true
+            }
+        }
+        super.mouseDragged(with: event)
+    }
+
     override func mouseDown(with event: NSEvent) {
-        let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
-        guard flags.contains(.shift),
-              let tableView = tableView,
+        guard let tableView = tableView,
               let coordinator = coordinator else {
             super.mouseDown(with: event)
             return
@@ -101,8 +191,58 @@ final class SortableHeaderView: NSTableHeaderView {
             return
         }
 
-        let existing = coordinator.currentSortState.columns.first(where: { $0.columnIndex == dataIndex })
-        let ascending = existing == nil
-        coordinator.delegate?.dataGridSort(column: dataIndex, ascending: ascending, isMultiSort: true)
+        let originalColumnOrder = tableView.tableColumns.map { $0.identifier }
+        let originalColumnWidths = tableView.tableColumns.map { $0.width }
+        pendingClickStartLocation = pointInHeader
+        dragOccurredDuringClick = false
+        defer {
+            pendingClickStartLocation = nil
+            dragOccurredDuringClick = false
+        }
+
+        super.mouseDown(with: event)
+
+        let columnOrderChanged = tableView.tableColumns.map { $0.identifier } != originalColumnOrder
+        let columnWidthsChanged = tableView.tableColumns.map { $0.width } != originalColumnWidths
+        if dragOccurredDuringClick || columnOrderChanged || columnWidthsChanged {
+            return
+        }
+
+        if let window {
+            let cursorInWindow = window.convertPoint(fromScreen: NSEvent.mouseLocation)
+            let cursorInHeader = convert(cursorInWindow, from: nil)
+            if abs(cursorInHeader.x - pointInHeader.x) > Self.clickDragThreshold ||
+                abs(cursorInHeader.y - pointInHeader.y) > Self.clickDragThreshold {
+                return
+            }
+        }
+
+        let isMultiSort = event.modifierFlags
+            .intersection(.deviceIndependentFlagsMask)
+            .contains(.shift)
+        let transition = HeaderSortCycle.nextTransition(
+            state: coordinator.currentSortState,
+            clickedColumn: dataIndex,
+            isMultiSort: isMultiSort
+        )
+
+        coordinator.currentSortState = transition.newState
+        updateSortIndicators(state: transition.newState, schema: coordinator.identitySchema)
+        dispatch(transition: transition, on: coordinator)
+    }
+
+    private func dispatch(transition: HeaderSortTransition, on coordinator: TableViewCoordinator) {
+        switch transition.action {
+        case .sort(let columnIndex, let ascending, let isMultiSort):
+            coordinator.delegate?.dataGridSort(
+                column: columnIndex,
+                ascending: ascending,
+                isMultiSort: isMultiSort
+            )
+        case .removeMultiSort(let columnIndex):
+            coordinator.delegate?.dataGridRemoveSortColumn(columnIndex)
+        case .clear:
+            coordinator.delegate?.dataGridClearSort()
+        }
     }
 }
