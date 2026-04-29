@@ -125,7 +125,7 @@ extension MainContentCoordinator {
                 filterStateManager.clearAll()
                 if let tabIndex = tabManager.selectedTabIndex {
                     let tabId = tabManager.tabs[tabIndex].id
-                    rowDataStore.setBuffer(RowBuffer(), for: tabId)
+                    setActiveTableRows(TableRows(), for: tabId)
                     tabManager.tabs[tabIndex].pagination.reset()
                     toolbarState.isTableTab = true
                 }
@@ -207,7 +207,7 @@ extension MainContentCoordinator {
                 previewCoordinator.filterStateManager.clearAll()
                 if let tabIndex = previewCoordinator.tabManager.selectedTabIndex {
                     let tabId = previewCoordinator.tabManager.tabs[tabIndex].id
-                    previewCoordinator.rowDataStore.setBuffer(RowBuffer(), for: tabId)
+                    previewCoordinator.setActiveTableRows(TableRows(), for: tabId)
                     previewCoordinator.tabManager.tabs[tabIndex].display.resultsViewMode = showStructure ? .structure : .data
                     previewCoordinator.tabManager.tabs[tabIndex].pagination.reset()
                     previewCoordinator.toolbarState.isTableTab = true
@@ -279,7 +279,7 @@ extension MainContentCoordinator {
             filterStateManager.clearAll()
             if let tabIndex = tabManager.selectedTabIndex {
                 let tabId = tabManager.tabs[tabIndex].id
-                rowDataStore.setBuffer(RowBuffer(), for: tabId)
+                setActiveTableRows(TableRows(), for: tabId)
                 tabManager.tabs[tabIndex].display.resultsViewMode = showStructure ? .structure : .data
                 tabManager.tabs[tabIndex].pagination.reset()
                 toolbarState.isTableTab = true
@@ -389,7 +389,7 @@ extension MainContentCoordinator {
 
             closeSiblingNativeWindows()
             persistence.saveNowSync(tabs: tabManager.tabs, selectedTabId: tabManager.selectedTabId)
-            rowDataStore.tearDown()
+            tableRowsStore.tearDown()
             tabManager.tabs = []
             tabManager.selectedTabId = nil
             DatabaseManager.shared.updateSession(connectionId) { session in
@@ -424,7 +424,7 @@ extension MainContentCoordinator {
 
             closeSiblingNativeWindows()
             persistence.saveNowSync(tabs: tabManager.tabs, selectedTabId: tabManager.selectedTabId)
-            rowDataStore.tearDown()
+            tableRowsStore.tearDown()
             tabManager.tabs = []
             tabManager.selectedTabId = nil
             DatabaseManager.shared.updateSession(connectionId) { session in

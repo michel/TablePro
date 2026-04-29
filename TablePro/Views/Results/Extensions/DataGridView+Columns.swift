@@ -11,25 +11,39 @@ extension TableViewCoordinator {
         guard let column = tableColumn else { return nil }
 
         let columnId = column.identifier.rawValue
+        let tableRows = tableRowsProvider()
+        let displayCount = sortedIDs?.count ?? tableRows.count
 
         if columnId == "__rowNumber__" {
             return cellFactory.makeRowNumberCell(
                 tableView: tableView,
                 row: row,
-                cachedRowCount: cachedRowCount,
+                cachedRowCount: displayCount,
                 visualState: visualState(for: row)
             )
         }
 
         guard let columnIndex = DataGridView.dataColumnIndex(from: column.identifier) else { return nil }
 
-        guard row >= 0 && row < cachedRowCount,
+        guard row >= 0 && row < displayCount,
               columnIndex >= 0 && columnIndex < cachedColumnCount else {
             return nil
         }
 
-        let rawValue = rowProvider.value(atRow: row, column: columnIndex)
-        let displayValue = rowProvider.displayValue(atRow: row, column: columnIndex)
+        guard let displayRow = displayRow(at: row),
+              columnIndex < displayRow.values.count else {
+            return nil
+        }
+        let rawValue = displayRow.values[columnIndex]
+        let columnType = columnIndex < tableRows.columnTypes.count
+            ? tableRows.columnTypes[columnIndex]
+            : nil
+        let formattedValue = displayValue(
+            forID: displayRow.id,
+            column: columnIndex,
+            rawValue: rawValue,
+            columnType: columnType
+        )
         let state = visualState(for: row)
 
         let tableColumnIndex = DataGridView.tableColumnIndex(for: columnIndex)
@@ -47,8 +61,8 @@ extension TableViewCoordinator {
         let isFKColumn = fkColumns.contains(columnIndex)
 
         let hasSpecialEditor: Bool = {
-            guard columnIndex < rowProvider.columnTypes.count else { return false }
-            let ct = rowProvider.columnTypes[columnIndex]
+            guard columnIndex < tableRows.columnTypes.count else { return false }
+            let ct = tableRows.columnTypes[columnIndex]
             return ct.isBooleanType || ct.isDateType || ct.isJsonType || ct.isBlobType
         }()
 
@@ -56,7 +70,7 @@ extension TableViewCoordinator {
             tableView: tableView,
             row: row,
             columnIndex: columnIndex,
-            displayValue: displayValue,
+            displayValue: formattedValue,
             rawValue: rawValue,
             visualState: state,
             isEditable: isEditable && !state.isDeleted,
@@ -83,4 +97,5 @@ extension TableViewCoordinator {
         rowView.rowIndex = row
         return rowView
     }
+
 }
