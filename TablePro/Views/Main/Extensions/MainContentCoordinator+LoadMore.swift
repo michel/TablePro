@@ -35,9 +35,8 @@ extension MainContentCoordinator {
     // MARK: - Load More Rows
 
     func loadMoreRows() {
-        guard let idx = tabManager.selectedTabIndex else { return }
-        let tab = tabManager.tabs[idx]
-        guard !tab.pagination.isLoadingMore,
+        guard let (tab, tabIndex) = tabManager.selectedTabAndIndex,
+              !tab.pagination.isLoadingMore,
               !tab.execution.isExecuting,
               tab.pagination.hasMoreRows,
               let baseQuery = tab.pagination.baseQueryForMore else { return }
@@ -48,7 +47,7 @@ extension MainContentCoordinator {
         let capturedGeneration = queryGeneration
         let storedParamValues = tab.pagination.baseQueryParameterValues
 
-        tabManager.tabs[idx].pagination.isLoadingMore = true
+        tabManager.tabs[tabIndex].pagination.isLoadingMore = true
         toolbarState.setExecuting(true)
 
         currentQueryTask = Task { [weak self] in
@@ -134,9 +133,8 @@ extension MainContentCoordinator {
     // MARK: - Fetch All Rows
 
     func fetchAllRows() {
-        guard let idx = tabManager.selectedTabIndex else { return }
-        let tab = tabManager.tabs[idx]
-        guard !tab.pagination.isLoadingMore,
+        guard let (tab, _) = tabManager.selectedTabAndIndex,
+              !tab.pagination.isLoadingMore,
               !tab.execution.isExecuting,
               tab.pagination.hasMoreRows,
               let baseQuery = tab.pagination.baseQueryForMore else { return }

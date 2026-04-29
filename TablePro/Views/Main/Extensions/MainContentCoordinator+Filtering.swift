@@ -11,9 +11,8 @@ extension MainContentCoordinator {
     // MARK: - Filtering
 
     func applyFilters(_ filters: [TableFilter]) {
-        guard let tabIndex = tabManager.selectedTabIndex,
-              tabIndex < tabManager.tabs.count,
-              let tableName = tabManager.tabs[tabIndex].tableContext.tableName else { return }
+        guard let (tab, tabIndex) = tabManager.selectedTabAndIndex,
+              let tableName = tab.tableContext.tableName else { return }
 
         let capturedTabIndex = tabIndex
         let capturedTableName = tableName
@@ -53,9 +52,8 @@ extension MainContentCoordinator {
     }
 
     func clearFiltersAndReload() {
-        guard let tabIndex = tabManager.selectedTabIndex,
-              tabIndex < tabManager.tabs.count,
-              let tableName = tabManager.tabs[tabIndex].tableContext.tableName else { return }
+        guard let (tab, tabIndex) = tabManager.selectedTabAndIndex,
+              let tableName = tab.tableContext.tableName else { return }
 
         let capturedTabIndex = tabIndex
         let capturedTableName = tableName
@@ -83,10 +81,10 @@ extension MainContentCoordinator {
 
     func restoreFiltersForTable(_ tableName: String) {
         filterStateManager.restoreLastFilters(for: tableName)
-        guard let idx = tabManager.selectedTabIndex else { return }
-        tabManager.tabs[idx].filterState = filterStateManager.saveToTabState()
+        guard let (_, tabIndex) = tabManager.selectedTabAndIndex else { return }
+        tabManager.tabs[tabIndex].filterState = filterStateManager.saveToTabState()
         if filterStateManager.hasAppliedFilters {
-            rebuildTableQuery(at: idx)
+            rebuildTableQuery(at: tabIndex)
         }
     }
 
