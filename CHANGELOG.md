@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- PostgreSQL ICU collation provider in Create Database (PG 15+). Provider picker is added when the server reports PG 15 or newer. ICU locale list comes from `pg_collation`. SQL emission is version-aware: PG 16+ uses unified `LOCALE`, PG 15 uses `ICU_LOCALE` with `LC_COLLATE 'C' LC_CTYPE 'C'`.
 - Connection URL parsing: SSH `user:password@host` split, `safeModeLevel` from TablePlus URLs, case-insensitive query params
 - Connection URL export: SSH password, Redis database index, MongoDB auth params (`authSource`, `authMechanism`, `replicaSet`), and multi-host
 - SSH Private Key auth resolves keys from `~/.ssh/config` and default locations (`id_ed25519`, `id_rsa`, `id_ecdsa`) when no explicit key path is set
@@ -24,6 +25,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Create Database dialog is now driver-driven. Each driver discovers its own valid options (PostgreSQL queries `pg_collation` and `pg_database`, MySQL/MariaDB query `information_schema.character_sets`/`collations`). The hardcoded macOS-flavored locale list is gone. Engines that don't support creation hide the Create button instead of failing on click.
+- Introduced TableRows, Row, and Delta value types in TablePro/Models/Query/ as the foundation for the data grid row model rewrite. No callers migrated yet (Phase C.1 of the DataGrid refactor).
 - DataGrid columns and cells refactored to use a persistent column pool and typed cell view hierarchy. CPU usage on table switch reduced significantly through proper NSTableView reuse pool retention.
 - Data grid column identifiers are now the column name (with positional fallback for duplicate names), so saved widths follow the column across schema changes that shift its position. Identifier resolution moved from static `DataGridView` helpers to a `ColumnIdentitySchema` value type owned by the coordinator.
 - `ColumnLayoutStorage` singleton replaced by a `ColumnLayoutPersisting` protocol with an injectable `FileColumnLayoutPersister` default. The coordinator depends on the protocol, not the concrete class, so tests can substitute a fake.
@@ -67,7 +70,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Connection form: `usePrivateKey=true` from URL no longer disables Test/Create buttons
 - Transient connections from URL clean up keychain entries on connection failure
 - Native Search Field focus regression when clearing text
-- Using the template0 database to resolve database creation failures in PostgreSQL
+- PostgreSQL Create Database failed with `new collation incompatible with template database` on glibc-initialized servers (#927). Encodings, collations, and the `template1` defaults are now read from the server. `LC_CTYPE` mirrors `LC_COLLATE`, and `TEMPLATE template0` is added automatically when the chosen collation differs from `template1.datcollate`.
+- Redshift Create Database emitted PostgreSQL `LC_COLLATE` syntax which is invalid Redshift grammar. Now emits `COLLATE { CASE_SENSITIVE | CASE_INSENSITIVE }`.
 
 ## [0.36.0] - 2026-04-27
 
