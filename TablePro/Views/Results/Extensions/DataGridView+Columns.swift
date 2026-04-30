@@ -14,15 +14,17 @@ extension TableViewCoordinator {
         let displayCount = sortedIDs?.count ?? tableRows.count
 
         if column.identifier == ColumnIdentitySchema.rowNumberIdentifier {
-            return cellFactory.makeRowNumberCell(
-                tableView: tableView,
+            return cellRegistry.makeRowNumberCell(
+                in: tableView,
                 row: row,
                 cachedRowCount: displayCount,
                 visualState: visualState(for: row)
             )
         }
 
-        guard let columnIndex = dataColumnIndex(from: column.identifier) else { return nil }
+        guard let columnIndex = dataColumnIndex(from: column.identifier) else {
+            return nil
+        }
 
         guard row >= 0 && row < displayCount,
               columnIndex >= 0 && columnIndex < cachedColumnCount else {
@@ -55,34 +57,49 @@ extension TableViewCoordinator {
 
         let isDropdown = dropdownColumns?.contains(columnIndex) == true
         let isTypePicker = typePickerColumns?.contains(columnIndex) == true
-
         let isEnumOrSet = enumOrSetColumns.contains(columnIndex)
         let isFKColumn = fkColumns.contains(columnIndex)
+        let resolvedFK = isFKColumn && !isDropdown && !isTypePicker
+        let resolvedDropdown = isEditable && (isDropdown || isTypePicker || isEnumOrSet)
 
-        let hasSpecialEditor: Bool = {
-            guard columnIndex < tableRows.columnTypes.count else { return false }
-            let ct = tableRows.columnTypes[columnIndex]
-            return ct.isBooleanType || ct.isDateType || ct.isJsonType || ct.isBlobType
-        }()
-
-        return cellFactory.makeDataCell(
-            tableView: tableView,
-            row: row,
+        let kind = cellRegistry.resolveKind(
             columnIndex: columnIndex,
-            displayValue: formattedValue,
+            columnType: columnType,
+            isFKColumn: resolvedFK,
+            isDropdownColumn: resolvedDropdown
+        )
+
+        let accessibilityValue = rawValue ?? String(localized: "NULL")
+        let content = DataGridCellContent(
+            displayText: formattedValue ?? "",
             rawValue: rawValue,
+            placeholder: placeholderKind(for: rawValue),
+            accessibilityLabel: String(
+                format: String(localized: "Row %d, column %d: %@"),
+                row + 1,
+                columnIndex + 1,
+                accessibilityValue
+            )
+        )
+        let cellState = DataGridCellState(
             visualState: state,
+            isFocused: isFocused,
             isEditable: isEditable && !state.isDeleted,
             isLargeDataset: isLargeDataset,
-            isFocused: isFocused,
-            isDropdown: isEditable && (isDropdown || isTypePicker || isEnumOrSet || hasSpecialEditor),
-            isFKColumn: isFKColumn && !isDropdown && !(typePickerColumns?.contains(columnIndex) == true),
-            fkArrowTarget: self,
-            fkArrowAction: #selector(handleFKArrowClick(_:)),
-            chevronTarget: self,
-            chevronAction: #selector(handleChevronClick(_:)),
-            delegate: self
+            row: row,
+            columnIndex: columnIndex
         )
+
+        let cell = cellRegistry.dequeueCell(of: kind, in: tableView)
+        cell.configure(content: content, state: cellState)
+        return cell
+    }
+
+    private func placeholderKind(for rawValue: String?) -> DataGridCellPlaceholder? {
+        guard let rawValue else { return .null }
+        if rawValue == "__DEFAULT__" { return .defaultMarker }
+        if rawValue.isEmpty { return .empty }
+        return nil
     }
 
     func tableView(_ tableView: NSTableView, rowViewForRow row: Int) -> NSTableRowView? {

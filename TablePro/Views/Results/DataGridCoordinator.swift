@@ -86,6 +86,8 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
 
     weak var tableView: NSTableView?
     let cellFactory = DataGridCellFactory()
+    let cellRegistry: DataGridCellRegistry
+    let columnPool = DataGridColumnPool()
     let tableRowsController = TableRowsController()
     var overlayEditor: CellOverlayEditor?
 
@@ -128,7 +130,10 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
         self.delegate = delegate
         self.layoutPersister = layoutPersister
         self.lastDataGridSettings = AppSettingsManager.shared.dataGrid
+        self.cellRegistry = DataGridCellRegistry()
         super.init()
+        cellRegistry.accessoryDelegate = self
+        cellRegistry.textFieldDelegate = self
         updateCache()
 
         observeThemeChanges()
@@ -209,6 +214,7 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
         cachedRowCount = 0
         cachedColumnCount = 0
         sortedIDs = nil
+        columnPool.detachFromTableView()
         if let tableView {
             while let col = tableView.tableColumns.last {
                 tableView.removeTableColumn(col)
@@ -601,5 +607,17 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
 
     func numberOfRows(in tableView: NSTableView) -> Int {
         sortedIDs?.count ?? tableRowsProvider().count
+    }
+}
+
+// MARK: - DataGridCellAccessoryDelegate
+
+extension TableViewCoordinator: DataGridCellAccessoryDelegate {
+    func dataGridCellDidClickFKArrow(row: Int, columnIndex: Int) {
+        handleFKArrowAction(row: row, columnIndex: columnIndex)
+    }
+
+    func dataGridCellDidClickChevron(row: Int, columnIndex: Int) {
+        handleChevronAction(row: row, columnIndex: columnIndex)
     }
 }
