@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.37.0] - 2026-05-01
+
 ### Added
 
 - External API for Raycast, Cursor, Claude Desktop, and other MCP clients: URL scheme, stdio MCP transport, pairing flow, activity log
@@ -1590,7 +1592,8 @@ TablePro is a native macOS database client built with SwiftUI and AppKit, design
     - Custom SQL query templates
     - Performance optimized for large datasets
 
-[Unreleased]: https://github.com/TableProApp/TablePro/compare/v0.36.0...HEAD
+[Unreleased]: https://github.com/TableProApp/TablePro/compare/v0.37.0...HEAD
+[0.37.0]: https://github.com/TableProApp/TablePro/compare/v0.36.0...v0.37.0
 [0.36.0]: https://github.com/TableProApp/TablePro/compare/v0.35.0...v0.36.0
 [0.35.0]: https://github.com/TableProApp/TablePro/compare/v0.34.0...v0.35.0
 [0.34.0]: https://github.com/TableProApp/TablePro/compare/v0.33.0...v0.34.0
