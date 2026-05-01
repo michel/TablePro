@@ -467,7 +467,7 @@ build_for_arch() {
         [ -f "$binary" ] || continue
         otool -l "$binary" 2>/dev/null | grep "Libs/dylibs" | awk '{print $2}' | while read -r rpath; do
             install_name_tool -delete_rpath "$rpath" "$binary" 2>/dev/null || true
-        done
+        done || true
     done
 
     # Strip Sparkle helper binaries
