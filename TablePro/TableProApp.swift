@@ -650,7 +650,6 @@ struct TableProApp: App {
 // MARK: - Notification Names
 
 extension Notification.Name {
-
     // Multi-listener broadcasts (Sidebar + Coordinator + StructureView)
     static let refreshData = Notification.Name("refreshData")
 

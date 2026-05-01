@@ -126,7 +126,7 @@ final class MCPToolHandler: Sendable {
         )
     }
 
-    static let anonymousFullAccessToken: MCPAuthToken = MCPAuthToken(
+    static let anonymousFullAccessToken = MCPAuthToken(
         id: UUID(),
         name: "__anonymous__",
         prefix: "tp_anon",

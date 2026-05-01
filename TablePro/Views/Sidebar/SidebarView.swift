@@ -11,7 +11,6 @@ import SwiftUI
 
 /// Sidebar view with segmented tab picker for Tables and Favorites
 struct SidebarView: View {
-
     @State private var viewModel: SidebarViewModel
     @Bindable private var schemaService = SchemaService.shared
 

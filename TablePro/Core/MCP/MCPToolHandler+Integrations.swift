@@ -304,7 +304,6 @@ extension MCPToolHandler {
         let connections = ConnectionStorage.shared.loadConnections()
         return Set(connections.filter { $0.externalAccess == .blocked }.map(\.id))
     }
-
 }
 
 struct TabSnapshot {
