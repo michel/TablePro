@@ -316,6 +316,13 @@ final class MainContentCommandActions {
     // MARK: - Tab Operations (Group A — Called Directly)
 
     func newTab(initialQuery: String? = nil) {
+        if let coordinator, coordinator.tabManager.tabs.isEmpty {
+            coordinator.tabManager.addTab(
+                initialQuery: initialQuery,
+                databaseName: connection.database
+            )
+            return
+        }
         let payload = EditorTabPayload(
             connectionId: connection.id,
             initialQuery: initialQuery,
