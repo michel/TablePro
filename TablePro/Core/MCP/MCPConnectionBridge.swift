@@ -168,8 +168,7 @@ actor MCPConnectionBridge {
         let normalizedQuery = Self.stripTrailingSemicolons(query)
         let isWrite = QueryClassifier.isWriteQuery(normalizedQuery, databaseType: databaseType)
         let hasReturning = normalizedQuery.range(of: #"\bRETURNING\b"#, options: [.regularExpression, .caseInsensitive]) != nil
-        let shouldUseFetchRows = !isWrite || hasReturning
-        let effectiveLimit = maxRows + 1
+        let shouldCap = !isWrite || hasReturning
 
         let startTime = CFAbsoluteTimeGetCurrent()
 
@@ -178,15 +177,17 @@ actor MCPConnectionBridge {
         ) {
             try await withThrowingTaskGroup(of: QueryResult.self) { group in
                 group.addTask {
-                    if shouldUseFetchRows {
-                        try await driver.fetchRows(query: normalizedQuery, offset: 0, limit: effectiveLimit)
-                    } else {
-                        try await driver.execute(query: normalizedQuery)
+                    if shouldCap {
+                        return try await driver.executeUserQuery(
+                            query: normalizedQuery,
+                            rowCap: maxRows,
+                            parameters: nil
+                        )
                     }
+                    return try await driver.execute(query: normalizedQuery)
                 }
                 group.addTask {
                     try await Task.sleep(for: .seconds(timeoutSeconds))
-                    // Cancel the driver query before throwing
                     try? driver.cancelQuery()
                     throw MCPError.timeout("Query timed out after \(timeoutSeconds) seconds")
                 }
@@ -199,11 +200,10 @@ actor MCPConnectionBridge {
         }
 
         let executionTimeMs = (CFAbsoluteTimeGetCurrent() - startTime) * 1_000
-        let isTruncated = result.rows.count > maxRows
-        let rows = isTruncated ? Array(result.rows.prefix(maxRows)) : result.rows
+        let isTruncated = result.isTruncated
 
         let jsonColumns: [JSONValue] = result.columns.map { .string($0) }
-        let jsonRows: [JSONValue] = rows.map { row in
+        let jsonRows: [JSONValue] = result.rows.map { row in
             .array(row.map { cell in
                 if let value = cell {
                     return .string(value)
@@ -215,7 +215,7 @@ actor MCPConnectionBridge {
         var response: [String: JSONValue] = [
             "columns": .array(jsonColumns),
             "rows": .array(jsonRows),
-            "row_count": .int(rows.count),
+            "row_count": .int(result.rows.count),
             "rows_affected": .int(result.rowsAffected),
             "execution_time_ms": .double(executionTimeMs),
             "is_truncated": .bool(isTruncated)

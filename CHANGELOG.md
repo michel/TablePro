@@ -32,6 +32,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Query execution no longer rewrites user SQL. Result safety cap is applied at the row level instead of via query rewrite. When a result is capped, the status bar shows the loaded row count with a Fetch All button. Load More on user-query tabs is removed; table-view pagination is unchanged.
+- Driver protocol: removed fetchFirstPage, fetchNextPage, fetchRows, fetchRowCount and their parameterized variants. Replaced with executeUserQuery(query:rowCap:parameters:). PluginKit ABI bumped to 9. Separately distributed plugins (Oracle, DuckDB, MSSQL, MongoDB, BigQuery, LibSQL, Cassandra, Etcd, CloudflareD1, DynamoDB) require update before use with this version.
+- Settings renamed: `enforceQueryResultLimit` is now `truncateQueryResults`, `queryResultLimit` is now `queryResultRowCap`. Custom values revert to default on first launch after upgrade.
 - MCP server lazy-starts on first external request. Manual enable in Settings is no longer required
 - Settings tab renamed from "MCP" to "Integrations" with new sections for connected clients, activity log, and pairing
 - Integrations settings: rename MCP Server section to Integrations, restructure with searchable activity log, native list with keyboard navigation, accessibility labels, color-blind-safe status icons.
@@ -86,6 +89,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- SELECT queries with a user-written LIMIT now return the requested row count. Previously the query engine stripped the user's LIMIT and substituted its own cap, so `LIMIT 10` could return up to 10,000 rows. Affected SQLite, DuckDB, LibSQL, ClickHouse, Redshift, CloudflareD1, and the MCP query path. Mirror bug on MSSQL and Oracle silently injected an ORDER BY into queries that lacked one. (#956)
 - New tab from the empty "no tabs open" state opened a separate window-tab next to the placeholder instead of replacing it. The toolbar `+`, ⌘T, and the native NSWindow tab `+` now add the new query to the current empty window when its tab manager has no tabs.
 - File associations for `.sql`, `.sqlite`, `.duckdb`, and related extensions disabled in Finder's Open With menu. The custom UTIs (`com.tablepro.sql`, `com.tablepro.sqlite-db`, `com.tablepro.duckdb`) were declared under `UTImportedTypeDeclarations` instead of `UTExportedTypeDeclarations`, so Launch Services treated them as "imported" claims and ranked them below other apps. SQL is now `LSHandlerRank: Owner`, SQLite is `Default`, DuckDB is `Owner`/`Editor`, and `com.tablepro.sqlite-db` conforms to `com.apple.sqlite3`.
 - Crash on macOS 26 when opening SQL Preview (NSColor.cgColor calls deprecated colorSpaceName)
