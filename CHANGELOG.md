@@ -11,115 +11,60 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- External API for Raycast, Cursor, Claude Desktop, and other MCP clients: URL scheme, stdio MCP transport, pairing flow, activity log
-- UUID-keyed deep links: `tablepro://connect/<uuid>`, `.../table/<name>`, `.../query?sql=...`, `tablepro://integrations/pair?...`, `tablepro://integrations/start-mcp`
-- stdio MCP transport via bundled `tablepro-mcp` CLI at `Contents/MacOS/tablepro-mcp`. Reads handshake file, no token needed
-- Per-connection `External Access` setting (`blocked`, `readOnly`, `readWrite`). Defaults to `readOnly`. Bounds token reach via `MIN(token.scope, connection.externalAccess)`
-- Pairing flow with PKCE code exchange. One-click token issuance for Raycast and other extensions
-- Activity log at `~/Library/Application Support/TablePro/mcp-audit.db`. Viewable in Settings > Integrations > Activity Log. 90-day retention
+- External API for Raycast, Cursor, Claude Desktop, and other MCP clients. New Integrations panel with token-based pairing (PKCE), per-connection access control, and a 90-day activity log
 - New MCP tools: `list_recent_tabs`, `search_query_history`, `open_connection_window`, `open_table_tab`, `focus_query_tab`
-- PostgreSQL ICU collation provider in Create Database (PG 15+). Provider picker is added when the server reports PG 15 or newer. ICU locale list comes from `pg_collation`. SQL emission is version-aware: PG 16+ uses unified `LOCALE`, PG 15 uses `ICU_LOCALE` with `LC_COLLATE 'C' LC_CTYPE 'C'`.
-- Connection URL parsing: SSH `user:password@host` split, `safeModeLevel` from TablePlus URLs, case-insensitive query params
-- Connection URL export: SSH password, Redis database index, MongoDB auth params (`authSource`, `authMechanism`, `replicaSet`), and multi-host
-- SSH Private Key auth resolves keys from `~/.ssh/config` and default locations (`id_ed25519`, `id_rsa`, `id_ecdsa`) when no explicit key path is set
-- Click a focused cell to start editing without a second click
-- Data grid focus ring follows the system accent color and contrast settings
-- Data grid cells expose accessibility row and column index ranges to VoiceOver on all dataset sizes
-- Data grid column headers announce sort direction and multi-sort priority to VoiceOver
-- Multi-cell paste: paste TSV data from the clipboard into the grid starting from the focused cell, grouped as a single undo action
-- Shift+Tab navigates to the previous cell in the data grid
-- Copy rows writes TSV, HTML table, and plain text to the clipboard for richer paste in spreadsheet apps
-- Row drag adds TSV and HTML representations alongside the internal drag type
+- Per-connection External Access setting (`blocked` / `readOnly` / `readWrite`); effective scope is the minimum of token scope and connection level
+- PostgreSQL ICU collation provider in Create Database (PG 15+)
+- Connection URL parsing supports SSH `user:password@host`, multi-host, MongoDB auth params, and Redis database index
+- SSH Private Key auth auto-resolves keys from `~/.ssh/config` and default locations (`id_ed25519`, `id_rsa`, `id_ecdsa`)
+- Single-click cell editing in the data grid (no more double-click)
+- Multi-cell paste from TSV clipboard data, grouped as one undo
+- Shift+Tab navigates to the previous cell
+- Copy rows in TSV, HTML table, and plain text for richer paste in spreadsheet apps
 - AI provider settings allow manually entering a model name when the provider does not return one
+- VoiceOver: column headers announce sort direction and priority; cells expose row and column index ranges
 
 ### Changed
 
-- Query execution no longer rewrites user SQL. Result safety cap is applied at the row level instead of via query rewrite. When a result is capped, the status bar shows the loaded row count with a Fetch All button. Load More on user-query tabs is removed; table-view pagination is unchanged.
-- Driver protocol: removed fetchFirstPage, fetchNextPage, fetchRows, fetchRowCount and their parameterized variants. Replaced with executeUserQuery(query:rowCap:parameters:). PluginKit ABI bumped to 9. Separately distributed plugins (Oracle, DuckDB, MSSQL, MongoDB, BigQuery, LibSQL, Cassandra, Etcd, CloudflareD1, DynamoDB) require update before use with this version.
-- Settings renamed: `enforceQueryResultLimit` is now `truncateQueryResults`, `queryResultLimit` is now `queryResultRowCap`. Custom values revert to default on first launch after upgrade.
-- MCP server lazy-starts on first external request. Manual enable in Settings is no longer required
-- Settings tab renamed from "MCP" to "Integrations" with new sections for connected clients, activity log, and pairing
-- Integrations settings: rename MCP Server section to Integrations, restructure with searchable activity log, native list with keyboard navigation, accessibility labels, color-blind-safe status icons.
-- Activity log gained an Export… button that writes the current filtered list to CSV.
-- Connection Advanced settings: AI Policy and External Clients now share a single External Access section. The External Clients picker uses a segmented control.
-- Storage and sync singletons accept dependencies via init for test isolation, matching Apple's URLSession and UserDefaults convention. Production callers using `.shared` are unchanged. `SQLFavoriteStorage` is now an actor so its first access no longer blocks the main thread on SQLite setup.
-- Create Database dialog is now driver-driven. Each driver discovers its own valid options (PostgreSQL queries `pg_collation` and `pg_database`, MySQL/MariaDB query `information_schema.character_sets`/`collations`). The hardcoded macOS-flavored locale list is gone. Engines that don't support creation hide the Create button instead of failing on click.
-- Introduced TableRows, Row, and Delta value types in TablePro/Models/Query/ as the foundation for the data grid row model rewrite. No callers migrated yet (Phase C.1 of the DataGrid refactor).
-- DataGrid columns and cells refactored to use a persistent column pool and typed cell view hierarchy. CPU usage on table switch reduced significantly through proper NSTableView reuse pool retention.
-- Data grid column identifiers are now the column name (with positional fallback for duplicate names), so saved widths follow the column across schema changes that shift its position. Identifier resolution moved from static `DataGridView` helpers to a `ColumnIdentitySchema` value type owned by the coordinator.
-- `ColumnLayoutStorage` singleton replaced by a `ColumnLayoutPersisting` protocol with an injectable `FileColumnLayoutPersister` default. The coordinator depends on the protocol, not the concrete class, so tests can substitute a fake.
-- Column layout save/restore on table-switch (`saveColumnLayoutForTable` / `restoreColumnLayoutForTable`) folded into the data grid coordinator's lifecycle (load on column build, persist on resize/move/dismantle). The standalone `MainContentCoordinator+ColumnLayout` extension is gone; only the visibility orchestration remains. Removes the redundant `hasUserResizedColumns` flag and the external save trigger from the binding setter.
-- Data grid header sort indicators are drawn inside a custom `NSTableHeaderCell` instead of overlay `NSImageView` subviews, replacing Unicode arrows that were embedded in the column title string. The cell renders ascending/descending chevrons via SF Symbols (`chevron.up`/`chevron.down`) with a hierarchical tint, so they pick up the correct color in light and dark mode. Removing the overlay subviews lets `NSTableHeaderView`'s native cursor management run unimpeded, so the column resize cursor on hover works without any custom cursor handling. The primary sorted column gets the system header tint via `highlightedTableColumn`, and secondary sort columns show a small priority number to the left of the chevron.
-- Data grid header divider taps trigger a column resize instead of sorting the adjacent column. `SortableHeaderView` checks if the click landed within 4 pt of a column edge and forwards the event to `NSTableHeaderView`'s native resize handling.
-- Data grid column layout persistence routes through a coordinator callback fired from outside SwiftUI's update cycle, removing the `Task`-based `@Binding` mutation inside `updateNSView` and the `isWritingColumnLayout` re-entry guard.
-- Data grid cell reuse resets foreign-key arrow and dropdown chevron button context (target, action, row, column) when the button hides, preventing a stale handler from firing the wrong row if the column toggles between FK-eligible and not.
-- `applyColumnOrder` scans only the unsettled tail of the column array per move, halving the constant cost on reorders with many columns.
-- Replaced RowBuffer / InMemoryRowProvider / RowDataStore with TableRows / TableRowsStore / TableRowsController. Mutations emit Delta events; the controller drives NSTableView via insertRows / removeRows / reloadData(forRowIndexes:). Sort and the display cache moved off the row provider into the data grid coordinator, keyed by Row.id.
-- Routed every TableRows mutation through `mutateActiveTableRows` on MainContentCoordinator so the active ResultSet's snapshot stays in sync with the store. The snapshot now refreshes only when the user switches result sets (saving the outgoing tab, loading the incoming one), so each insert / undo / paste no longer triggers an `@Observable` re-render of the whole editor. Fixes empty cells on Load More and CPU spikes when adding or undoing rows.
-- Undo of a cell edit clears the modified-cell highlight: `DataChangeManager.applyDataUndo` now bumps `reloadVersion` so the data grid rebuilds its visual state cache.
-- Reloading a table tab keeps cached column metadata (defaults, foreign keys, nullability, enum values) when no fresh schema fetch was needed, so the FK arrow and dropdown chevron stay visible across reloads instead of toggling.
-- DataChangeManager extracted a PendingChanges value type that owns cross-collection invariants for cell edits, row insertions, and deletions. DataChangeManager kept undo/redo registration, plugin SQL generation, and the `@Observable` boundary, dropping from ~960 to ~190 lines. The serialization DTO `TabPendingChanges` is renamed to `TabChangeSnapshot` to distinguish it from the live tracker.
-- AnyChangeManager uses ChangeManaging protocol instead of closure-based type erasure, removing all runtime `[Any]` downcasts
-- Row selection state moved from MainContentView @State to GridSelectionState @Observable class, preventing full view tree invalidation on every row click
-- QueryTab decomposed into focused sub-types: TabExecutionState, TabTableContext, TabQueryContent, TabDisplayState
-- Inspector: dense field list, PK/FK key icons, Set NULL/DEFAULT in picker dropdowns, toolbar tracking separator
-- Feedback dialog uses NSWindow instead of NSPanel, shortcut recorder uses CALayer, query split uses NSSplitViewController
-- Feedback dialog uses NSWindow instead of NSPanel, shortcut recorder uses CALayer instead of NSBezierPath, query split uses NSSplitViewController
-- OpenSSL shared as dylib across app and plugins, saving ~15MB in bundle size
-- Data grid uses single cell reuse identifier with typed stored properties instead of 3 identifiers and viewWithTag
-- Boolean dropdown menu includes Set NULL option for nullable columns
-- Tab persistence triggers on a structural counter, not on every tabs write. Cell edits, row mutations, and per-keystroke query text no longer invoke disk I/O.
-- Inspector sidebar edit state runs inside the existing 50ms debounce instead of synchronously per row click.
-- Row add, delete, duplicate, undo, redo, and paste drive NSTableView insertRows / removeRows directly through the data grid delegate. SwiftUI no longer re-evaluates the editor view tree on row mutations.
-- QueryTab.resultVersion split: schemaVersion (column shape) on QueryTab, row mutations through delegate deltas, sort completion through a single delegate replace call. Pin toggle, sort completion, and applyMultiStatementResults no longer fan out a redundant reload signal.
-- Row data lives in a per-coordinator RowDataStore keyed by tab.id rather than on QueryTab itself, so SwiftUI's @Observable tracking on tabManager.tabs no longer fires for row writes.
-- DataGridConfiguration is Equatable; DataGridIdentity covers tabType, tableName, and primaryKeyColumns so updateNSView short-circuits when nothing structural changed. DataTabGridDelegate properties are wired in onAppear / onChange instead of in the body.
-- Date picker popover font follows the data grid font setting
-- Data grid undo/redo uses the window's UndoManager instead of a private instance, unifying Cmd+Z across editor and grid
+- Result safety cap is enforced after the query runs, not by rewriting your SQL. When a result is capped, the status bar shows "Showing N rows (truncated)" with a Fetch All button. Load More on user-query tabs is removed; table-tab pagination is unchanged
+- MCP server lazy-starts on first external request; manual enable is gone
+- Settings tab renamed from "MCP" to "Integrations" with sections for connected clients, activity log, and pairing
+- Activity log gained an Export button that writes the current filtered list to CSV
+- Connection Advanced settings: AI Policy and External Clients share a single External Access section with a segmented control
+- Create Database is driver-driven; engines without creation support hide the Create button instead of failing on click
+- Data grid: persistent column reuse pool, SF Symbol sort indicators that respect light and dark mode, header divider taps trigger resize instead of sort, focus ring follows system accent
+- Data grid undo/redo uses the window's UndoManager, unifying Cmd+Z across editor and grid
 - Right-click during cell editing shows the native text context menu instead of the row menu
-- Multiline cell overlay editor discards the in-progress edit when a column resize fires, instead of silently committing partial text
-- Data grid cell focus ring redraws when the user toggles Light or Dark mode mid-session, picking up the system's appearance-aware focus indicator color
-- Data grid keeps sortedIDs and cachedRowCount paired by calling updateCache() immediately after the SwiftUI bridge writes new sortedIDs to the coordinator, removing a window where the cached count and the sort permutation could disagree
-- Display formats memoized per tab on MainContentCoordinator keyed by schema version, smart-detection setting, and format-overrides version, so ValueDisplayDetector.detect runs once per result schema instead of on every SwiftUI body evaluation
-- MCP HTTP router replaced with a route registry. `MCPRouter` now matches paths and methods against a list of `MCPRouteHandler` values; `/mcp` traffic and `/v1/integrations/exchange` traffic each live in their own handler file under `Core/MCP/Routes/`. OPTIONS preflight is handled once at the router level for every path
-- `MCPAuthGuard` and `MCPConnectionBridge` route concurrent dedup through a shared `OnceTask` actor (`Core/Concurrency/OnceTask.swift`). Cleanup of in-flight slots happens in `defer` inside the actor, so a cancelled or thrown caller no longer leaves a stale entry behind.
+- OpenSSL shared as dylib across app and plugins, reducing bundle size by ~15MB
 
 ### Removed (BREAKING)
 
-- `tablepro://connect/<name>/...` deep links. Replace with UUID-keyed paths from "Copy Connection Deep Link" in the sidebar context menu. User-saved bookmarks must be regenerated
-- MCP server data directory moved from `~/Library/Application Support/com.TablePro/` to `~/Library/Application Support/TablePro/`. Existing tokens, audit log, and handshake files are not migrated. Re-pair Raycast, Cursor, Claude Desktop, and any other external clients after upgrading. Delete the old directory with `rm -rf ~/Library/Application Support/com.TablePro`
+- Old name-based deep links (`tablepro://connect/{name}/...`) are gone. Use UUID-keyed paths from "Copy Connection Deep Link" in the sidebar context menu; saved bookmarks must be regenerated
+- MCP server data directory moved from `~/Library/Application Support/com.TablePro/` to `~/Library/Application Support/TablePro/`. Re-pair external clients after upgrading. Delete the old directory with `rm -rf ~/Library/Application\ Support/com.TablePro`
+- Separately distributed plugins (Oracle, DuckDB, MSSQL, MongoDB, BigQuery, LibSQL, Cassandra, Etcd, Cloudflare D1, DynamoDB) require update before use. PluginKit ABI bumped to 9
+- Settings renamed: `enforceQueryResultLimit` is now `truncateQueryResults`, `queryResultLimit` is now `queryResultRowCap`. Custom values revert to defaults on first launch
 
 ### Fixed
 
-- SELECT queries with a user-written LIMIT now return the requested row count. Previously the query engine stripped the user's LIMIT and substituted its own cap, so `LIMIT 10` could return up to 10,000 rows. Affected SQLite, DuckDB, LibSQL, ClickHouse, Redshift, CloudflareD1, and the MCP query path. Mirror bug on MSSQL and Oracle silently injected an ORDER BY into queries that lacked one. (#956)
-- New tab from the empty "no tabs open" state opened a separate window-tab next to the placeholder instead of replacing it. The toolbar `+`, ⌘T, and the native NSWindow tab `+` now add the new query to the current empty window when its tab manager has no tabs.
-- File associations for `.sql`, `.sqlite`, `.duckdb`, and related extensions disabled in Finder's Open With menu. The custom UTIs (`com.tablepro.sql`, `com.tablepro.sqlite-db`, `com.tablepro.duckdb`) were declared under `UTImportedTypeDeclarations` instead of `UTExportedTypeDeclarations`, so Launch Services treated them as "imported" claims and ranked them below other apps. SQL is now `LSHandlerRank: Owner`, SQLite is `Default`, DuckDB is `Owner`/`Editor`, and `com.tablepro.sqlite-db` conforms to `com.apple.sqlite3`.
-- Crash on macOS 26 when opening SQL Preview (NSColor.cgColor calls deprecated colorSpaceName)
-- Connection form: `usePrivateKey=true` from URL no longer disables Test/Create buttons
+- SELECT queries with a user-written LIMIT now return the requested row count. The query engine no longer strips your LIMIT and substitutes its own cap, so `LIMIT 10` returns 10 rows. Affected SQLite, DuckDB, LibSQL, ClickHouse, Redshift, Cloudflare D1, and the MCP query path. MSSQL and Oracle no longer silently inject `ORDER BY 1` either (#956)
+- Crash on macOS 26 when opening SQL Preview
+- File associations for `.sql`, `.sqlite`, `.duckdb` now appear in Finder's Open With menu
+- New tab from the empty state replaces the placeholder instead of opening a side-by-side tab
+- PostgreSQL Create Database collation errors on glibc-initialized servers (#927)
+- Redshift Create Database emits valid `COLLATE { CASE_SENSITIVE | CASE_INSENSITIVE }` instead of PostgreSQL `LC_COLLATE` syntax
+- SSH agent and `IdentityAgent` socket paths now expand `~` so 1Password and similar agents work
+- Connection form `usePrivateKey=true` from URL no longer disables Test and Create buttons
 - Transient connections from URL clean up keychain entries on connection failure
 - Native Search Field focus regression when clearing text
-- PostgreSQL Create Database failed with `new collation incompatible with template database` on glibc-initialized servers (#927). Encodings, collations, and the `template1` defaults are now read from the server. `LC_CTYPE` mirrors `LC_COLLATE`, and `TEMPLATE template0` is added automatically when the chosen collation differs from `template1.datcollate`.
-- Redshift Create Database emitted PostgreSQL `LC_COLLATE` syntax which is invalid Redshift grammar. Now emits `COLLATE { CASE_SENSITIVE | CASE_INSENSITIVE }`.
-- Expand tilde in SSH agent socket and `IdentityAgent` paths so 1Password and similar agents work when configured with `~/...` paths.
-- Persist group deletions before firing the sync notification, fixing a race that could re-upload deleted groups via iCloud.
-- Persist connection deletions before firing the sync notification, fixing the same race for deleted connections.
-- Refuse to generate SQL when the database dialect cannot be resolved, instead of silently emitting unquoted identifiers.
-- MCP `execute_query`: strip trailing semicolons before appending `LIMIT/OFFSET`, fixing `syntax error at or near LIMIT` for queries like `select * from t;`.
-- MCP `export_data`: tightened table name validation to reject double-dot, leading-dot, and trailing-dot identifiers (e.g. `schema..table`). `quoteQualifiedIdentifier` now rejects empty segments instead of producing `"schema".""."table"`.
-- MCP `focus_query_tab`: re-validate that the resolved tab still belongs to the authorized connection between the auth check and the window raise, closing a TOCTOU window where a tab could be re-bound to a different connection.
-- MCP pairing: cap pending exchange codes at 50 to prevent unbounded memory growth from repeated pairing attempts.
-- Pairing approval no longer grants access on Return key; Approve must be clicked. Deny remains the cancel action and Escape still dismisses.
-- Pairing approval shows a live countdown for the 5-minute exchange code window and disables Approve when it runs out.
-- Pairing approval connection list is searchable with Select All / Deselect All controls and bounded height for many connections.
-- Token deletion now requires confirmation in a destructive alert, with the token name in the message. Backspace on a selected token in the list shows the same alert.
-- Disconnect on a connected client now requires confirmation before tearing down the session.
-- Token list switched to a native macOS list with keyboard navigation, multi-select, and a context menu (Revoke, Copy ID, Delete…). "Deactivate" was renamed to "Revoke" so the UI matches the documented language.
-- Activity log layout fixed: the inner list no longer nests inside the settings Form, so vertical scrolling has a single owner. Connection column shows the connection name instead of the UUID prefix and falls back to "Deleted connection (…)" when the connection is gone.
-- Activity log gained search across action, token, connection, and details, plus a 90-day retention notice.
-- Token reveal warning banner uses thin material with an orange border so it stays visible in Dark Mode.
-- Token, audit, and pairing sheets use a flexible minimum height so they no longer clip with larger Dynamic Type sizes.
-- Token list "Last used" now uses RelativeDateTimeFormatter so localized strings read correctly (e.g. "5 minutes ago" in en) instead of the broken duplicated " ago" suffix.
-- Token reveal, audit refresh, and copy buttons now expose VoiceOver accessibility labels in addition to tooltips.
+- Group and connection deletions persist before firing the sync notification, fixing a race that could re-upload deleted records to iCloud
+- MCP `execute_query`: trailing semicolons no longer break appended LIMIT/OFFSET
+- Pairing approval: 5-minute countdown timer, searchable connection list, can no longer grant via Return key, requires explicit Approve click
+- Token deletion and client disconnect now require confirmation
+- Activity log: searchable across action, token, connection, and details; connection name shown instead of UUID prefix; single scroll owner
+- Token, audit, and pairing sheets respect Dynamic Type and dark mode; warning banner stays visible in dark mode
+- Token list switched to a native list with keyboard navigation, multi-select, and a context menu (Revoke, Copy ID, Delete)
+- "Last used" timestamps use RelativeDateTimeFormatter for correct localization
+- Refuse to generate SQL when the database dialect cannot be resolved, instead of silently emitting unquoted identifiers
 
 ## [0.36.0] - 2026-04-27
 
