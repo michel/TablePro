@@ -72,7 +72,6 @@
 		5AEA8B472F6808CA0040461A /* EtcdHttpClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5AEA8B3C2F6808CA0040461A /* EtcdHttpClient.swift */; };
 		5AEA8B492F6808E90040461A /* TableProPluginKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5A860000100000000 /* TableProPluginKit.framework */; };
 		5AEE5B362F5C9B7B00FA84D7 /* OracleNIO in Frameworks */ = {isa = PBXBuildFile; productRef = 5ACE00012F4F00000000000F /* OracleNIO */; };
-		5AFB96092FA66D3000961BB5 /* OracleDriver.tableplugin in Copy Plug-Ins (12 items) */ = {isa = PBXBuildFile; fileRef = 5A861000100000000 /* OracleDriver.tableplugin */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -238,7 +237,6 @@
 			dstPath = "";
 			dstSubfolderSpec = 13;
 			files = (
-				5AFB96092FA66D3000961BB5 /* OracleDriver.tableplugin in Copy Plug-Ins (12 items) */,
 				5A865000D00000000 /* MySQLDriver.tableplugin in Copy Plug-Ins (12 items) */,
 				5A868000D00000000 /* PostgreSQLDriver.tableplugin in Copy Plug-Ins (12 items) */,
 				5A862000D00000000 /* SQLiteDriver.tableplugin in Copy Plug-Ins (12 items) */,
