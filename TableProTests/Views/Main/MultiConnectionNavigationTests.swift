@@ -95,8 +95,6 @@ struct MultiConnectionNavigationTests {
         #expect(tab.tableContext.databaseName == "primary_db")
     }
 
-    // Note: sidebarLoadingState guard test lives in SwitchDatabaseTests.swift
-
     // MARK: - openTableTab: different database types create correct tab
 
     @Test("openTableTab with postgresql connection adds tab")

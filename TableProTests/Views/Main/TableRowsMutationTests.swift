@@ -77,7 +77,7 @@ struct TableRowsMutationTests {
     @Test("setActiveTableRows on the active tab dispatches applyFullReplace")
     func dispatchesOnActiveTab() throws {
         let f = makeFixture()
-        f.try tabManager.addTableTab(tableName: "users")
+        try f.tabManager.addTableTab(tableName: "users")
         let activeTabId = f.tabManager.tabs[0].id
 
         f.coordinator.setActiveTableRows(makeTableRows(rowCount: 3), for: activeTabId)
@@ -88,9 +88,9 @@ struct TableRowsMutationTests {
     @Test("setActiveTableRows on a background tab does not dispatch")
     func skipsOnBackgroundTab() throws {
         let f = makeFixture()
-        f.try tabManager.addTableTab(tableName: "users")
+        try f.tabManager.addTableTab(tableName: "users")
         let backgroundTabId = f.tabManager.tabs[0].id
-        f.try tabManager.addTableTab(tableName: "orders")
+        try f.tabManager.addTableTab(tableName: "orders")
 
         f.coordinator.setActiveTableRows(makeTableRows(rowCount: 5), for: backgroundTabId)
 
@@ -100,7 +100,7 @@ struct TableRowsMutationTests {
     @Test("repeated setActiveTableRows dispatches once per call")
     func dispatchesOncePerCall() throws {
         let f = makeFixture()
-        f.try tabManager.addTableTab(tableName: "users")
+        try f.tabManager.addTableTab(tableName: "users")
         let activeTabId = f.tabManager.tabs[0].id
 
         f.coordinator.setActiveTableRows(TableRows(), for: activeTabId)
@@ -112,7 +112,7 @@ struct TableRowsMutationTests {
     @Test("setActiveTableRows dispatches scrollToTop when pendingScrollToTopAfterReplace contains tabId")
     func scrollToTopFiresOnPendingFlag() throws {
         let f = makeFixture()
-        f.try tabManager.addTableTab(tableName: "users")
+        try f.tabManager.addTableTab(tableName: "users")
         let activeTabId = f.tabManager.tabs[0].id
 
         f.coordinator.pendingScrollToTopAfterReplace.insert(activeTabId)
@@ -125,9 +125,9 @@ struct TableRowsMutationTests {
     @Test("scrollToTop pending flag for tab A does not fire when tab B is replaced")
     func scrollToTopFlagIsScopedPerTab() throws {
         let f = makeFixture()
-        f.try tabManager.addTableTab(tableName: "users")
+        try f.tabManager.addTableTab(tableName: "users")
         let firstTabId = f.tabManager.tabs[0].id
-        f.try tabManager.addTableTab(tableName: "orders")
+        try f.tabManager.addTableTab(tableName: "orders")
         let secondTabId = f.tabManager.tabs[1].id
 
         f.coordinator.pendingScrollToTopAfterReplace.insert(firstTabId)
@@ -140,7 +140,7 @@ struct TableRowsMutationTests {
     @Test("setActiveTableRows without pending flag does not scroll to top")
     func scrollToTopSkippedWhenFlagAbsent() throws {
         let f = makeFixture()
-        f.try tabManager.addTableTab(tableName: "users")
+        try f.tabManager.addTableTab(tableName: "users")
         let activeTabId = f.tabManager.tabs[0].id
 
         f.coordinator.setActiveTableRows(makeTableRows(rowCount: 3), for: activeTabId)

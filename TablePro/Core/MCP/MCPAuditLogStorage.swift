@@ -1,11 +1,10 @@
-//
-//  MCPAuditLogStorage.swift
-//  TablePro
-//
-
 import Foundation
 import os
 import SQLite3
+
+extension Notification.Name {
+    static let mcpAuditLogChanged = Notification.Name("com.TablePro.mcp.auditLogChanged")
+}
 
 actor MCPAuditLogStorage {
     static let shared = MCPAuditLogStorage()
@@ -158,7 +157,13 @@ actor MCPAuditLogStorage {
             sqlite3_bind_null(statement, 9)
         }
 
-        return sqlite3_step(statement) == SQLITE_DONE
+        let inserted = sqlite3_step(statement) == SQLITE_DONE
+        if inserted {
+            Task { @MainActor in
+                NotificationCenter.default.post(name: .mcpAuditLogChanged, object: nil)
+            }
+        }
+        return inserted
     }
 
     func query(

@@ -30,7 +30,7 @@ struct EvictionTests {
         to coordinator: MainContentCoordinator,
         tabManager: QueryTabManager,
         tableName: String = "users"
-    ) {
+    ) throws {
         try tabManager.addTableTab(tableName: tableName)
         guard let index = tabManager.selectedTabIndex else { return }
         let rows = TestFixtures.makeRows(count: 10)
@@ -43,12 +43,11 @@ struct EvictionTests {
     }
 
     @Test("evictInactiveRowData evicts background tabs without pending changes")
-    func evictsLoadedTabs() {
+    func evictsLoadedTabs() throws {
         let (coordinator, tabManager) = makeCoordinator()
-        addLoadedTab(to: coordinator, tabManager: tabManager, tableName: "users")
+        try addLoadedTab(to: coordinator, tabManager: tabManager, tableName: "users")
         let backgroundTabId = tabManager.tabs[0].id
-        // Add a second tab so the first becomes background (eviction skips the selected tab)
-        addLoadedTab(to: coordinator, tabManager: tabManager, tableName: "orders")
+        try addLoadedTab(to: coordinator, tabManager: tabManager, tableName: "orders")
 
         #expect(coordinator.tabSessionRegistry.tableRows(for: backgroundTabId).rows.count == 10)
         #expect(coordinator.tabSessionRegistry.isEvicted(backgroundTabId) == false)
@@ -60,9 +59,9 @@ struct EvictionTests {
     }
 
     @Test("evictInactiveRowData skips tabs with pending changes")
-    func skipsTabsWithPendingChanges() {
+    func skipsTabsWithPendingChanges() throws {
         let (coordinator, tabManager) = makeCoordinator()
-        addLoadedTab(to: coordinator, tabManager: tabManager, tableName: "users")
+        try addLoadedTab(to: coordinator, tabManager: tabManager, tableName: "users")
 
         tabManager.tabs[0].pendingChanges.deletedRowIndices = [0]
 
@@ -74,11 +73,11 @@ struct EvictionTests {
     }
 
     @Test("evictInactiveRowData preserves column metadata after eviction")
-    func preservesMetadataAfterEviction() {
+    func preservesMetadataAfterEviction() throws {
         let (coordinator, tabManager) = makeCoordinator()
-        addLoadedTab(to: coordinator, tabManager: tabManager, tableName: "users")
+        try addLoadedTab(to: coordinator, tabManager: tabManager, tableName: "users")
         let backgroundTabId = tabManager.tabs[0].id
-        addLoadedTab(to: coordinator, tabManager: tabManager, tableName: "orders")
+        try addLoadedTab(to: coordinator, tabManager: tabManager, tableName: "orders")
 
         coordinator.evictInactiveRowData()
 

@@ -1,8 +1,3 @@
-//
-//  MCPPairingService.swift
-//  TablePro
-//
-
 import AppKit
 import CryptoKit
 import Foundation
@@ -26,7 +21,7 @@ final class PairingExchangeStore: @unchecked Sendable {
         defer { lock.unlock() }
         prune(now: Date.now)
         guard pending.count < Self.maxPendingCodes else {
-            throw MCPError.forbidden(
+            throw MCPDataLayerError.forbidden(
                 String(localized: "Too many pending pairing codes. Try again later.")
             )
         }
@@ -39,17 +34,17 @@ final class PairingExchangeStore: @unchecked Sendable {
         prune(now: now)
 
         guard let entry = pending[code] else {
-            throw MCPError.notFound("pairing code")
+            throw MCPDataLayerError.notFound("pairing code")
         }
 
         guard entry.expiresAt > now else {
             pending.removeValue(forKey: code)
-            throw MCPError.expired("pairing code")
+            throw MCPDataLayerError.expired("pairing code")
         }
 
         let computed = Self.sha256Base64Url(of: verifier)
         guard Self.constantTimeEqual(entry.challenge, computed) else {
-            throw MCPError.forbidden("challenge mismatch")
+            throw MCPDataLayerError.forbidden("challenge mismatch")
         }
 
         let token = entry.plaintextToken
@@ -123,10 +118,25 @@ final class MCPPairingService {
 
         guard let tokenStore = MCPServerManager.shared.tokenStore else {
             Self.logger.error("Token store unavailable after lazyStart")
-            throw MCPError.internalError("Token store unavailable")
+            throw MCPDataLayerError.dataSourceError("Token store unavailable")
         }
 
-        let approval = try await AlertHelper.runPairingApproval(request: request)
+        let approval: PairingApproval
+        do {
+            approval = try await AlertHelper.runPairingApproval(request: request)
+        } catch let error as MCPDataLayerError where error.isUserCancelled {
+            Self.logger.info("Pairing denied for client '\(request.clientName, privacy: .public)'")
+            if let redirect = buildErrorRedirect(
+                base: request.redirectURL,
+                error: "denied",
+                description: "user_denied"
+            ) {
+                NSWorkspace.shared.open(redirect)
+            }
+            throw error
+        }
+
+        await Self.revokeExistingTokens(named: request.clientName, in: tokenStore)
 
         let connectionAccess: ConnectionAccess = approval.allowedConnectionIds.map { .limited($0) } ?? .all
         let result = await tokenStore.generate(
@@ -154,7 +164,7 @@ final class MCPPairingService {
         guard let redirect = buildRedirectURL(base: request.redirectURL, code: code) else {
             Self.logger.error("Failed to build pairing redirect URL")
             await tokenStore.delete(tokenId: result.token.id)
-            throw MCPError.invalidParams("redirect URL")
+            throw MCPDataLayerError.invalidArgument("redirect URL")
         }
 
         Self.logger.info("Pairing approved for client '\(request.clientName, privacy: .public)'")
@@ -165,6 +175,14 @@ final class MCPPairingService {
         try store.consume(code: exchange.code, verifier: exchange.verifier)
     }
 
+    private static func revokeExistingTokens(named name: String, in store: MCPTokenStore) async {
+        let active = await store.activeTokens()
+        for token in active where token.name == name {
+            await store.revoke(tokenId: token.id)
+            Self.logger.info("Revoked previous token '\(name, privacy: .public)' before re-pairing")
+        }
+    }
+
     private func startPruneLoop() {
         pruneTask = Task { [store] in
             while !Task.isCancelled {
@@ -173,6 +191,26 @@ final class MCPPairingService {
                 store.pruneExpired()
             }
         }
+    }
+
+    private func buildErrorRedirect(base: URL, error: String, description: String) -> URL? {
+        guard var components = URLComponents(url: base, resolvingAgainstBaseURL: false) else {
+            return nil
+        }
+        var items = components.queryItems ?? []
+        if base.scheme == "raycast" {
+            let payload: [String: String] = ["error": error, "error_description": description]
+            guard let data = try? JSONSerialization.data(withJSONObject: payload, options: [.sortedKeys]),
+                  let json = String(data: data, encoding: .utf8) else {
+                return nil
+            }
+            items.append(URLQueryItem(name: "context", value: json))
+        } else {
+            items.append(URLQueryItem(name: "error", value: error))
+            items.append(URLQueryItem(name: "error_description", value: description))
+        }
+        components.queryItems = items
+        return components.url
     }
 
     private func buildRedirectURL(base: URL, code: String) -> URL? {

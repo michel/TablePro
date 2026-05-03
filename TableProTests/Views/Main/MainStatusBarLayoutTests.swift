@@ -15,6 +15,7 @@ struct MainStatusBarLayoutTests {
     func instantiateWithEmptySnapshot() {
         let view = MainStatusBarView(
             snapshot: StatusBarSnapshot(tab: nil, tableRows: nil),
+            filterState: TabFilterState(),
             hiddenColumns: [],
             allColumns: [],
             selectedRowIndices: [],
@@ -28,7 +29,8 @@ struct MainStatusBarLayoutTests {
             onPaginationGo: {},
             onToggleColumn: { _ in },
             onShowAllColumns: {},
-            onHideAllColumns: { _ in }
+            onHideAllColumns: { _ in },
+            onToggleFilters: {}
         )
         #expect(type(of: view.body) != Never.self)
     }

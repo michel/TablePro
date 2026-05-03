@@ -10566,6 +10566,9 @@
         }
       }
     },
+    "Confirm Destructive Operation" : {
+
+    },
     "Confirm passphrase" : {
       "localizations" : {
         "tr" : {
@@ -10716,6 +10719,9 @@
           }
         }
       }
+    },
+    "Connect to a saved database" : {
+
     },
     "Connect to popular databases with full feature support" : {
       "localizations" : {
@@ -13836,6 +13842,18 @@
         }
       }
     },
+    "Database name (uses connection's current database if omitted)" : {
+
+    },
+    "Database name (uses current if omitted)" : {
+
+    },
+    "Database name to switch to" : {
+
+    },
+    "Database Schema" : {
+
+    },
     "Database Size" : {
       "localizations" : {
         "tr" : {
@@ -15310,6 +15328,9 @@
         }
       }
     },
+    "Describe Table" : {
+
+    },
     "Description" : {
       "localizations" : {
         "tr" : {
@@ -15687,6 +15708,9 @@
           }
         }
       }
+    },
+    "Disconnect from a database" : {
+
     },
     "Disconnected" : {
       "localizations" : {
@@ -16594,6 +16618,9 @@
           }
         }
       }
+    },
+    "Earliest executed_at to include, Unix epoch seconds (inclusive, optional)" : {
+
     },
     "Edit" : {
       "localizations" : {
@@ -17980,6 +18007,9 @@
         }
       }
     },
+    "Execute a destructive DDL query (DROP, TRUNCATE, ALTER...DROP) after explicit confirmation." : {
+
+    },
     "Execute a query to view results as JSON" : {
       "localizations" : {
         "tr" : {
@@ -18001,6 +18031,9 @@
           }
         }
       }
+    },
+    "Execute a SQL query. All queries are subject to the connection's safe mode policy. DROP/TRUNCATE/ALTER...DROP must use the confirm_destructive_operation tool." : {
+
     },
     "Execute All" : {
       "localizations" : {
@@ -18920,7 +18953,6 @@
       }
     },
     "Export Data" : {
-      "extractionState" : "stale",
       "localizations" : {
         "tr" : {
           "stringUnit" : {
@@ -19096,6 +19128,9 @@
         }
       }
     },
+    "Export format: csv, json, or sql" : {
+
+    },
     "Export Formats" : {
       "localizations" : {
         "tr" : {
@@ -19183,6 +19218,9 @@
           }
         }
       }
+    },
+    "Export query results or table data to CSV, JSON, or SQL" : {
+
     },
     "Export query results to %@" : {
       "localizations" : {
@@ -20866,6 +20904,9 @@
         }
       }
     },
+    "File path inside the user's Downloads directory (returns inline data if omitted). Paths outside Downloads are rejected." : {
+
+    },
     "Filename cannot be '.' or '..' or contain path traversal" : {
       "localizations" : {
         "tr" : {
@@ -21400,6 +21441,9 @@
         }
       }
     },
+    "Focus an already-open tab by id (returned from list_recent_tabs)." : {
+
+    },
     "Focus Border" : {
       "localizations" : {
         "tr" : {
@@ -21421,6 +21465,9 @@
           }
         }
       }
+    },
+    "Focus Query Tab" : {
+
     },
     "Focus the query editor to insert" : {
       "localizations" : {
@@ -22062,6 +22109,15 @@
         }
       }
     },
+    "Get Connection Status" : {
+
+    },
+    "Get detailed status of a database connection" : {
+
+    },
+    "Get detailed table structure: columns, indexes, foreign keys, and DDL" : {
+
+    },
     "Get help writing queries, explaining schemas, or fixing errors." : {
       "localizations" : {
         "tr" : {
@@ -22127,6 +22183,12 @@
           }
         }
       }
+    },
+    "Get Table DDL" : {
+
+    },
+    "Get the CREATE TABLE DDL statement for a table" : {
+
     },
     "GitHub Repository" : {
       "localizations" : {
@@ -23620,6 +23682,9 @@
           }
         }
       }
+    },
+    "Include approximate row counts (default false)" : {
+
     },
     "Include column headers" : {
       "extractionState" : "stale",
@@ -25952,6 +26017,9 @@
         }
       }
     },
+    "Latest executed_at to include, Unix epoch seconds (inclusive, optional)" : {
+
+    },
     "Layout" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -26507,6 +26575,39 @@
           }
         }
       }
+    },
+    "List all databases on the server" : {
+
+    },
+    "List all saved database connections with their status" : {
+
+    },
+    "List Connections" : {
+
+    },
+    "List currently open tabs across all TablePro windows. Returns connection, tab type, table name, and titles for each tab." : {
+
+    },
+    "List Databases" : {
+
+    },
+    "List of all saved database connections with metadata" : {
+
+    },
+    "List Recent Tabs" : {
+
+    },
+    "List Schemas" : {
+
+    },
+    "List schemas in a database" : {
+
+    },
+    "List Tables" : {
+
+    },
+    "List tables and views in a database" : {
+
     },
     "Load" : {
       "extractionState" : "stale",
@@ -27513,6 +27614,9 @@
         }
       }
     },
+    "Maximum number of entries to return (default 50, max 500)" : {
+
+    },
     "Maximum row limit" : {
       "localizations" : {
         "tr" : {
@@ -27534,6 +27638,12 @@
           }
         }
       }
+    },
+    "Maximum rows to export (default 50000)" : {
+
+    },
+    "Maximum rows to return (default 500, max 10000)" : {
+
     },
     "Maximum time to wait for a query to complete. Set to 0 for no limit. Applied to new connections." : {
       "localizations" : {
@@ -28387,6 +28497,9 @@
           }
         }
       }
+    },
+    "Must be exactly: I understand this is irreversible" : {
+
     },
     "My Server" : {
       "localizations" : {
@@ -31643,6 +31756,9 @@
         }
       }
     },
+    "Only affects new saves. Re-save a password to update its sync." : {
+
+    },
     "Open" : {
       "localizations" : {
         "tr" : {
@@ -31709,6 +31825,12 @@
         }
       }
     },
+    "Open a table tab in TablePro for the given connection." : {
+
+    },
+    "Open a TablePro window for a saved connection (focuses if already open)." : {
+
+    },
     "Open Claude Desktop, go to Settings > Developer" : {
       "localizations" : {
         "tr" : {
@@ -31752,6 +31874,9 @@
           }
         }
       }
+    },
+    "Open Connection Window" : {
+
     },
     "Open containing folder" : {
       "localizations" : {
@@ -32178,6 +32303,9 @@
           }
         }
       }
+    },
+    "Open Table Tab" : {
+
     },
     "Open Terminal" : {
       "localizations" : {
@@ -35456,6 +35584,9 @@
         }
       }
     },
+    "Query history for %@" : {
+
+    },
     "Query History:" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -35624,6 +35755,9 @@
           }
         }
       }
+    },
+    "Query timeout in seconds (default 30, max 300)" : {
+
     },
     "Query timeout:" : {
       "localizations" : {
@@ -36359,6 +36493,12 @@
           }
         }
       }
+    },
+    "Recent query history for a connection (supports ?limit=, ?search=, ?date_filter=)" : {
+
+    },
+    "Recent query history for this connection" : {
+
     },
     "Reconnect" : {
       "localizations" : {
@@ -37836,6 +37976,9 @@
           }
         }
       }
+    },
+    "Restrict to a specific connection (UUID, optional)" : {
+
     },
     "Results" : {
       "localizations" : {
@@ -39374,6 +39517,18 @@
         }
       }
     },
+    "Schema for %@" : {
+
+    },
+    "Schema name (for multi-schema databases)" : {
+
+    },
+    "Schema name (uses current if omitted)" : {
+
+    },
+    "Schema name to switch to" : {
+
+    },
     "Schema Switch Failed" : {
       "localizations" : {
         "tr" : {
@@ -39662,6 +39817,12 @@
         }
       }
     },
+    "Search Query History" : {
+
+    },
+    "Search saved query history. Returns matching entries with execution time, row count, and outcome." : {
+
+    },
     "Search schemas..." : {
       "localizations" : {
         "tr" : {
@@ -39727,6 +39888,9 @@
           }
         }
       }
+    },
+    "Search text (full-text matched against the query column)" : {
+
     },
     "Search..." : {
       "localizations" : {
@@ -42559,6 +42723,9 @@
         }
       }
     },
+    "SQL or NoSQL query text" : {
+
+    },
     "SQL Preview" : {
       "localizations" : {
         "tr" : {
@@ -42602,6 +42769,9 @@
           }
         }
       }
+    },
+    "SQL query to export results from" : {
+
     },
     "SQL Server" : {
       "extractionState" : "stale",
@@ -44269,6 +44439,15 @@
         }
       }
     },
+    "Switch Schema" : {
+
+    },
+    "Switch the active database on a connection" : {
+
+    },
+    "Switch the active schema on a connection" : {
+
+    },
     "Switch to Inline Configuration" : {
       "localizations" : {
         "en" : {
@@ -44296,6 +44475,12 @@
           }
         }
       }
+    },
+    "Switch to this database before executing" : {
+
+    },
+    "Switch to this schema before executing" : {
+
     },
     "Sync" : {
       "extractionState" : "stale",
@@ -44926,6 +45111,9 @@
         }
       }
     },
+    "Table name" : {
+
+    },
     "Table Name" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -44949,6 +45137,9 @@
         }
       }
     },
+    "Table name to open" : {
+
+    },
     "Table Name:" : {
       "localizations" : {
         "tr" : {
@@ -44970,6 +45161,9 @@
           }
         }
       }
+    },
+    "Table names to export (alternative to query)" : {
+
     },
     "Table: %@" : {
       "localizations" : {
@@ -45080,6 +45274,12 @@
           }
         }
       }
+    },
+    "Tables, columns, indexes, and foreign keys for a connected database" : {
+
+    },
+    "Tables, columns, indexes, and foreign keys for the connected database" : {
+
     },
     "Tablespace" : {
       "extractionState" : "stale",
@@ -45641,6 +45841,9 @@
           }
         }
       }
+    },
+    "The destructive query to execute" : {
+
     },
     "The encrypted file is corrupt or incomplete" : {
       "localizations" : {
@@ -49602,6 +49805,18 @@
           }
         }
       }
+    },
+    "UUID of the active connection" : {
+
+    },
+    "UUID of the connection" : {
+
+    },
+    "UUID of the connection to disconnect" : {
+
+    },
+    "UUID of the saved connection" : {
+
     },
     "v%@" : {
       "localizations" : {

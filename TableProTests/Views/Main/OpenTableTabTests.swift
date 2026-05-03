@@ -1,14 +1,3 @@
-//
-//  OpenTableTabTests.swift
-//  TableProTests
-//
-//  Tests for openTableTab logic — verifies skip/open behavior
-//  based on current tab state and database context.
-//
-//  Note: sidebarLoadingState guard and same-table fast path tests
-//  live in SwitchDatabaseTests.swift to avoid duplication.
-//
-
 import Foundation
 import Testing
 
