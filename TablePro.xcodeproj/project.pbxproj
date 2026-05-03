@@ -4042,7 +4042,7 @@
 			repositoryURL = "https://github.com/TableProApp/oracle-nio";
 			requirement = {
 				kind = revision;
-				revision = f343a0db14aba73e50a6f93bd981d3b07a61c6d4;
+				revision = 7c01c8ff2e13794650719ebfa0294aa4281bbdd8;
 			};
 		};
 /* End XCRemoteSwiftPackageReference section */

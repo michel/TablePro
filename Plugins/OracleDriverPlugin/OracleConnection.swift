@@ -18,11 +18,36 @@ private let osLogger = Logger(subsystem: "com.TablePro", category: "OracleConnec
 // MARK: - Error Types
 
 struct OracleError: Error {
-    let message: String
+    enum Category: Sendable, Equatable {
+        case generic
+        case notConnected
+        case connectionFailed
+        case queryFailed
+        case authVerifierUnsupported(flag: String)
+        case authVersionNotSupported
+        case authConnectionDropped
+    }
 
-    static let notConnected = OracleError(message: String(localized: "Not connected to database"))
-    static let connectionFailed = OracleError(message: String(localized: "Failed to establish connection"))
-    static let queryFailed = OracleError(message: String(localized: "Query execution failed"))
+    let message: String
+    let category: Category
+
+    init(message: String, category: Category = .generic) {
+        self.message = message
+        self.category = category
+    }
+
+    static let notConnected = OracleError(
+        message: String(localized: "Not connected to database"),
+        category: .notConnected
+    )
+    static let connectionFailed = OracleError(
+        message: String(localized: "Failed to establish connection"),
+        category: .connectionFailed
+    )
+    static let queryFailed = OracleError(
+        message: String(localized: "Query execution failed"),
+        category: .queryFailed
+    )
 }
 
 extension OracleError: PluginDriverError {
@@ -147,11 +172,26 @@ final class OracleConnectionWrapper: @unchecked Sendable {
         } catch let sqlError as OracleSQLError {
             let detail = sqlError.serverInfo?.message ?? sqlError.description
             osLogger.error("Oracle connection failed: \(detail)")
-            throw OracleError(message: "Failed to connect to \(host):\(port)/\(service): \(detail)")
+            throw OracleError(message: detail, category: classifyConnectError(sqlError))
         } catch {
             let detail = String(describing: error)
             osLogger.error("Oracle connection failed: \(detail)")
-            throw OracleError(message: "Failed to connect to \(host):\(port)/\(service): \(detail)")
+            throw OracleError(message: detail, category: .connectionFailed)
+        }
+    }
+
+    private func classifyConnectError(_ error: OracleSQLError) -> OracleError.Category {
+        let codeDescription = error.code.description
+        if codeDescription.hasPrefix("unsupportedVerifierType") {
+            return .authVerifierUnsupported(flag: codeDescription)
+        }
+        switch codeDescription {
+        case "uncleanShutdown":
+            return .authConnectionDropped
+        case "serverVersionNotSupported":
+            return .authVersionNotSupported
+        default:
+            return .connectionFailed
         }
     }
 
