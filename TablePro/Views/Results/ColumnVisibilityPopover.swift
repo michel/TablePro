@@ -38,7 +38,6 @@ struct ColumnVisibilityPopover: View {
             columnList
         }
         .frame(width: 260)
-        .frame(maxHeight: 420)
     }
 
     private var headerTitle: String {
@@ -57,21 +56,15 @@ struct ColumnVisibilityPopover: View {
 
             Spacer()
 
-            Button("Show All") {
-                onShowAll()
-            }
-            .buttonStyle(.plain)
-            .foregroundStyle(Color.accentColor)
-            .controlSize(.small)
-            .disabled(!hasHiddenColumns)
+            Button("Show All") { onShowAll() }
+                .buttonStyle(.link)
+                .controlSize(.small)
+                .disabled(!hasHiddenColumns)
 
-            Button("Hide All") {
-                onHideAll(columns)
-            }
-            .buttonStyle(.plain)
-            .foregroundStyle(Color.accentColor)
-            .controlSize(.small)
-            .disabled(hiddenCount == columns.count)
+            Button("Hide All") { onHideAll(columns) }
+                .buttonStyle(.link)
+                .controlSize(.small)
+                .disabled(hiddenCount == columns.count)
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
@@ -84,13 +77,16 @@ struct ColumnVisibilityPopover: View {
     }
 
     private var columnList: some View {
-        ScrollView {
-            LazyVStack(alignment: .leading, spacing: 0) {
-                ForEach(filteredColumns, id: \.self) { column in
-                    columnRow(column)
-                }
+        List {
+            ForEach(filteredColumns, id: \.self) { column in
+                columnRow(column)
+                    .listRowSeparator(.hidden)
+                    .listRowInsets(EdgeInsets(top: 1, leading: 12, bottom: 1, trailing: 12))
             }
         }
+        .listStyle(.plain)
+        .scrollContentBackground(.hidden)
+        .frame(minHeight: 120, maxHeight: 320)
     }
 
     private func columnRow(_ column: String) -> some View {
@@ -103,7 +99,5 @@ struct ColumnVisibilityPopover: View {
                 .truncationMode(.tail)
         }
         .toggleStyle(.checkbox)
-        .padding(.horizontal, 12)
-        .padding(.vertical, 3)
     }
 }
