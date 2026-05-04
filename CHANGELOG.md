@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Internal: Welcome, Connection Form, and Integrations Activity windows use SwiftUI scenes instead of imperative `NSWindow` factories. Fixes a `NSWindowSectionController` assertion crash on Integrations Activity deallocation. Integrations Activity now reopens on next launch if it was open at quit (matches Console.app). Welcome and Connection Form positions reset to defaults once after this update; both windows continue to ignore session restoration since they are flow windows.
+
 ## [0.38.0] - 2026-05-04
 
 ### Added

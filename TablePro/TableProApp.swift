@@ -196,7 +196,7 @@ struct AppMenuCommands: Commands {
         // File menu
         CommandGroup(replacing: .newItem) {
             Button("Manage Connections") {
-                WelcomeWindowFactory.openOrFront()
+                WindowOpener.shared.openWelcome()
             }
             .optionalKeyboardShortcut(shortcut(for: .manageConnections))
 
@@ -580,12 +580,6 @@ struct AppMenuCommands: Commands {
 
             Divider()
 
-            Button(String(localized: "Integrations Activity")) {
-                IntegrationsActivityWindowFactory.openOrFront()
-            }
-
-            Divider()
-
             Button("Bring All to Front") {
                 NSApp.arrangeInFront(nil)
             }
@@ -640,17 +634,45 @@ struct TableProApp: App {
     }
 
     var body: some Scene {
-        // All app windows are created imperatively via NSWindow + NSHostingController
-        // factories (MainWindow via WindowManager, Welcome via WelcomeWindowFactory,
-        // ConnectionForm via ConnectionFormWindowFactory). Declaring them as SwiftUI
-        // Scenes auto-opens the first Scene on launch and races with cold-launch
-        // intent routing.
         Settings {
             SettingsView()
                 .environment(updaterBridge)
                 .background(SettingsNotificationBridge())
+                .background(WindowOpenerBridge())
         }
 
+        Window("Welcome to TablePro", id: SceneId.welcome) {
+            WelcomeWindowView()
+                .frame(width: 700, height: 450)
+                .background(WindowChromeConfigurator(
+                    restorable: false,
+                    fullScreenable: false,
+                    hideMiniaturizeButton: true,
+                    hideZoomButton: true
+                ))
+        }
+        .windowResizability(.contentSize)
+        .windowStyle(.hiddenTitleBar)
+        .commandsRemoved()
+
+        WindowGroup("New Connection", id: SceneId.connectionForm, for: UUID?.self) { $editingId in
+            ConnectionFormView(connectionId: editingId ?? nil)
+                .background(WindowChromeConfigurator(
+                    restorable: false,
+                    fullScreenable: false,
+                    hideMiniaturizeButton: true,
+                    hideZoomButton: true
+                ))
+        }
+        .windowResizability(.contentMinSize)
+        .defaultSize(width: 640, height: 500)
+        .commandsRemoved()
+
+        Window("Integrations Activity", id: SceneId.integrationsActivity) {
+            IntegrationsActivityView()
+        }
+        .windowResizability(.contentMinSize)
+        .defaultSize(width: 960, height: 600)
         .commands {
             AppMenuCommands(
                 settingsManager: AppSettingsManager.shared,
