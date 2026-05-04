@@ -87,8 +87,7 @@ struct InstalledPluginsView: View {
 
     private var pluginList: some View {
         VStack(spacing: 0) {
-            TextField("Filter...", text: $searchText)
-                .textFieldStyle(.roundedBorder)
+            NativeSearchField(text: $searchText, placeholder: String(localized: "Filter..."))
                 .padding(.horizontal, 8)
                 .padding(.vertical, 6)
 
@@ -178,7 +177,7 @@ struct InstalledPluginsView: View {
 
             if pluginManager.registryUpdate(for: plugin.id) != nil {
                 Image(systemName: "arrow.up.circle.fill")
-                    .foregroundStyle(.blue)
+                    .foregroundStyle(Color(nsColor: .systemBlue))
                     .font(.caption)
             }
 
@@ -294,7 +293,7 @@ struct InstalledPluginsView: View {
         } else {
             VStack(spacing: 8) {
                 Image(systemName: "puzzlepiece.extension")
-                    .font(.system(size: 32))
+                    .font(.title)
                     .foregroundStyle(.tertiary)
                 Text("Select a Plugin")
                     .font(.headline)
@@ -342,7 +341,7 @@ struct InstalledPluginsView: View {
             HStack(spacing: 8) {
                 Text(String(format: String(localized: "v%@ available"), registryPlugin.version))
                     .font(.callout)
-                    .foregroundStyle(.blue)
+                    .foregroundStyle(Color(nsColor: .systemBlue))
                 Button(String(localized: "Update")) { updatePlugin(registryPlugin) }
                     .buttonStyle(.borderedProminent)
                     .controlSize(.small)

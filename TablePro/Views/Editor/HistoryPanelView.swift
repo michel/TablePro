@@ -94,9 +94,7 @@ private extension HistoryPanelView {
                     .frame(width: 120)
                 }
 
-                TextField(String(localized: "Search queries..."), text: $searchText)
-                    .textFieldStyle(.roundedBorder)
-                    .controlSize(.small)
+                NativeSearchField(text: $searchText, placeholder: String(localized: "Search queries..."), controlSize: .small)
             }
             .padding(12)
 
@@ -409,7 +407,7 @@ private struct HistoryRowSwiftUI: View {
         HStack(spacing: 8) {
             Image(systemName: entry.wasSuccessful ? "checkmark.circle.fill" : "xmark.circle.fill")
                 .foregroundStyle(entry.wasSuccessful ? Color(nsColor: .systemGreen) : Color(nsColor: .systemRed))
-                .font(.system(size: 14))
+                .font(.body)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(entry.queryPreview)
