@@ -44,7 +44,7 @@ public actor MCPHttpServerTransport {
         self.clock = clock
 
         let (exchanges, exchangesContinuation) = AsyncStream<MCPInboundExchange>.makeStream(
-            bufferingPolicy: .bufferingOldest(1024)
+            bufferingPolicy: .bufferingOldest(1_024)
         )
         self.exchanges = exchanges
         self.exchangesContinuation = exchangesContinuation
@@ -359,12 +359,12 @@ public actor MCPHttpServerTransport {
             return
         }
 
-        guard parsed.code.utf8.count <= 1024, parsed.codeVerifier.utf8.count <= 1024 else {
+        guard parsed.code.utf8.count <= 1_024, parsed.codeVerifier.utf8.count <= 1_024 else {
             Self.logger.warning("Integrations exchange field exceeds size cap")
             MCPAuditLogger.logPairingExchange(
                 outcome: .denied,
                 ip: ip,
-                details: "field exceeds 1024 bytes"
+                details: "field exceeds 1_024 bytes"
             )
             await context.writePlainJsonError(status: .badRequest, message: "Field exceeds size limit")
             await context.cancel()

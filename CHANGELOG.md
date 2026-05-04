@@ -7,71 +7,61 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.38.0] - 2026-05-04
+
 ### Added
 
-- Welcome window: "Check for Updates" link next to the version number triggers Sparkle without leaving the screen
-- Window menu: "Integrations Activity" opens a dedicated, resizable window for the MCP activity log and connected clients. The window has a sidebar (Activity Log / Connected Clients) and a unified toolbar with native search, filter menu, refresh, and export. Window size is remembered across launches.
-- Sample database (Chinook) bundled — open from welcome screen with one click; reset via File menu
-- Connection string detection — paste a `postgres://`, `mysql://`, `redis://`, or `mongodb://` URL, then click Use to auto-fill the connection form
-- Activation telemetry: the daily heartbeat now reports three write-once timestamps per device (first connection attempt, first successful connection, first executed query), so we can see where new users drop off during activation. The values are stored locally in UserDefaults, set once and never overwritten, and the server also refuses to overwrite them once received. Both Mac and iOS send the same fields.
-- MCP: support for protocol versions `2025-06-18` and `2025-11-25` in addition to `2025-03-26`. Clients on the latest spec no longer downgrade. The server advertises the latest version it supports (`2025-11-25`) and falls back when a client requests an unknown version.
-- MCP: structured tool output (`structuredContent`) on every tool. The serialized JSON still appears in `content[].text` for backward compatibility, while 2025-11-25 clients can read the parsed object directly.
-- MCP: tool annotations (`title`, `readOnlyHint`, `destructiveHint`, `idempotentHint`, `openWorldHint`) on every tool, plus `serverInfo.title` in `initialize` responses. Read tools advertise `readOnlyHint=true`; `confirm_destructive_operation` advertises `destructiveHint=true`.
-- MCP: `completions` capability advertised in `initialize` (the `completion/complete` handler was already wired).
-- MCP: streaming progress notifications. Long-running tool calls (e.g. `execute_query`) now emit `notifications/progress` events to clients that pass a `_meta.progressToken` in their request.
-- MCP: pairing redirect carries an explicit `error=denied` parameter when the user clicks Deny so extensions can show a clear error instead of hanging.
-- MCP: re-pairing the same client name automatically revokes the previous token instead of leaving it active.
-- Oracle 10G password verifier authentication. Accounts whose `password_versions` includes a 10G hash now connect successfully, matching DBeaver/JDBC/sqlplus behavior. The 10G hash is documented as legacy; rotating to a modern verifier is still recommended (#483)
-- Oracle Test Connection now opens a focused diagnostic sheet for auth failures with copy-able diagnostic info, suggested actions, and a link to file an issue
-- Oracle connection negotiation now matches python-oracledb's 23ai compile-capability advertisement, including TTC4 explicit boundary, TTC5 token/pipelining/sessionless flags, OCI3 sync, dequeue selectors, and sparse vector features
-- SSH tunnel now resolves host aliases from `~/.ssh/config` at connection time, with `ssh_config(5)`-compatible semantics: `Host` glob patterns, negation, all `Match` types (`host`, `originalhost`, `user`, `localuser`, `exec`, `all`, `canonical`, `final`), `ProxyJump` injection, hostname canonicalization, and `Include`. Typing an alias like `aia-bastion` in the SSH host field now works the same as `ssh aia-bastion` in a terminal. Resolution is live: editing `~/.ssh/config` is reflected on the next connection without restarting the app, with mtime-based caching so repeated connections do not re-parse the file. Resolution applies to both the primary SSH host and to jump hosts (#977)
-
-### Removed
-
-- SSH config: the `useSSHConfig` per-connection toggle is gone. `~/.ssh/config` is always consulted at connection time; explicit form values still take precedence over ssh config defaults. Existing connections decode without the field; the CloudKit record column is left dormant for compatibility with older app versions on the same iCloud account.
-- Keychain: the legacy-keychain migration (`migrateFromLegacyKeychainIfNeeded`) and the password-sync-state migration (`migratePasswordSyncState`). The first violated Apple's Data Protection keychain contract on sandboxed macOS apps and corrupted user credentials; the second toggled `kSecAttrSynchronizable` at runtime, which Apple does not document as safe. The Sync Passwords settings toggle now applies to new saves only, existing keychain items keep their original sync state, matching Apple's documented behavior. Users with stale items in the legacy keychain can clean them via Keychain Access; the running app no longer touches them.
+- Welcome window: "Check for Updates" link next to the version number
+- Window menu: dedicated Integrations Activity window for the MCP activity log and connected clients. Sidebar, native search, filter, refresh, export. Position remembered across launches
+- Sample database (Chinook) bundled. Open from welcome screen with one click; reset via File menu
+- Connection string detection: paste a `postgres://`, `mysql://`, `redis://`, or `mongodb://` URL to auto-fill the form
+- MCP: protocol versions `2025-06-18` and `2025-11-25` (in addition to `2025-03-26`). Includes structured tool output (`structuredContent`), tool annotations (`readOnlyHint`, `destructiveHint`, etc.), `completions` capability, and streaming progress notifications via `notifications/progress`
+- MCP: pairing redirect carries `error=denied` when the user clicks Deny
+- MCP: re-pairing the same client name revokes the previous token
+- Oracle 10G password verifier auth, matching DBeaver/JDBC/sqlplus (#483)
+- Oracle Test Connection: diagnostic sheet on auth failure with copy-able info, suggested actions, and an issue link
+- Oracle connection negotiation matches python-oracledb 23ai (TTC4 boundary, TTC5 token/pipelining/sessionless, OCI3 sync, dequeue selectors, sparse vectors)
+- SSH tunnel resolves `~/.ssh/config` host aliases at connection time, with full `ssh_config(5)` semantics: glob `Host` patterns, all `Match` types, `ProxyJump`, hostname canonicalization, `Include`. Live (no app restart). Applies to primary host and jump hosts (#977)
 
 ### Changed
 
-- Welcome window UI tightened to macOS HIG: app icon shows a subtle drop shadow instead of an accent-color glow, version line uses dynamic text styles, the "Sponsor" button is removed, the "Create connection" button uses the bordered control style, and toolbar icon buttons (+ / new group) gain a hover background. Activate License now uses the link button style.
-- Settings > Integrations is now a flat preferences pane per macOS HIG. The activity log, the connected-clients list, and the setup instructions have moved out of Settings: activity and connections live in the new Integrations Activity window (Window menu), and setup instructions open in a "Connect a Client…" sheet from the Settings pane. Settings keeps only configuration: server toggle, status, port, row limits, query timeout, authentication tokens, and network options.
-- MCP: idle session timeout raised from 5 to 15 minutes.
-- MCP: complete internal rewrite of the server, stdio bridge, and protocol dispatcher for spec compliance. Public API of `MCPServerManager` and the on-disk handshake format are unchanged; clients do not need to re-pair.
-- Internal: introduce `TabSession` as the foundation type for the editor tab/window subsystem rewrite. Currently a parallel structure mirroring `QueryTab`; subsequent PRs migrate state ownership and lifecycle hooks per `docs/architecture/tab-subsystem-rewrite.md`. No user-visible behavior change in this PR.
-- Internal: row data and load epoch now live on `TabSession`. `TabSessionRegistry` exposes the row-access methods directly (`tableRows(for:)`, `setTableRows(_:for:)`, `evict(for:)`, etc.); the intermediate `TableRowsStore` facade is gone. All consumers (coordinator, extensions, views, command actions) now read row data from the registry. No user-visible behavior change.
-- Internal: hidden-column state moves from the per-window `ColumnVisibilityManager` into each tab's `columnLayout.hiddenColumns`. The shared manager is removed; `MainContentCoordinator` exposes `hideColumn`, `showColumn`, `toggleColumnVisibility`, `showAllColumns`, `hideAllColumns`, and `pruneHiddenColumns` that mutate the active tab directly. Per-table UserDefaults persistence moves into a small `ColumnVisibilityPersistence` service. Tab-switch save/restore swap is gone, each tab is its own source of truth. No user-visible behavior change.
-- Internal: filter state collapses from three places (the per-window `FilterStateManager`, the `TabFilterState` snapshot on `QueryTab`, and the per-table file-based restore) to a single source: `tab.filterState`. The shared manager is removed; `MainContentCoordinator` now exposes the full filter API (`addFilter`, `applyAllFilters`, `clearFilterState`, `toggleFilterPanel`, `setFKFilter`, `saveLastFilters(for:)`, `restoreLastFilters(for:)`, `saveFilterPreset`, `loadFilterPreset`, `generateFilterPreviewSQL`, etc.) that mutates the active tab. The file-based "restore last filters" persistence in `FilterSettingsStorage` is unchanged. `FilterPanelView`, `MainStatusBarView`, `MainContentCommandActions`, `MainContentView`, and `MainEditorContentView` read filter state directly off the active tab. No user-visible behavior change.
-- Internal: extract `QueryExecutor` service from `MainContentCoordinator`. Query data fetch, parallel schema fetch, schema parsing, parameter detection, row-cap policy, and DDL detection now live in `TablePro/Core/Services/Query/QueryExecutor.swift`. SQL parsing helpers (`extractTableName`, `stripTrailingOrderBy`, `parseSQLiteCheckConstraintValues`) move into `QuerySqlParser`. Coordinator methods become thin wrappers; behavior unchanged. No user-visible behavior change.
-- Security: non-syncing keychain items now use `kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly`. This keeps local-only secrets out of unencrypted device backups (the pairing Apple recommends for local secrets). Syncing items still use `kSecAttrAccessibleAfterFirstUnlock` because iCloud Keychain requires it. Existing items keep their accessibility class until you save them again.
-- Internal: `KeychainHelper` API consolidated. `save(key:data:)`/`saveString(_:forKey:)` become `write(_:forKey:)`/`writeString(_:forKey:)`; `load(key:)`/`loadWithStatus(key:)`/`loadString(forKey:)`/`loadStringWithStatus(forKey:)` become `read(forKey:)`/`readString(forKey:)`/`readStringResult(forKey:)`, all returning a typed `KeychainResult`/`KeychainStringResult` enum with `.found`/`.notFound`/`.locked` cases. `delete(key:)` renamed to `delete(forKey:)`. All consumers (`ConnectionStorage`, `SSHProfileStorage`, `AIKeyStorage`, `LicenseStorage`) updated to log when the keychain is locked rather than silently returning nil. `KeychainHelper` is now `Sendable`. Failure logging uses `SecCopyErrorMessageString`.
-- Settings > Sync > Passwords shows a caption explaining the toggle only affects new saves. Existing passwords keep their current sync state until you re-save them.
+- Welcome window aligned to macOS HIG: subtle drop shadow on the app icon (no accent glow), dynamic text styles, "Sponsor" button removed, "Create connection" uses the bordered style, toolbar `+` / new-group buttons gain a hover background, native window vibrancy via `NSVisualEffectView`
+- Settings > Integrations is a flat preferences pane per macOS HIG. Activity log and connected-clients moved to the new Integrations Activity window; setup snippets to a "Connect a Client…" sheet
+- MCP: idle session timeout 5 → 15 minutes
+- MCP: server, stdio bridge, and protocol dispatcher rewritten for spec compliance. Public API of `MCPServerManager` and the on-disk handshake format unchanged; clients do not need to re-pair
+- Security: non-syncing keychain items use `kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly`. Keeps local-only secrets out of unencrypted device backups. Existing items keep their accessibility class until you re-save
+- Settings > Sync > Passwords: caption clarifies the toggle only affects new saves
+
+### Removed
+
+- SSH `useSSHConfig` per-connection toggle. `~/.ssh/config` is always consulted now; explicit form values still take precedence
+- Legacy-keychain migration and password-sync-state migration. Both violated Apple's Data Protection keychain contract on sandboxed macOS and corrupted credentials. Stale items in the legacy keychain can be cleaned via Keychain Access
 
 ### Fixed
 
-- Welcome window, connection form, and feedback panel now remember their position and size across launches. Previously these always reopened centered on screen because `setFrameAutosaveName` was never set on the underlying `NSWindow`/`NSPanel`. They now use the same native AppKit frame autosave mechanism the main editor and Settings windows already used.
-- MCP: GET `/mcp` now opens a real SSE notification stream. Previously the GET path was routed through the request dispatcher, which had no handler for it, so the connection was closed immediately and `notifications/progress` events were dropped.
-- MCP: concurrent tool calls no longer serialize at the dispatcher loop. Each exchange is dispatched in its own child task while session-state guards still serialize per-session work.
-- MCP: server validates the `protocolVersion` requested in `initialize` against a supported set and rejects unknown versions with `-32600 invalid_request` instead of silently echoing back whatever the client sent.
-- MCP: server validates `MCP-Protocol-Version` on follow-up requests against the negotiated version on the session.
-- MCP: 429 responses now include a real `Retry-After` header derived from the rate-limiter lockout time. The audit log records the same value.
-- MCP: token revocation cancels every in-flight request issued by that token and terminates its sessions.
-- MCP: CORS reflects the request `Origin` against an allowlist (`localhost`, `127.0.0.1`, `claude.ai`, `app.cursor.com`) instead of unconditionally returning `Access-Control-Allow-Origin: http://localhost`. Requests without an `Origin` header (native clients) get no CORS headers.
-- MCP: duplicate `initialize` on the same session now returns `invalid_request` instead of silently overwriting `clientInfo`.
-- MCP: `xcodebuild test` no longer leaves an orphan `TablePro.app` running. The app delegate skips its normal startup when launched under XCTest.
-- MCP: server start removes a stale handshake file written by a crashed previous PID before writing a fresh one.
-- MCP: settings activity log refreshes automatically when new audit entries are written.
-- MCP: stale `Mcp-Session-Id` after idle timeout now produces a JSON-RPC `-32001 "Session not found"` envelope with HTTP 404, matching the spec and letting clients re-initialize cleanly. Previously the bridge forwarded a plain `{"error":"Session not found"}` body that Claude Desktop's parser rejected, hanging the request until a 4-minute client-side timeout fired.
-- MCP: stdio bridge no longer exits silently when stdin is briefly empty (was reading via `availableData`, which can't tell EOF from "no bytes right now"). Now uses `FileHandle.bytes` AsyncBytes.
-- MCP: SSE responses now stream incrementally instead of buffering the entire body before delivering events.
-- MCP: localhost auth-DoS surface closed. The rate limiter now keys on `(client_address, principal_fingerprint)` so failed attempts from one bridge can't lock out another.
-- MCP: in-app "Setup for Claude Desktop / Cursor" snippets now use the stdio command form pointing at the bundled `tablepro-mcp` binary. The previous `"url"` form was rejected by Claude Desktop entirely.
-- Saved connection passwords no longer disappear after quitting and relaunching the app. The legacy-keychain migration that ran on every launch was destructive on sandboxed macOS configurations: queries without `kSecUseDataProtectionKeychain` returned items that had been written *with* the flag, and the migration's "delete legacy entry" step then removed the only copy. Removed the legacy keychain migration entirely; `KeychainHelper` now exclusively reads and writes through the Data Protection keychain on every launch.
-- Tab switching: rapid Cmd+Number presses no longer leave a tail of tab transitions playing after the user releases the keys. The tab-selection setter (`NSWindowTabGroup.selectedWindow`) is now wrapped in `NSAnimationContext.runAnimationGroup` with `duration = 0`, so AppKit applies each switch synchronously without queuing a CAAnimation. Lazy-load also moved out of `windowDidBecomeKey` into `.task(id:)` view-appearance lifecycle per Apple's documentation. Note: extreme Cmd+Number bursts (e.g. holding the key for key-repeat) still incur per-switch AppKit window-focus overhead; this is platform-inherent to native NSWindow tabs and documented in `docs/architecture/tab-subsystem-rewrite.md` D2
-- Oracle TIMESTAMP, TIMESTAMP WITH TIME ZONE, TIMESTAMP WITH LOCAL TIME ZONE, INTERVAL DAY TO SECOND, INTERVAL YEAR TO MONTH, DATE, RAW, and BLOB columns now render through typed decoders instead of garbled text. Tables containing INTERVAL YEAR TO MONTH or BFILE columns no longer crash the app on row fetch. Unknown column types display `<unsupported: type>` instead of crashing (#965)
-- Oracle connections to 23ai cloud and containerized deployments no longer fail with `uncleanShutdown` mid-handshake. OOB urgent-byte send now requires the server to advertise `TNS_ACCEPT_FLAG_CHECK_OOB`, matching python-oracledb behavior (#483)
-- Connecting to a downloadable database type (SQL Server, Oracle, MongoDB, DuckDB, BigQuery, libSQL, Cassandra, etcd, Cloudflare D1, DynamoDB) after the plugin is disabled or uninstalled now reopens the install prompt instead of failing with "plugin may be disabled or missing from the PlugIns directory." `PluginMetadataRegistry` now treats the registry default snapshot as the source of truth for the `isDownloadable` flag, so plugin self-registration cannot flip it to false and unregistration restores the default rather than deleting the type metadata (#975)
-- Redshift schema switcher no longer shows an empty list for non-admin users. The driver listed schemas via `information_schema.schemata`, which on Redshift only returns schemas the current user *owns* (Redshift diverges from PostgreSQL here, where USAGE is enough). `fetchSchemas` now reads from `pg_namespace` filtered by `has_schema_privilege(current_user, nspname, 'USAGE')`, so any schema the user can actually use appears in the dropdown (#971)
-- Cmd+Z after editing a cell no longer leaves the yellow "modified" cell background and modified-row highlight in place. `MainEditorContentView.onDisappear` was explicitly nilling `coordinator.dataTabDelegate`, but SwiftUI fires `onDisappear` on transient lifecycle events even when the `@State` strong owner persists. By the time `NSUndoManager` dispatched the undo, the coordinator's weak ref was nil and the redraw call was silently dropped while pending changes and the toolbar Save button correctly cleared. Removed the explicit nil; the weak ref now clears naturally only when `@State` deallocates on permanent view destruction.
+- Welcome / connection form / feedback panel now remember position and size across launches (frame autosave was missing on the underlying `NSWindow`/`NSPanel`)
+- Saved connection passwords no longer disappear after relaunch. The legacy-keychain migration was deleting the only copy on sandboxed macOS; removed entirely
+- Cmd+Z after editing a cell now clears the yellow "modified" highlight (the coordinator's `dataTabDelegate` was being nilled too eagerly)
+- Tab switching: rapid Cmd+Number no longer leaves a tail of tab transitions after key release. AppKit switches now apply synchronously via `NSAnimationContext` with `duration = 0`
+- Oracle: TIMESTAMP variants, INTERVAL DAY TO SECOND, INTERVAL YEAR TO MONTH, DATE, RAW, and BLOB render through typed decoders. INTERVAL YEAR TO MONTH and BFILE no longer crash on row fetch. Unknown types show `<unsupported: type>` instead of crashing (#965)
+- Oracle: 23ai cloud and container handshakes no longer fail with `uncleanShutdown`. OOB urgent-byte send now requires `TNS_ACCEPT_FLAG_CHECK_OOB` advertisement (#483)
+- Plugin install prompt reopens when connecting to a downloadable database type whose plugin is disabled or uninstalled (#975)
+- Redshift: schema switcher no longer empty for non-admin users. Reads from `pg_namespace` filtered by `has_schema_privilege` instead of `information_schema.schemata` (#971)
+- MCP: GET `/mcp` opens a real SSE notification stream
+- MCP: concurrent tool calls no longer serialize at the dispatcher loop
+- MCP: server validates `protocolVersion` and `MCP-Protocol-Version`; rejects unknown versions with `-32600 invalid_request`
+- MCP: 429 responses include a real `Retry-After` header from the rate-limiter lockout
+- MCP: token revocation cancels in-flight requests and terminates sessions
+- MCP: CORS reflects the request `Origin` against an allowlist (`localhost`, `127.0.0.1`, `claude.ai`, `app.cursor.com`)
+- MCP: stale `Mcp-Session-Id` after idle timeout returns JSON-RPC `-32001 "Session not found"` with HTTP 404, letting clients re-initialize cleanly instead of hanging until a 4-minute client timeout
+- MCP: stdio bridge uses `FileHandle.bytes` AsyncBytes (no more silent exit on briefly empty stdin)
+- MCP: SSE responses stream incrementally instead of buffering
+- MCP: rate limiter keys on `(client_address, principal_fingerprint)` to close localhost auth-DoS
+- MCP: in-app setup snippets use the stdio command form for `tablepro-mcp` (Claude Desktop rejected the URL form)
+- MCP: duplicate `initialize` returns `invalid_request` instead of overwriting `clientInfo`
+- MCP: `xcodebuild test` no longer leaves an orphan `TablePro.app` running
+- MCP: server start cleans stale handshake file from a crashed previous PID
+- MCP: activity log auto-refreshes when new audit entries are written
 
 ## [0.37.0] - 2026-05-01
 
@@ -1603,7 +1593,8 @@ TablePro is a native macOS database client built with SwiftUI and AppKit, design
     - Custom SQL query templates
     - Performance optimized for large datasets
 
-[Unreleased]: https://github.com/TableProApp/TablePro/compare/v0.37.0...HEAD
+[Unreleased]: https://github.com/TableProApp/TablePro/compare/v0.38.0...HEAD
+[0.38.0]: https://github.com/TableProApp/TablePro/compare/v0.37.0...v0.38.0
 [0.37.0]: https://github.com/TableProApp/TablePro/compare/v0.36.0...v0.37.0
 [0.36.0]: https://github.com/TableProApp/TablePro/compare/v0.35.0...v0.36.0
 [0.35.0]: https://github.com/TableProApp/TablePro/compare/v0.34.0...v0.35.0
