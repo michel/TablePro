@@ -57,7 +57,9 @@ extension ConnectionFormView {
         if sshState.enabled && sshState.profileId == nil {
             let sshPortValid = sshState.port.isEmpty
                 || (Int(sshState.port).map { (1...65_535).contains($0) } ?? false)
-            let sshValid = !sshState.host.isEmpty && !sshState.username.isEmpty && sshPortValid
+            // Username may be empty: the runtime resolver fills it from
+            // `~/.ssh/config` if the host is an alias with a User directive.
+            let sshValid = !sshState.host.isEmpty && sshPortValid
             let authValid =
                 sshState.authMethod == .password || sshState.authMethod == .sshAgent
                 || sshState.authMethod == .keyboardInteractive || sshState.authMethod == .privateKey
@@ -569,7 +571,7 @@ extension ConnectionFormView {
             if let sshHostValue = parsed.sshHost {
                 sshState.enabled = true
                 sshState.host = sshHostValue
-                sshState.port = parsed.sshPort.map(String.init) ?? "22"
+                sshState.port = parsed.sshPort.map(String.init) ?? ""
                 sshState.username = parsed.sshUsername ?? ""
                 if let sshPass = parsed.sshPassword, !sshPass.isEmpty {
                     sshState.password = sshPass
