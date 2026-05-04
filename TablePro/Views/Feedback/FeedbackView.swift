@@ -277,7 +277,9 @@ struct FeedbackView: View {
             Spacer()
 
             Image(systemName: "checkmark.circle.fill")
-                .font(.system(size: 44))
+                .font(.largeTitle)
+                .imageScale(.large)
+                .symbolRenderingMode(.hierarchical)
                 .foregroundStyle(Color(nsColor: .systemGreen))
 
             Text("Feedback submitted!")
@@ -303,8 +305,7 @@ struct FeedbackView: View {
                     NSApp.keyWindow?.close()
                 }
                 .font(.subheadline)
-                .buttonStyle(.plain)
-                .foregroundStyle(.secondary)
+                .buttonStyle(.borderless)
             }
 
             Spacer()
