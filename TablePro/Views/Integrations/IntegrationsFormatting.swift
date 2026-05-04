@@ -41,3 +41,9 @@ enum IntegrationsFormatting {
         }
     }
 }
+
+extension AuditEntry {
+    var outcomeSeverity: Int {
+        IntegrationsFormatting.outcomeSeverity(AuditOutcome(rawValue: outcome))
+    }
+}

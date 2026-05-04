@@ -291,7 +291,7 @@ private struct ActivityLogTable: View {
 
     var body: some View {
         Table(of: AuditEntry.self, selection: $selection, sortOrder: $sortOrder) {
-            TableColumn(String(localized: "Outcome"), sortUsing: AuditOutcomeComparator()) { entry in
+            TableColumn(String(localized: "Outcome"), value: \.outcomeSeverity) { entry in
                 outcomeCell(for: entry)
             }
             .width(min: 96, ideal: 110)
@@ -400,29 +400,6 @@ private struct ActivityLogTable: View {
         ].compactMap { $0 }
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(lines.joined(separator: "\n"), forType: .string)
-    }
-}
-
-private struct AuditOutcomeComparator: SortComparator {
-    var order: SortOrder = .forward
-
-    func compare(_ lhs: AuditEntry, _ rhs: AuditEntry) -> ComparisonResult {
-        let lhsRank = IntegrationsFormatting.outcomeSeverity(AuditOutcome(rawValue: lhs.outcome))
-        let rhsRank = IntegrationsFormatting.outcomeSeverity(AuditOutcome(rawValue: rhs.outcome))
-        let ascending: ComparisonResult = lhsRank == rhsRank
-            ? .orderedSame
-            : (lhsRank < rhsRank ? .orderedAscending : .orderedDescending)
-        return order == .forward ? ascending : ascending.reversed
-    }
-}
-
-private extension ComparisonResult {
-    var reversed: ComparisonResult {
-        switch self {
-        case .orderedAscending: .orderedDescending
-        case .orderedDescending: .orderedAscending
-        case .orderedSame: .orderedSame
-        }
     }
 }
 
