@@ -258,6 +258,8 @@ struct TabQueryContent: Equatable {
     var isParameterPanelVisible: Bool = false
     var sourceFileURL: URL?
     var savedFileContent: String?
+    var loadMtime: Date?
+    var externalModificationDetected: Bool = false
 
     static let maxPersistableQuerySize = 500_000
 

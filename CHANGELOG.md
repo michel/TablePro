@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Linked SQL Folders. Point TablePro at a folder of `.sql` files (e.g. a Git repo of shared queries) and they appear in the Favorites sidebar live. Recursive subfolder watching via `FSEventStreamCreate`; nested directory hierarchy preserved. Add a folder via the `+` button at the bottom of the Favorites sidebar (Mail.app menu pattern), or right-click an existing linked folder for `Add Another SQL Folder...`. Files keep their on-disk identity: clicking a linked file opens it as a regular editor tab, `⌘S` writes back to disk. External modifications surface as a yellow live banner above the editor tab with one-click `Reload`. Save-time conflict prompt shows a side-by-side diff sheet (line-level, via `Swift.CollectionDifference`) with `Keep My Changes` / `Reload from Disk` / `Cancel`. Right-click a linked file for `Edit Metadata...` to update `@name` / `@keyword` / `@description` frontmatter without opening the editor. Drag a favorite row (linked or DB-stored) onto the SQL editor to insert its content. Non-UTF-8 files are detected via `String(contentsOf: usedEncoding:)`, surfaced with a yellow warning icon in the sidebar, and saved back in their original encoding (UTF-16, ISO Latin-1, etc.). UTF-8 BOM bytes at the top of a frontmatter file no longer make metadata silently disappear. Per-connection scope or global. Frontmatter feeds autocomplete keyword expansion alongside DB-stored favorites. No Pro license required.
+
 ### Fixed
 
 - Filter value autocomplete popover stole keyboard focus from the text field after the first keystroke when Full Keyboard Access was enabled (System Settings → Keyboard → Keyboard Navigation). The popover content used SwiftUI `Button` rows, which become focus targets under FKA, so SwiftUI auto-focused the first row when the popover appeared. Replaced the rows with `Text` + `.onTapGesture` (non-focusable) and marked the dropdown as `.focusable(false)`.

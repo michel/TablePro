@@ -106,7 +106,14 @@ final class QueryTabManager {
             return
         }
 
-        let tabTitle = title ?? nextTitle()
+        let tabTitle: String
+        if let title {
+            tabTitle = title
+        } else if let sourceFileURL {
+            tabTitle = sourceFileURL.deletingPathExtension().lastPathComponent
+        } else {
+            tabTitle = nextTitle()
+        }
         var newTab = QueryTab(title: tabTitle, tabType: .query)
 
         if let query = initialQuery {
@@ -116,8 +123,9 @@ final class QueryTabManager {
 
         newTab.tableContext.databaseName = databaseName
         newTab.content.sourceFileURL = sourceFileURL
-        if sourceFileURL != nil {
+        if let sourceFileURL {
             newTab.content.savedFileContent = newTab.content.query
+            newTab.content.loadMtime = (try? FileManager.default.attributesOfItem(atPath: sourceFileURL.path)[.modificationDate]) as? Date
         }
         tabs.append(newTab)
         selectedTabId = newTab.id
