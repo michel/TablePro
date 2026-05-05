@@ -86,7 +86,7 @@ extension DatabaseType {
     }
 
     var iconName: String {
-        PluginMetadataRegistry.shared.snapshot(forTypeId: pluginTypeId)?.iconName ?? "database-icon"
+        PluginMetadataRegistry.shared.snapshot(forTypeId: rawValue)?.iconName ?? "database-icon"
     }
 
     /// Returns the correct SwiftUI Image for this database type, handling both
@@ -101,6 +101,39 @@ extension DatabaseType {
 
     var defaultPort: Int {
         PluginMetadataRegistry.shared.snapshot(forTypeId: pluginTypeId)?.defaultPort ?? 0
+    }
+
+    var category: DatabaseCategory {
+        PluginMetadataRegistry.shared.snapshot(forTypeId: rawValue)?.connection.category ?? .other
+    }
+
+    var tagline: String? {
+        let raw = PluginMetadataRegistry.shared.snapshot(forTypeId: rawValue)?.connection.tagline ?? ""
+        return raw.isEmpty ? nil : raw
+    }
+
+    var brandColor: Color {
+        switch rawValue {
+        case "MySQL": Color(hex: "00758F")
+        case "MariaDB": Color(hex: "C0765A")
+        case "PostgreSQL": Color(hex: "336791")
+        case "Redshift": Color(hex: "527FFF")
+        case "SQLite": Color(hex: "0F80CC")
+        case "SQL Server": Color(hex: "CC2927")
+        case "Oracle": Color(hex: "C74634")
+        case "MongoDB": Color(hex: "00684A")
+        case "Redis": Color(hex: "FF4438")
+        case "ClickHouse": Color(hex: "FFCC01")
+        case "DuckDB": Color(hex: "FFC827")
+        case "Cassandra": Color(hex: "1287B1")
+        case "ScyllaDB": Color(hex: "00C9C2")
+        case "etcd": Color(hex: "419EDA")
+        case "Cloudflare D1": Color(hex: "F38020")
+        case "libSQL", "Turso": Color(hex: "4FF8D2")
+        case "DynamoDB": Color(hex: "4053D6")
+        case "BigQuery": Color(hex: "4285F4")
+        default: Color.accentColor
+        }
     }
 
     var requiresAuthentication: Bool {
@@ -156,8 +189,8 @@ enum ExternalAccessLevel: String, Codable, Sendable, CaseIterable, Identifiable 
     var displayName: String {
         switch self {
         case .blocked: return String(localized: "Blocked")
-        case .readOnly: return String(localized: "Read-Only")
-        case .readWrite: return String(localized: "Read-Write")
+        case .readOnly: return String(localized: "Read Only")
+        case .readWrite: return String(localized: "Read & Write")
         }
     }
 

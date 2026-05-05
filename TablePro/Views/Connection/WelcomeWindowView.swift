@@ -15,6 +15,10 @@ struct WelcomeWindowView: View {
     }
 
     @State var vm = WelcomeViewModel()
+    @State private var welcomeChooserState: WelcomeChooserState?
+    @State private var pendingInstallType: DatabaseType?
+    @State private var pendingInstallPayload: DatabaseTypeChooserPayload?
+    @State private var urlImportPresented: Bool = false
     @FocusState private var focus: FocusField?
 
     var body: some View {
@@ -109,6 +113,35 @@ struct WelcomeWindowView: View {
                 DeeplinkImportSheet(connection: exportable) {
                     vm.loadConnections()
                 }
+            }
+        }
+        .modifier(ConnectionCreationOverlays(
+            chooserState: $welcomeChooserState,
+            urlImportPresented: $urlImportPresented
+        ))
+        .onReceive(NotificationCenter.default.publisher(for: .presentDatabaseTypeChooser)) { note in
+            guard
+                let payload = note.userInfo?[DatabaseTypeChooserPayload.userInfoKey]
+                    as? DatabaseTypeChooserPayload
+            else { return }
+            welcomeChooserState = WelcomeChooserState(
+                initialType: payload.initialType,
+                onSelected: { type in
+                    if PluginManager.shared.isDriverLoaded(for: type) {
+                        PendingNewConnectionType.shared.set(type)
+                        payload.onSelected(type)
+                    } else {
+                        pendingInstallPayload = payload
+                        pendingInstallType = type
+                    }
+                }
+            )
+        }
+        .pluginInstallPromptForType(type: $pendingInstallType) { type in
+            if let payload = pendingInstallPayload {
+                PendingNewConnectionType.shared.set(type)
+                payload.onSelected(type)
+                pendingInstallPayload = nil
             }
         }
         .pluginInstallPrompt(connection: $vm.pluginInstallConnection) { connection in
@@ -587,6 +620,50 @@ private struct TreeRowsView<ConnectionContent: View>: View {
         } label: {
             Label(String(localized: "Delete Group"), systemImage: "trash")
         }
+    }
+}
+
+// MARK: - Welcome Chooser State
+
+private struct WelcomeChooserState: Identifiable {
+    let id = UUID()
+    let initialType: DatabaseType?
+    let onSelected: (DatabaseType) -> Void
+}
+
+// MARK: - Connection Creation Overlays
+
+private struct ConnectionCreationOverlays: ViewModifier {
+    @Binding var chooserState: WelcomeChooserState?
+    @Binding var urlImportPresented: Bool
+
+    func body(content: Content) -> some View {
+        content
+            .sheet(item: $chooserState) { state in
+                DatabaseTypeChooserSheet(
+                    initialType: state.initialType,
+                    onSelected: { type in
+                        state.onSelected(type)
+                        chooserState = nil
+                    },
+                    onImportFromURL: {
+                        chooserState = nil
+                        urlImportPresented = true
+                    },
+                    onCancel: { chooserState = nil }
+                )
+            }
+            .sheet(isPresented: $urlImportPresented) {
+                ImportFromURLSheet(
+                    onImported: { parsed in
+                        urlImportPresented = false
+                        WindowOpener.shared.openConnectionFormFromURL(parsed)
+                    },
+                    onCancel: {
+                        urlImportPresented = false
+                    }
+                )
+            }
     }
 }
 

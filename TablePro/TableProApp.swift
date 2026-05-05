@@ -639,6 +639,7 @@ struct TableProApp: App {
                 .environment(updaterBridge)
                 .background(SettingsNotificationBridge())
                 .background(WindowOpenerBridge())
+                .background(WindowChromeConfigurator(restorable: false))
         }
 
         Window("Welcome to TablePro", id: SceneId.welcome) {
@@ -657,15 +658,10 @@ struct TableProApp: App {
 
         WindowGroup("New Connection", id: SceneId.connectionForm, for: UUID?.self) { $editingId in
             ConnectionFormView(connectionId: editingId ?? nil)
-                .background(WindowChromeConfigurator(
-                    restorable: false,
-                    fullScreenable: false,
-                    hideMiniaturizeButton: true,
-                    hideZoomButton: false
-                ))
+                .background(WindowChromeConfigurator(restorable: false))
         }
         .windowResizability(.contentMinSize)
-        .defaultSize(width: 560, height: 560)
+        .defaultSize(width: 820, height: 600)
         .commandsRemoved()
 
         Window("Integrations Activity", id: SceneId.integrationsActivity) {
