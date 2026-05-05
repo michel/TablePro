@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Toolbar database name was empty after relaunching with a connection that had no database configured but a last-used database restored via `selectDatabaseFromLastSession`. The window opened (and the toolbar resolved its initial name) before the post-connect actions populated `session.currentDatabase`, so the toolbar fell back to the empty `connection.database`. Sidebar and Cmd+K both worked because they read the session directly. The toolbar now re-syncs its database name on every `connectionStatusDidChange`, picking up the restored value once the session settles.
+
 ### Changed
 
 - Connection Form rebuilt around macOS HIG sidebar navigation. The old segmented-tab form (~2200 lines across five files) is replaced by a `NavigationSplitView` with five sidebar panes (General, SSH Tunnel, SSL/TLS, Customization, Advanced). State previously held in 30+ flat `@State` vars is now split across six `@Observable` per-pane view models behind a `ConnectionFormCoordinator`. Plugin-driven additional fields auto-route to the right pane by their declared `FieldSection`. The toolbar exposes Cancel, Save, and Save & Connect natively; Test Connection lives inline in the General pane as a Status row. Each sidebar item shows a red warning triangle when its pane has missing required fields.

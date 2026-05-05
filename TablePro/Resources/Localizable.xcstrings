@@ -2473,6 +2473,7 @@
       }
     },
     "~/.pgpass found — matching entry exists" : {
+      "extractionState" : "stale",
       "localizations" : {
         "tr" : {
           "stringUnit" : {
@@ -2495,6 +2496,7 @@
       }
     },
     "~/.pgpass found — no matching entry" : {
+      "extractionState" : "stale",
       "localizations" : {
         "tr" : {
           "stringUnit" : {
@@ -2515,6 +2517,12 @@
           }
         }
       }
+    },
+    "~/.pgpass found, matching entry exists" : {
+
+    },
+    "~/.pgpass found, no matching entry" : {
+
     },
     "~/.pgpass has incorrect permissions (needs chmod 0600)" : {
       "localizations" : {
@@ -46563,6 +46571,9 @@
           }
         }
       }
+    },
+    "This connection was deleted on another device or window. Your changes were not saved." : {
+
     },
     "This connection won't sync to other devices via iCloud." : {
       "localizations" : {
