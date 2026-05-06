@@ -431,7 +431,7 @@ extension MainContentCoordinator {
     func switchSchema(to schema: String) async {
         guard PluginManager.shared.supportsSchemaSwitching(for: connection.type) else {
             navigationLogger.warning(
-                "switchSchema(to: \(schema, privacy: .public)) ignored: \(connection.type.rawValue, privacy: .public) does not support schema switching"
+                "switchSchema(to: \(schema, privacy: .public)) ignored: \(self.connection.type.rawValue, privacy: .public) does not support schema switching"
             )
             AlertHelper.showErrorSheet(
                 title: String(localized: "Schema Switching Not Supported"),
