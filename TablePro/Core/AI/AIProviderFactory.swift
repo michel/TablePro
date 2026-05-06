@@ -17,12 +17,12 @@ enum AIProviderFactory {
     }
 
     private static let cacheLock = OSAllocatedUnfairLock(
-        initialState: [UUID: (apiKey: String?, provider: AIProvider)]()
+        initialState: [UUID: (config: AIProviderConfig, apiKey: String?, provider: AIProvider)]()
     )
 
     static func createProvider(for config: AIProviderConfig, apiKey: String?) -> AIProvider {
         cacheLock.withLock { cache in
-            if let cached = cache[config.id], cached.apiKey == apiKey {
+            if let cached = cache[config.id], cached.apiKey == apiKey, cached.config == config {
                 return cached.provider
             }
             let provider: AIProvider
@@ -36,7 +36,7 @@ enum AIProviderFactory {
                     maxOutputTokens: config.maxOutputTokens
                 )
             }
-            cache[config.id] = (apiKey, provider)
+            cache[config.id] = (config, apiKey, provider)
             return provider
         }
     }
