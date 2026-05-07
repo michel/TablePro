@@ -43,54 +43,19 @@ final class GeminiProvider: ChatTransport {
                         )
                     }
 
-                    var inputTokens = 0
-                    var outputTokens = 0
-
+                    var state = GeminiStreamState()
                     for try await line in bytes.lines {
                         if Task.isCancelled { break }
-
-                        guard line.hasPrefix("data: ") else { continue }
-                        let jsonString = String(line.dropFirst(6))
-
-                        guard let data = jsonString.data(using: .utf8),
-                              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
-                        else { continue }
-
-                        if let candidates = json["candidates"] as? [[String: Any]],
-                           let firstCandidate = candidates.first,
-                           let content = firstCandidate["content"] as? [String: Any],
-                           let parts = content["parts"] as? [[String: Any]] {
-                            for part in parts {
-                                if let text = part["text"] as? String, !text.isEmpty {
-                                    continuation.yield(.textDelta(text))
-                                }
-                                if let functionCall = part["functionCall"] as? [String: Any],
-                                   let name = functionCall["name"] as? String {
-                                    let id = UUID().uuidString
-                                    let argsObject = functionCall["args"] ?? [String: Any]()
-                                    let argsString = encodeArgsToJSONString(argsObject)
-                                    continuation.yield(.toolUseStart(id: id, name: name))
-                                    continuation.yield(.toolUseDelta(id: id, inputJSONDelta: argsString))
-                                    continuation.yield(.toolUseEnd(id: id))
-                                }
-                            }
-                        }
-
-                        if let usageMetadata = json["usageMetadata"] as? [String: Any] {
-                            if let prompt = usageMetadata["promptTokenCount"] as? Int {
-                                inputTokens = prompt
-                            }
-                            if let candidates = usageMetadata["candidatesTokenCount"] as? Int {
-                                outputTokens = candidates
-                            }
-                        }
+                        guard let json = Self.decodeStreamLine(line) else { continue }
+                        let events = Self.parseChunk(
+                            json,
+                            state: &state,
+                            idGenerator: { UUID().uuidString }
+                        )
+                        for event in events { continuation.yield(event) }
                     }
-
-                    if inputTokens > 0 || outputTokens > 0 {
-                        continuation.yield(.usage(AITokenUsage(
-                            inputTokens: inputTokens,
-                            outputTokens: outputTokens
-                        )))
+                    if let usage = state.finalUsageEvent() {
+                        continuation.yield(usage)
                     }
 
                     continuation.finish()
@@ -317,7 +282,69 @@ final class GeminiProvider: ChatTransport {
         }
     }
 
-    private func encodeArgsToJSONString(_ args: Any) -> String {
+
+    func mapHTTPError(statusCode: Int, body: String) -> AIProviderError {
+        if statusCode == 403 {
+            let message = AIProviderError.parseErrorMessage(from: body) ?? body
+            return .authenticationFailed(message)
+        }
+        return AIProviderError.mapHTTPError(statusCode: statusCode, body: body)
+    }
+
+    /// Decodes one Gemini SSE line. Returns nil for non-data lines.
+    static func decodeStreamLine(_ line: String) -> [String: Any]? {
+        guard line.hasPrefix("data: ") else { return nil }
+        let jsonString = String(line.dropFirst(6))
+        guard let data = jsonString.data(using: .utf8),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+        else { return nil }
+        return json
+    }
+
+    /// Translate a single Gemini chunk to events.
+    ///
+    /// Gemini does not provide tool-call ids on `functionCall` parts, so we
+    /// synthesize one per call. `idGenerator` is injected so tests can pin the
+    /// synthetic id to a stable value; production passes `{ UUID().uuidString }`.
+    /// Each call to `idGenerator()` returns a fresh id, so multiple
+    /// `functionCall` parts in one chunk get distinct ids in production.
+    static func parseChunk(
+        _ json: [String: Any],
+        state: inout GeminiStreamState,
+        idGenerator: () -> String
+    ) -> [ChatStreamEvent] {
+        var events: [ChatStreamEvent] = []
+        if let candidates = json["candidates"] as? [[String: Any]],
+           let firstCandidate = candidates.first,
+           let content = firstCandidate["content"] as? [String: Any],
+           let parts = content["parts"] as? [[String: Any]] {
+            for part in parts {
+                if let text = part["text"] as? String, !text.isEmpty {
+                    events.append(.textDelta(text))
+                }
+                if let functionCall = part["functionCall"] as? [String: Any],
+                   let name = functionCall["name"] as? String {
+                    let id = idGenerator()
+                    let argsObject = functionCall["args"] ?? [String: Any]()
+                    let argsString = encodeArgsToJSONString(argsObject)
+                    events.append(.toolUseStart(id: id, name: name))
+                    events.append(.toolUseDelta(id: id, inputJSONDelta: argsString))
+                    events.append(.toolUseEnd(id: id))
+                }
+            }
+        }
+        if let usageMetadata = json["usageMetadata"] as? [String: Any] {
+            if let prompt = usageMetadata["promptTokenCount"] as? Int {
+                state.inputTokens = prompt
+            }
+            if let candidates = usageMetadata["candidatesTokenCount"] as? Int {
+                state.outputTokens = candidates
+            }
+        }
+        return events
+    }
+
+    static func encodeArgsToJSONString(_ args: Any) -> String {
         guard JSONSerialization.isValidJSONObject(args) else {
             Self.logger.warning("Gemini functionCall args was not a valid JSON object; falling back to empty input")
             return "{}"
@@ -330,12 +357,15 @@ final class GeminiProvider: ChatTransport {
             return "{}"
         }
     }
+}
 
-    func mapHTTPError(statusCode: Int, body: String) -> AIProviderError {
-        if statusCode == 403 {
-            let message = AIProviderError.parseErrorMessage(from: body) ?? body
-            return .authenticationFailed(message)
-        }
-        return AIProviderError.mapHTTPError(statusCode: statusCode, body: body)
+/// Mutable state carried across `GeminiProvider.parseChunk` calls.
+struct GeminiStreamState {
+    var inputTokens: Int = 0
+    var outputTokens: Int = 0
+
+    func finalUsageEvent() -> ChatStreamEvent? {
+        guard inputTokens > 0 || outputTokens > 0 else { return nil }
+        return .usage(AITokenUsage(inputTokens: inputTokens, outputTokens: outputTokens))
     }
 }
