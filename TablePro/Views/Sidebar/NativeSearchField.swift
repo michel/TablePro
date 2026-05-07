@@ -16,6 +16,8 @@ struct NativeSearchField: NSViewRepresentable {
     var onMoveDown: (() -> Void)?
     var onSubmit: (() -> Void)?
     var focusOnAppear: Bool = false
+    var focusTrigger: Int = 0
+    var maxWidth: CGFloat?
 
     func makeNSView(context: Context) -> NSSearchField {
         let field = NSSearchField()
@@ -24,6 +26,12 @@ struct NativeSearchField: NSViewRepresentable {
         field.controlSize = controlSize
         field.sendsSearchStringImmediately = true
         field.setAccessibilityIdentifier("sidebar-filter")
+        field.cell?.usesSingleLineMode = true
+        if let maxWidth {
+            field.preferredMaxLayoutWidth = maxWidth
+            field.widthAnchor.constraint(lessThanOrEqualToConstant: maxWidth).isActive = true
+        }
+        context.coordinator.lastFocusTrigger = focusTrigger
         if focusOnAppear {
             DispatchQueue.main.async {
                 field.window?.makeFirstResponder(field)
@@ -40,6 +48,13 @@ struct NativeSearchField: NSViewRepresentable {
         context.coordinator.onMoveUp = onMoveUp
         context.coordinator.onMoveDown = onMoveDown
         context.coordinator.onSubmit = onSubmit
+
+        if focusTrigger != context.coordinator.lastFocusTrigger {
+            context.coordinator.lastFocusTrigger = focusTrigger
+            DispatchQueue.main.async {
+                field.window?.makeFirstResponder(field)
+            }
+        }
     }
 
     func makeCoordinator() -> Coordinator {
@@ -51,6 +66,7 @@ struct NativeSearchField: NSViewRepresentable {
         var onMoveUp: (() -> Void)?
         var onMoveDown: (() -> Void)?
         var onSubmit: (() -> Void)?
+        var lastFocusTrigger: Int = 0
 
         init(text: Binding<String>) {
             self.text = text
@@ -66,6 +82,14 @@ struct NativeSearchField: NSViewRepresentable {
         }
 
         func control(_ control: NSControl, textView: NSTextView, doCommandBy commandSelector: Selector) -> Bool {
+            if commandSelector == #selector(NSResponder.cancelOperation(_:)) {
+                if let field = control as? NSSearchField {
+                    field.stringValue = ""
+                }
+                text.wrappedValue = ""
+                control.window?.makeFirstResponder(nil)
+                return true
+            }
             if commandSelector == #selector(NSResponder.moveUp(_:)), let onMoveUp {
                 onMoveUp()
                 return true

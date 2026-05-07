@@ -8,7 +8,6 @@ import SwiftUI
 struct WelcomeConnectionRow: View {
     let connection: DatabaseConnection
     let sshProfile: SSHProfile?
-    var onConnect: (() -> Void)?
 
     private var displayTag: ConnectionTag? {
         guard let tagId = connection.tagId else { return nil }
@@ -45,7 +44,6 @@ struct WelcomeConnectionRow: View {
             trailingAccessories
         }
         .contentShape(Rectangle())
-        .overlay(DoubleClickDetector { onConnect?() })
         .accessibilityElement(children: .combine)
     }
 
@@ -91,6 +89,9 @@ struct WelcomeConnectionRow: View {
         if connection.host.isEmpty {
             return connection.database.isEmpty ? connection.type.rawValue : connection.database
         }
+        if connection.host.hasPrefix("/") {
+            return (connection.host as NSString).abbreviatingWithTildeInPath
+        }
         if let mongoHosts = connection.additionalFields["mongoHosts"], mongoHosts.contains(",") {
             let count = mongoHosts.split(separator: ",").count
             return String(format: String(localized: "%@ (+%d more)"), hostWithOptionalPort, count - 1)
@@ -105,9 +106,6 @@ struct WelcomeConnectionRow: View {
         return "\(connection.host):\(connection.port)"
     }
 
-    /// Apple's semantic convention for routed/relayed connections is the
-    /// "via X" suffix (AirDrop, Mail forwarded threads, Network preferences).
-    /// Returns nil when SSH is not enabled or the bastion host is empty.
     private var sshViaText: String? {
         let ssh = connection.resolvedSSHConfig
         guard ssh.enabled, !ssh.host.isEmpty else { return nil }

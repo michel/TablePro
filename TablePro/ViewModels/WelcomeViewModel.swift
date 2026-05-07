@@ -37,7 +37,7 @@ final class WelcomeViewModel {
     // MARK: - State
 
     var connections: [DatabaseConnection] = []
-    var searchText = "" { didSet { rebuildTree() } }
+    var searchText = "" { didSet { scheduleRebuildTree(oldValue: oldValue) } }
     var selectedConnectionIds: Set<UUID> = []
     var groups: [ConnectionGroup] = []
     var linkedConnections: [LinkedConnection] = []
@@ -83,6 +83,8 @@ final class WelcomeViewModel {
     @ObservationIgnored private var linkedFoldersObserver: NSObjectProtocol?
     @ObservationIgnored private var importFromAppObserver: NSObjectProtocol?
     @ObservationIgnored private var welcomeRouterTask: Task<Void, Never>?
+    @ObservationIgnored private var searchDebounceTask: Task<Void, Never>?
+    private static let searchDebounceNanoseconds: UInt64 = 150_000_000
 
     // MARK: - Computed Properties
 
@@ -112,15 +114,16 @@ final class WelcomeViewModel {
         maxDescendantDepthByGroup = descendantDepths
     }
 
-    var filteredConnections: [DatabaseConnection] {
-        if searchText.isEmpty {
-            return connections
+    private func scheduleRebuildTree(oldValue: String) {
+        searchDebounceTask?.cancel()
+        if searchText.isEmpty || oldValue.isEmpty {
+            rebuildTree()
+            return
         }
-        return connections.filter { connection in
-            connection.name.localizedCaseInsensitiveContains(searchText)
-                || connection.host.localizedCaseInsensitiveContains(searchText)
-                || connection.database.localizedCaseInsensitiveContains(searchText)
-                || groupName(for: connection.groupId)?.localizedCaseInsensitiveContains(searchText) == true
+        searchDebounceTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: Self.searchDebounceNanoseconds)
+            guard !Task.isCancelled else { return }
+            self?.rebuildTree()
         }
     }
 
@@ -130,10 +133,6 @@ final class WelcomeViewModel {
 
     var selectedConnections: [DatabaseConnection] {
         connections.filter { selectedConnectionIds.contains($0.id) }
-    }
-
-    var isMultipleSelection: Bool {
-        selectedConnectionIds.count > 1
     }
 
     func groupName(for groupId: UUID?) -> String? {
@@ -152,9 +151,6 @@ final class WelcomeViewModel {
                 expandedGroupIds = allGroupIds
             }
         }
-
-        // ⌘N now shows the Welcome window (handled by ContentView and AppDelegate).
-        // The Welcome window is already open in this context, so no action needed here.
 
         connectionUpdatedObserver = NotificationCenter.default.addObserver(
             forName: .connectionUpdated, object: nil, queue: .main
@@ -263,6 +259,7 @@ final class WelcomeViewModel {
 
     deinit {
         welcomeRouterTask?.cancel()
+        searchDebounceTask?.cancel()
         [connectionUpdatedObserver, exportObserver, importObserver,
          importFromAppObserver, linkedFoldersObserver].forEach {
             if let observer = $0 {
@@ -319,12 +316,6 @@ final class WelcomeViewModel {
                     "Failed to connect after plugin install: \(error.localizedDescription, privacy: .public)")
                 handleConnectionFailure(error: error, connectionId: connection.id)
             }
-        }
-    }
-
-    func connectSelectedConnections() {
-        for connection in selectedConnections {
-            connectToDatabase(connection)
         }
     }
 
