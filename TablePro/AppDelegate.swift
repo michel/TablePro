@@ -53,6 +53,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         MemoryPressureAdvisor.startMonitoring()
         PluginManager.shared.loadPlugins()
+        ChatToolBootstrap.register()
 
         NSWorkspace.shared.notificationCenter.addObserver(
             self, selector: #selector(handleSystemDidWake),
