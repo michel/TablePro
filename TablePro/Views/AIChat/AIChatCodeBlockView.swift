@@ -14,7 +14,12 @@ struct AIChatCodeBlockView: View {
     let language: String?
 
     @State private var isCopied: Bool = false
-    @FocusedValue(\.commandActions) private var actions
+    @FocusedValue(\.commandActions) private var focusedActions
+    @Bindable private var commandRegistry = CommandActionsRegistry.shared
+
+    private var actions: MainContentCommandActions? {
+        focusedActions ?? commandRegistry.current
+    }
 
     var body: some View {
         GroupBox {
@@ -27,8 +32,8 @@ struct AIChatCodeBlockView: View {
 
     private var codeBlockHeader: some View {
         HStack {
-            if let language {
-                Text(language.uppercased())
+            if let resolved = resolvedLanguage {
+                Text(resolved.uppercased())
                     .font(.caption2)
                     .fontWeight(.medium)
                     .foregroundStyle(.secondary)
@@ -68,7 +73,7 @@ struct AIChatCodeBlockView: View {
                 .foregroundStyle(.secondary)
                 .disabled(actions == nil)
                 .help(actions == nil
-                    ? String(localized: "Focus the query editor to insert")
+                    ? String(localized: "Open a connection to insert")
                     : String(localized: "Insert into editor"))
             }
         }
@@ -98,22 +103,56 @@ struct AIChatCodeBlockView: View {
         }
     }
 
+    private var resolvedLanguage: String? {
+        if let language, !language.isEmpty {
+            return language
+        }
+        return Self.detectLanguage(from: code)
+    }
+
+    static func detectLanguage(from code: String) -> String? {
+        let trimmed = code.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        guard !trimmed.isEmpty else { return nil }
+        let firstNonCommentLine = trimmed
+            .split(whereSeparator: { $0.isNewline })
+            .first(where: { line in
+                let head = line.trimmingCharacters(in: .whitespaces)
+                return !head.isEmpty && !head.hasPrefix("--") && !head.hasPrefix("/*")
+            })
+            .map(String.init) ?? trimmed
+
+        let sqlPrefixes = [
+            "SELECT ", "INSERT ", "UPDATE ", "DELETE ", "WITH ",
+            "EXPLAIN ", "PRAGMA ", "CREATE ", "ALTER ", "DROP ",
+            "TRUNCATE ", "BEGIN ", "COMMIT ", "ROLLBACK ", "GRANT ",
+            "REVOKE ", "ANALYZE ", "SET ", "CALL ", "LOCK ",
+            "MERGE ", "SHOW ", "DESCRIBE ", "DESC "
+        ]
+        if sqlPrefixes.contains(where: { firstNonCommentLine.hasPrefix($0) }) {
+            return "sql"
+        }
+        if firstNonCommentLine.hasPrefix("DB.") {
+            return "javascript"
+        }
+        return nil
+    }
+
     private var isSQL: Bool {
-        guard let language else { return false }
+        guard let resolved = resolvedLanguage else { return false }
         let sqlLanguages = ["sql", "mysql", "postgresql", "postgres", "sqlite"]
-        return sqlLanguages.contains(language.lowercased())
+        return sqlLanguages.contains(resolved.lowercased())
     }
 
     private var isMongoDB: Bool {
-        guard let language else { return false }
+        guard let resolved = resolvedLanguage else { return false }
         let mongoLanguages = ["javascript", "js", "mongodb", "mongo"]
-        return mongoLanguages.contains(language.lowercased())
+        return mongoLanguages.contains(resolved.lowercased())
     }
 
     private var isRedis: Bool {
-        guard let language else { return false }
+        guard let resolved = resolvedLanguage else { return false }
         let redisLanguages = ["redis", "bash", "shell", "sh"]
-        return redisLanguages.contains(language.lowercased())
+        return redisLanguages.contains(resolved.lowercased())
     }
 
     private var isInsertable: Bool {

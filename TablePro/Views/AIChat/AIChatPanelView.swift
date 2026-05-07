@@ -54,6 +54,9 @@ struct AIChatPanelView: View {
             viewModel.tables = tables
             viewModel.fetchSchemaContext()
         }
+        .task(id: settingsManager.ai.providers.map(\.id)) {
+            await viewModel.loadAvailableModels()
+        }
         .alert(
             String(localized: "Allow AI Access"),
             isPresented: $viewModel.showAIAccessConfirmation
@@ -292,7 +295,7 @@ struct AIChatPanelView: View {
     private var inputArea: some View {
         VStack(spacing: 0) {
             Divider()
-            HStack(alignment: .center, spacing: 8) {
+            VStack(alignment: .leading, spacing: 6) {
                 TextField(
                     String(localized: "Ask about your database..."),
                     text: $viewModel.inputText,
@@ -307,32 +310,125 @@ struct AIChatPanelView: View {
                     }
                 }
 
-                if viewModel.isStreaming {
-                    Button {
-                        viewModel.cancelStream()
-                    } label: {
-                        Image(systemName: "stop.circle.fill")
-                            .foregroundStyle(Color(nsColor: .systemRed))
+                HStack(alignment: .center, spacing: 8) {
+                    modelPicker
+                    Spacer()
+                    if viewModel.isStreaming {
+                        Button {
+                            viewModel.cancelStream()
+                        } label: {
+                            Image(systemName: "stop.circle.fill")
+                                .foregroundStyle(Color(nsColor: .systemRed))
+                        }
+                        .buttonStyle(.plain)
+                        .help(String(localized: "Stop Generating"))
+                    } else {
+                        Button {
+                            updateContext()
+                            viewModel.sendMessage()
+                        } label: {
+                            Image(systemName: "arrow.up.circle.fill")
+                                .foregroundStyle(
+                                    viewModel.inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                                        ? .secondary : Color.accentColor
+                                )
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(viewModel.inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                        .help(String(localized: "Send Message"))
                     }
-                    .buttonStyle(.plain)
-                    .help(String(localized: "Stop Generating"))
-                } else {
-                    Button {
-                        updateContext()
-                        viewModel.sendMessage()
-                    } label: {
-                        Image(systemName: "arrow.up.circle.fill")
-                            .foregroundStyle(
-                                viewModel.inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                                    ? .secondary : Color.accentColor
-                            )
-                    }
-                    .buttonStyle(.plain)
-                    .disabled(viewModel.inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                    .help(String(localized: "Send Message"))
                 }
             }
             .padding(8)
+        }
+    }
+
+    @ViewBuilder
+    private var modelPicker: some View {
+        let providers = settingsManager.ai.providers
+        if providers.isEmpty {
+            EmptyView()
+        } else {
+            let activeProvider = settingsManager.ai.activeProvider
+            let selectedProviderId = viewModel.selectedProviderId ?? activeProvider?.id
+            let selectedProvider = providers.first(where: { $0.id == selectedProviderId }) ?? activeProvider
+            let resolvedModel = viewModel.selectedModel ?? selectedProvider?.model ?? ""
+            let label = selectedProvider.map { provider in
+                resolvedModel.isEmpty ? provider.displayName : "\(provider.displayName) · \(resolvedModel)"
+            } ?? String(localized: "Select Model")
+
+            Menu {
+                ForEach(providers) { provider in
+                    modelMenuSection(
+                        provider: provider,
+                        selectedProviderId: selectedProviderId,
+                        selectedModel: resolvedModel
+                    )
+                }
+            } label: {
+                HStack(spacing: 4) {
+                    Image(systemName: "cpu")
+                    Text(label)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                    Image(systemName: "chevron.up.chevron.down")
+                        .font(.caption2)
+                }
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            }
+            .menuStyle(.borderlessButton)
+            .fixedSize()
+            .help(String(localized: "Choose AI provider and model"))
+        }
+    }
+
+    @ViewBuilder
+    private func modelMenuSection(
+        provider: AIProviderConfig,
+        selectedProviderId: UUID?,
+        selectedModel: String
+    ) -> some View {
+        let fallback = provider.model.isEmpty ? [] : [provider.model]
+        let cached = viewModel.availableModels[provider.id] ?? []
+        let models = cached.isEmpty ? fallback : cached
+
+        if models.count > 1 {
+            Section(provider.displayName) {
+                ForEach(models, id: \.self) { model in
+                    modelButton(
+                        provider: provider,
+                        model: model,
+                        isSelected: provider.id == selectedProviderId && model == selectedModel
+                    )
+                }
+            }
+        } else if let single = models.first {
+            modelButton(
+                provider: provider,
+                model: single,
+                isSelected: provider.id == selectedProviderId && single == selectedModel,
+                showProviderPrefix: true
+            )
+        }
+    }
+
+    private func modelButton(
+        provider: AIProviderConfig,
+        model: String,
+        isSelected: Bool,
+        showProviderPrefix: Bool = false
+    ) -> some View {
+        Button {
+            viewModel.selectedProviderId = provider.id
+            viewModel.selectedModel = model
+        } label: {
+            HStack {
+                Text(showProviderPrefix ? "\(provider.displayName) · \(model)" : model)
+                if isSelected {
+                    Image(systemName: "checkmark")
+                }
+            }
         }
     }
 
@@ -357,6 +453,7 @@ struct AIChatPanelView: View {
         message.role == .user
             && message.id == viewModel.messages.last?.id
             && viewModel.lastMessageFailed
+            && viewModel.canRetryLastFailure
     }
 
     private func shouldShowRegenerate(for message: ChatTurn) -> Bool {

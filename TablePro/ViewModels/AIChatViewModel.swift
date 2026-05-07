@@ -20,11 +20,25 @@ final class AIChatViewModel {
     var messages: [ChatTurn] = []
     var inputText: String = ""
     var isStreaming: Bool = false
-    var errorMessage: String?
+    var errorMessage: String? {
+        didSet {
+            if errorMessage == nil {
+                lastError = nil
+            }
+        }
+    }
+    var lastError: AIProviderError?
     var lastMessageFailed: Bool = false
+
+    var canRetryLastFailure: Bool {
+        lastError?.isRetryable ?? true
+    }
     var conversations: [AIConversation] = []
     var activeConversationID: UUID?
     var showAIAccessConfirmation = false
+    var selectedProviderId: UUID?
+    var selectedModel: String?
+    var availableModels: [UUID: [String]] = [:]
 
     // MARK: - Context Properties
 
@@ -50,6 +64,53 @@ final class AIChatViewModel {
     var queryResults: String?
 
     // MARK: - AI Action Dispatch
+
+    func loadAvailableModels() async {
+        let settings = AppSettingsManager.shared.ai
+        let pending = settings.providers.filter { availableModels[$0.id] == nil }
+        guard !pending.isEmpty else { return }
+
+        let results = await withTaskGroup(of: (UUID, [String]?).self) { group in
+            for config in pending {
+                let apiKey: String?
+                switch config.type.authStyle {
+                case .apiKey:
+                    apiKey = AIKeyStorage.shared.loadAPIKey(for: config.id)
+                case .oauth, .none:
+                    apiKey = nil
+                }
+                group.addTask {
+                    let transport = await AIProviderFactory.createProvider(for: config, apiKey: apiKey)
+                    do {
+                        let models = try await transport.fetchAvailableModels()
+                        return (config.id, models)
+                    } catch is CancellationError {
+                        return (config.id, nil)
+                    } catch {
+                        return (config.id, [])
+                    }
+                }
+            }
+
+            var collected: [(UUID, [String]?)] = []
+            for await result in group {
+                collected.append(result)
+            }
+            return collected
+        }
+
+        guard !Task.isCancelled else { return }
+
+        for (id, models) in results {
+            guard let models else { continue }
+            if models.isEmpty {
+                let fallback = pending.first(where: { $0.id == id })?.model
+                availableModels[id] = (fallback?.isEmpty == false) ? [fallback ?? ""] : []
+            } else {
+                availableModels[id] = models
+            }
+        }
+    }
 
     func handleFixError(query: String, error: String) {
         startNewConversation()
@@ -344,7 +405,8 @@ final class AIChatViewModel {
 
         let settings = AppSettingsManager.shared.ai
 
-        guard let resolved = AIProviderFactory.resolve(settings: settings) else {
+        let resolved = AIProviderFactory.resolve(settings: settings, overrideProviderId: selectedProviderId, overrideModel: selectedModel)
+        guard let resolved else {
             errorMessage = String(localized: "No AI provider configured. Go to Settings > AI to add one.")
             return
         }
@@ -368,8 +430,7 @@ final class AIChatViewModel {
 
         let promptContext = capturePromptContext(settings: settings)
 
-        // Create assistant message placeholder
-        let assistantMessage = ChatTurn(role: .assistant, blocks: [])
+        let assistantMessage = ChatTurn(role: .assistant, blocks: [], modelId: resolved.model, providerId: resolved.config.id.uuidString)
         messages.append(assistantMessage)
         trimMessagesIfNeeded()
         let assistantID = assistantMessage.id
@@ -494,6 +555,7 @@ final class AIChatViewModel {
                         Self.logger.error("Streaming failed: \(error.localizedDescription)")
                         self.lastMessageFailed = true
                         self.errorMessage = error.localizedDescription
+                        self.lastError = error as? AIProviderError
 
                         // Remove empty assistant message on error
                         if let idx = self.messages.firstIndex(where: { $0.id == assistantID }),
