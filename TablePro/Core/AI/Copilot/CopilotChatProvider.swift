@@ -15,12 +15,24 @@ final class CopilotChatProvider: ChatTransport {
         initialState: [String: AsyncThrowingStream<ChatStreamEvent, Error>.Continuation]()
     )
     private var isProgressHandlerRegistered = false
+    private var isInvokeClientToolHandlerRegistered = false
+    private var registeredToolNames: Set<String> = []
+    private var lastChatMode: String?
+    private let activeStream = OSAllocatedUnfairLock<(UUID, AsyncThrowingStream<ChatStreamEvent, Error>.Continuation)?>(
+        initialState: nil
+    )
 
     func streamChat(
         turns: [ChatTurn],
         options: ChatTransportOptions
     ) -> AsyncThrowingStream<ChatStreamEvent, Error> {
         AsyncThrowingStream { continuation in
+            let sessionId = UUID()
+            continuation.onTermination = { [weak self] _ in
+                self?.activeStream.withLock { current in
+                    if current?.0 == sessionId { current = nil }
+                }
+            }
             let task = Task { @MainActor [weak self] in
                 guard let self else {
                     continuation.finish()
@@ -38,8 +50,22 @@ final class CopilotChatProvider: ChatTransport {
                     }
 
                     await self.ensureProgressHandler()
+                    await self.ensureInvokeClientToolHandler()
+                    await self.ensureToolsRegistered(tools: options.tools)
+
+                    let desiredChatMode: String? = (!options.tools.isEmpty && !self.registeredToolNames.isEmpty)
+                        ? "Agent" : nil
+                    if self.conversationId != nil, self.lastChatMode != desiredChatMode {
+                        Self.logger.info(
+                            "Copilot chat mode changed; resetting conversation to apply new mode"
+                        )
+                        self.conversationId = nil
+                        self.turnIds.removeAll()
+                    }
+                    self.lastChatMode = desiredChatMode
 
                     self.progressHandlers.withLock { $0[token] = continuation }
+                    self.activeStream.withLock { $0 = (sessionId, continuation) }
 
                     let userMessage = turns.last(where: { $0.role == .user })?.plainText ?? ""
                     let effectiveModel: String? = options.model.isEmpty ? nil : options.model
@@ -51,6 +77,7 @@ final class CopilotChatProvider: ChatTransport {
                             response: "",
                             turnId: ""
                         )]
+                        let toolsAvailable = !options.tools.isEmpty && !self.registeredToolNames.isEmpty
                         let params = CopilotConversationCreateParams(
                             workDoneToken: token,
                             turns: conversationTurns,
@@ -60,7 +87,10 @@ final class CopilotChatProvider: ChatTransport {
                             ),
                             source: "panel",
                             model: effectiveModel,
-                            workspaceFolders: nil
+                            workspaceFolders: nil,
+                            chatMode: toolsAvailable ? "Agent" : nil,
+                            customChatModeId: toolsAvailable ? "Agent" : nil,
+                            needToolCallConfirmation: toolsAvailable ? false : nil
                         )
                         let result = try await client.conversationCreate(params: params)
                         self.conversationId = result.conversationId
@@ -123,6 +153,110 @@ final class CopilotChatProvider: ChatTransport {
             guard let client = CopilotService.shared.client else { return }
             try? await client.conversationTurnDelete(conversationId: conversationId, turnId: turnId)
         }
+    }
+
+    @MainActor
+    private func ensureToolsRegistered(tools: [ChatToolSpec]) async {
+        let names = Set(tools.map(\.name))
+        guard names != registeredToolNames else { return }
+        guard let client = CopilotService.shared.client else { return }
+        do {
+            let info = tools.map { $0.asCopilotToolInformation() }
+            try await client.registerTools(CopilotRegisterToolsParams(tools: info))
+            registeredToolNames = names
+            Self.logger.info("Registered \(info.count) Copilot tools")
+        } catch {
+            Self.logger.warning(
+                "Copilot tools registration failed (likely older language server): \(error.localizedDescription, privacy: .public)"
+            )
+        }
+    }
+
+    @MainActor
+    private func ensureInvokeClientToolHandler() async {
+        guard !isInvokeClientToolHandlerRegistered else { return }
+        isInvokeClientToolHandlerRegistered = true
+        guard let client = CopilotService.shared.client else { return }
+        let activeStream = activeStream
+        await client.onDeferredRequest(method: "conversation/invokeClientTool") { data, requestId in
+            Task { @MainActor in
+                await Self.handleInvokeClientTool(
+                    data: data,
+                    requestId: requestId,
+                    activeStream: activeStream
+                )
+            }
+        }
+    }
+
+    private struct InvokeClientToolEnvelope: Decodable {
+        let params: CopilotInvokeClientToolParams
+    }
+
+    @MainActor
+    private static func handleInvokeClientTool(
+        data: Data,
+        requestId: Int,
+        activeStream: OSAllocatedUnfairLock<(UUID, AsyncThrowingStream<ChatStreamEvent, Error>.Continuation)?>
+    ) async {
+        let params: CopilotInvokeClientToolParams
+        do {
+            let envelope = try JSONDecoder().decode(InvokeClientToolEnvelope.self, from: data)
+            params = envelope.params
+        } catch {
+            Self.logger.error("Failed to decode invokeClientTool params: \(error.localizedDescription, privacy: .public)")
+            if let raw = String(data: data, encoding: .utf8) {
+                Self.logger.error("Raw invokeClientTool payload: \(raw, privacy: .public)")
+            }
+            await Self.sendErrorReply(requestId: requestId, message: "Failed to decode tool invocation")
+            return
+        }
+        Self.logger.info(
+            "Copilot invoked tool '\(params.name, privacy: .public)' (turn=\(params.turnId, privacy: .public))"
+        )
+
+        let toolBlock = ToolUseBlock(
+            id: "\(params.conversationId)-\(params.turnId)-\(params.name)-\(UUID().uuidString)",
+            name: params.name,
+            input: params.input ?? .object([:]),
+            approvalState: .pending
+        )
+
+        let replyToken = ToolReplyToken { result in
+            await Self.sendToolReply(requestId: requestId, result: result)
+        }
+
+        guard let continuation = activeStream.withLock({ $0?.1 }) else {
+            Self.logger.warning("No active stream continuation for invokeClientTool; cancelling")
+            await Self.sendErrorReply(requestId: requestId, message: "No active chat session")
+            return
+        }
+        continuation.yield(.toolInvocationRequest(block: toolBlock, replyToken: replyToken))
+    }
+
+    @MainActor
+    private static func sendToolReply(requestId: Int, result: ChatToolResult) async {
+        guard let client = CopilotService.shared.client else { return }
+        let status: CopilotToolInvocationStatus = result.isError ? .error : .success
+        let lspResult = CopilotLanguageModelToolResult(
+            status: status,
+            content: [CopilotLanguageModelToolResultContent(value: .string(result.content))]
+        )
+        let preview = result.content.prefix(200)
+        Self.logger.info(
+            "Replying to invokeClientTool requestId=\(requestId) status=\(status.rawValue, privacy: .public) preview=\(preview, privacy: .public)"
+        )
+        do {
+            try await client.sendInvokeClientToolResponse(id: requestId, result: lspResult)
+        } catch {
+            Self.logger.error("Failed to reply to invokeClientTool: \(error.localizedDescription, privacy: .public)")
+        }
+    }
+
+    @MainActor
+    private static func sendErrorReply(requestId: Int, message: String) async {
+        let result = ChatToolResult(content: message, isError: true)
+        await sendToolReply(requestId: requestId, result: result)
     }
 
     @MainActor
