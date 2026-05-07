@@ -10,7 +10,6 @@ import SwiftUI
 /// AI chat panel displayed alongside the main editor content
 struct AIChatPanelView: View {
     let connection: DatabaseConnection
-    let tables: [TableInfo]
     var currentQuery: String?
     var queryResults: String?
 
@@ -19,6 +18,7 @@ struct AIChatPanelView: View {
     @State private var isUserScrolledUp = false
     @State private var lastAutoScrollTime: Date = .distantPast
     @State private var showClearConfirmation = false
+    @State private var mentionState = MentionPopoverState()
 
     private var hasConfiguredProvider: Bool {
         settingsManager.ai.hasActiveProvider
@@ -49,10 +49,6 @@ struct AIChatPanelView: View {
         }
         .onChange(of: connection.id) {
             viewModel.connection = connection
-        }
-        .task(id: tables) {
-            viewModel.tables = tables
-            viewModel.fetchSchemaContext()
         }
         .task(id: settingsManager.ai.providers.map(\.id)) {
             await viewModel.loadAvailableModels()
@@ -301,19 +297,23 @@ struct AIChatPanelView: View {
                     onRemove: { viewModel.detach($0) }
                 )
 
-                TextField(
-                    String(localized: "Ask about your database..."),
+                ChatComposerTextView(
                     text: $viewModel.inputText,
-                    axis: .vertical
-                )
-                .textFieldStyle(.roundedBorder)
-                .lineLimit(1...5)
-                .onSubmit {
-                    if !NSEvent.modifierFlags.contains(.shift) {
+                    placeholder: String(localized: "Ask about your database..."),
+                    minLines: 1,
+                    maxLines: 5,
+                    mentionState: mentionState,
+                    onTextChange: { text, caret in
+                        updateMentionState(text: text, caret: caret)
+                    },
+                    onSubmit: {
                         updateContext()
                         viewModel.sendMessage()
+                    },
+                    onAttach: { item in
+                        viewModel.attach(item)
                     }
-                }
+                )
 
                 HStack(alignment: .center, spacing: 8) {
                     modelPicker
@@ -527,6 +527,71 @@ struct AIChatPanelView: View {
     private func updateContext() {
         viewModel.currentQuery = currentQuery
         viewModel.queryResults = queryResults
+    }
+
+    private func updateMentionState(text: String, caret: Int) {
+        guard let match = MentionDetector.detect(in: text, caret: caret) else {
+            mentionState.reset()
+            return
+        }
+        let candidates = mentionCandidates(forQuery: match.query)
+        guard !candidates.isEmpty else {
+            mentionState.reset()
+            return
+        }
+        let queryChanged = match.query != mentionState.query
+        mentionState.candidates = candidates
+        mentionState.query = match.query
+        mentionState.anchorRange = match.range
+        if queryChanged {
+            mentionState.selectedIndex = 0
+        } else {
+            mentionState.clampSelection()
+        }
+        mentionState.isVisible = true
+    }
+
+    private func mentionCandidates(forQuery query: String) -> [MentionCandidate] {
+        let connectionId = connection.id
+        var items: [MentionCandidate] = []
+
+        let schemaItem = ContextItem.schema(connectionId: connectionId)
+        if matchesQuery(schemaItem.displayLabel, query) {
+            items.append(MentionCandidate(item: schemaItem))
+        }
+
+        if let editorQuery = currentQuery, !editorQuery.isEmpty {
+            let item = ContextItem.currentQuery(text: editorQuery)
+            if matchesQuery(item.displayLabel, query) {
+                items.append(MentionCandidate(item: item))
+            }
+        }
+
+        if let results = queryResults, !results.isEmpty {
+            let item = ContextItem.queryResult(summary: results)
+            if matchesQuery(item.displayLabel, query) {
+                items.append(MentionCandidate(item: item))
+            }
+        }
+
+        let tableBudget = max(0, Self.maxMentionCandidates - items.count)
+        let matchingTables = viewModel.tables
+            .filter { query.isEmpty || $0.name.localizedCaseInsensitiveContains(query) }
+            .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+            .prefix(tableBudget)
+        for table in matchingTables {
+            items.append(MentionCandidate(
+                item: .table(connectionId: connectionId, name: table.name)
+            ))
+        }
+
+        return items
+    }
+
+    private static let maxMentionCandidates = 10
+
+    private func matchesQuery(_ label: String, _ query: String) -> Bool {
+        query.isEmpty || label.localizedCaseInsensitiveContains(query)
     }
 
     private func shouldShowRetry(for message: ChatTurn) -> Bool {
