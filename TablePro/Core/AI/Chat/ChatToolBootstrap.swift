@@ -11,6 +11,7 @@ import Foundation
 @MainActor
 enum ChatToolBootstrap {
     static let bridge = MCPConnectionBridge()
+    static let authPolicy = MCPAuthPolicy()
 
     static func register() {
         let registry = ChatToolRegistry.shared
@@ -21,5 +22,7 @@ enum ChatToolBootstrap {
         registry.register(ListTablesChatTool())
         registry.register(DescribeTableChatTool())
         registry.register(GetTableDDLChatTool())
+        registry.register(ExecuteQueryChatTool())
+        registry.register(ConfirmDestructiveOperationChatTool())
     }
 }
