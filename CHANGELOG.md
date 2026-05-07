@@ -7,91 +7,68 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Fixed
-
-- New tab via Cmd+T no longer flashes focus back to the previous tab in the same window group
-- Cmd+X with no selection cuts the current line, matching VS Code, Sublime, and Xcode (#1075)
-- Cmd+A on a query ending with a newline now highlights every line, not just the first (#1075)
-- Editor windows now remember their size, position, and zoom state across launches, instead of always opening at 1200x800
-- iOS: data browser and query result lists no longer crash with "Index out of range" when rows shrink during a SwiftUI update pass
-- iOS: connecting to MySQL, PostgreSQL, or Redis with an out-of-range port now reports a readable error instead of crashing on integer overflow
+## [0.39.0] - 2026-05-08
 
 ### Added
 
-- AI Chat: tool calling support for the GitHub Copilot provider. Copilot can now invoke the same database tools (list_tables, describe_table, execute_query, etc.) the other providers do, gated by chat mode and the per-card approval flow. Older Copilot language servers without the `conversation/registerTools` API gracefully degrade to chat-only.
-- AI Chat: per-card tool approval. Write and destructive AI tool calls now show inline `Run`, `Always for this connection`, and `Cancel` buttons on the tool card instead of interrupting with a modal dialog. "Always for this connection" persists the tool name on the connection so future calls run without prompting. Cancel ends only that tool call; the assistant sees an error result and continues the conversation. Read-only tools auto-run; Read-only safe mode still blocks writes outright.
-- AI Chat: panel layout redesign. The right inspector has a Details / AI Chat segmented picker at the top, with conversation history and new-conversation actions trailing on the same row. The chat tab is composer-focused: composer is a rounded multi-line input with an Apple Intelligence focus glow, and a single-row footer (mention, slash commands, mode picker, model picker, send). The mode picker (Ask / Edit / Agent) is saved to settings but does not yet change provider behavior.
-- AI Chat: inline model picker in the composer with per-turn model attribution. Switch between configured providers and any of their available models without leaving the chat. The model that produced each assistant turn is shown in the message footer.
-- AI Chat: slash commands `/explain`, `/optimize`, `/fix`, and `/help`. Type the command in the composer or pick from the slash menu next to the model picker. `/explain`, `/optimize`, and `/fix` operate on the current query in the active editor. `/help` lists the commands inline.
-- AI Chat: attach context to a message via the `@` menu next to the slash menu, or by typing `@` directly in the composer.
-  - Pick Schema, a specific Table, the Current Query, or recent Query Results.
-  - Typing `@` opens a caret-anchored picker that filters as you type. Up/Down navigates, Return or Tab inserts, Escape dismisses.
-  - Attachments render as chips above the input and inside the user message bubble.
-  - Editing a sent message restores its typed text and chips so you can adjust both before resending.
-- AI Chat: tool calling. The AI can look up your database on demand instead of relying on context you attached up front.
-  - Read-only tools: `list_connections`, `get_connection_status`, `list_databases`, `list_schemas`, `list_tables`, `describe_table`, `get_table_ddl`.
-  - Tool calls and their results render as expandable pills in the assistant's reply.
-  - Supported providers: Anthropic, OpenAI, OpenRouter, Gemini, Ollama (model-dependent), GitHub Copilot, and custom OpenAI-compatible endpoints.
-- AI Chat: attach a saved query as a chip via `@`. Type `@` and pick a saved SQL query to send its name and body to the AI alongside your message.
-- AI Chat: user-defined slash commands. Create your own commands in Settings -> AI -> Custom Slash Commands. Templates support `{{query}}`, `{{schema}}`, `{{database}}`, and `{{body}}` placeholders that get substituted at send time.
-- AI Chat: tool calling can now run write queries (`execute_query`) and destructive DDL (`confirm_destructive_operation` after the AI passes the verbatim phrase). The connection's safe mode policy still gates execution, so the user remains the final approver.
-- AI Chat: per-connection rules. Add custom guidance (table conventions, PII columns, naming) in the connection's AI Rules tab; the AI sees it on every chat turn for that connection.
-
-### Changed
-
-- AI Chat: new installations default to opt-in context. Schema, current query, and query results no longer auto-include in every prompt; attach them via the `@` menu when you want them. Existing users keep their current Settings -> AI -> "Include schema/current query/query results" choices unchanged.
-- AI Chat: the Ask / Edit / Agent mode picker now changes which tools the provider sees. Ask exposes read-only schema lookups. Edit adds `execute_query` for SELECT/INSERT/UPDATE/DELETE. Agent adds destructive DDL via `confirm_destructive_operation`. The connection's safe mode policy still gates execution.
-
-### Fixed
-
-- New tab via Cmd+T no longer flashes focus back to the previous tab in the same window group
-- AI Chat Retry button no longer appears for errors retry can't fix (authentication failure, deprecated model, invalid endpoint). The error message stays so the user can act on it.
-- AI Chat code blocks render with syntax highlighting and the Insert button even when the AI omits the language tag, by detecting SQL/JavaScript heuristically from the code content.
-- AI Chat Insert button stays enabled when the chat panel itself has focus instead of the editor, by falling back to `CommandActionsRegistry` when `@FocusedValue` returns nil.
-
-## [0.39.0] - 2026-05-07
-
-### Added
-
+- AI Chat: tool calling with per-card approval, Ask / Edit / Agent modes, and 7 providers (Anthropic, OpenAI, OpenRouter, Gemini, Ollama, GitHub Copilot, custom OpenAI-compatible)
+- AI Chat: `@` mentions for Schema, Table, Current Query, Query Results, and saved queries
+- AI Chat: slash commands (`/explain`, `/optimize`, `/fix`, `/help`) plus user-defined commands
+- AI Chat: inline model picker with per-turn model attribution
+- AI Chat: per-connection rules for the assistant
 - Linked SQL Folders: two-way sync between Favorites and a folder of `.sql` files
-- Database type chooser sheet for new connections, grouped by category with search
-- Connection URL import moved into the database type chooser
+- Database type chooser sheet for new connections
+- Connection URL import in the database type chooser
 
 ### Changed
 
-- iOS: streaming data layer; large queries no longer buffer the full result set
-- Toolbar leads with a tinted engine icon to distinguish multiple windows on the same database (#1044)
-- XLSX export is free for everyone
-- Safe Mode (Touch ID, Full, Read Only) is free for everyone
-- Favorites sidebar is connection-scoped; opening a second tab no longer reloads
-- Connection Form rebuilt with sidebar navigation and native window-toolbar actions
+- iOS: streaming data layer for large queries
+- Toolbar shows a tinted engine icon to distinguish windows on the same database (#1044)
+- XLSX export is free
+- Safe Mode is free
+- Favorites sidebar is connection-scoped
+- Connection Form: sidebar navigation with native toolbar actions
 - "Read-Only" / "Read-Write" renamed to "Read Only" / "Read & Write"
 - ER diagram nodes scale with system text size
-- Hero icons, list views, search fields, and form sheets aligned with macOS HIG
-- Welcome, Connection Form, and Integrations Activity windows use SwiftUI scenes
+- Welcome, Connection Form, and Integrations Activity use SwiftUI scenes
 
 ### Fixed
 
-- New connection chooser falsely prompted "MariaDB plugin is not installed" for built-in lazy drivers
-- Schema selection from Cmd+K Quick Switcher silently ignored on SQL Server and Oracle
+- "MariaDB plugin not installed" prompt for built-in lazy drivers
+- Cmd+K Quick Switcher schema selection on SQL Server and Oracle
 - iOS: crash opening some MySQL tables
-- iOS: connections to `.local` and local-network addresses timed out silently
-- Data grid column headers misaligned with result-cell horizontal inset
-- Toolbar connection status lost its left inset when no connection tag was shown
-- SQL editor jumped to end after committing IME-marked words like "测试" (#1012)
-- External-contributor builds failed on personal Apple Developer teams (#1020)
-- SSH auth-failure alerts mislabelled the cause when the verification code was wrong (#1005)
-- TOTP codes that crossed a 30-second rotation boundary were rejected
-- SSH Auth Method = Password failed against keyboard-interactive-only servers (#1005)
-- SSH connections requiring Google Authenticator failed with Password + TOTP (#1005)
-- Up arrow on first line and Down on last line failed at end-of-document caret
-- Caret at end of query lost its line-number color in the gutter
-- Cmd+Left/Right at the end of a line with no trailing newline did nothing (#1007)
+- iOS: silent timeout on `.local` and local-network addresses
+- iOS: row list "Index out of range" crash on shrink (#1094)
+- iOS: out-of-range port crash on MySQL, PostgreSQL, Redis (#1094)
+- IME editor jump after committing words like "测试" (#1012)
+- Cmd+T tab focus flash
+- Cmd+X with no selection now cuts the line (#1075)
+- Cmd+A on a query with a trailing newline (#1075)
+- Editor window size, position, and zoom across launches
+- Personal Apple Developer team builds (#1020)
+- SSH auth-failure alerts labelled the wrong cause (#1005)
+- TOTP codes rejected across rotation boundary
+- SSH Password against keyboard-interactive-only servers (#1005)
+- SSH Password + Google Authenticator (#1005)
+- Up/Down arrow at end-of-document caret
+- Caret line-number color in the gutter
+- Cmd+Left/Right at end of a line without a trailing newline (#1007)
 - Multi-window tab persistence dropped all but one tab on relaunch
-- Filter value autocomplete popover stole focus on Full Keyboard Access
-- Toolbar database name was empty after relaunch with a restored last-used database
-- Cmd+K database switch reverted in Cmd+T, query history, AI prompts, and tab-creation paths (#1043)
-- AI provider settings showed `unsupported URL` while editing a draft endpoint
+- Filter autocomplete focus on Full Keyboard Access
+- Toolbar database name on relaunch
+- Cmd+K database switch reverted in Cmd+T and other paths (#1043)
+- AI provider Test Connection showed `unsupported URL` on draft endpoint
+- Connection Form coordinator rebuilt on every parent re-render (#1102)
+- MongoDB SRV connection strings include the port (#1101)
+- AI Chat composer: IME, scroll bar, Shift+Return (#1100)
+- AI Chat tool roundtrip limit raised 5 → 10 (#1096)
+- AI Chat per-connection rules CloudKit sync (#1098)
+- AI Chat Retry button on non-recoverable errors
+- AI Chat code blocks without a language tag
+- AI Chat Insert button focus
+- MCP errors surface readable messages (#1095)
+- Data grid column header inset
+- Toolbar connection status left inset
 
 ## [0.38.0] - 2026-05-04
 
