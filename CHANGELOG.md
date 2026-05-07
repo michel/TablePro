@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.39.1] - 2026-05-08
+
+### Fixed
+
+- App fails to launch on 0.39.0 with errno 163 "Launchd job spawn failed". Production entitlements shipped a literal `$(AppIdentifierPrefix)` placeholder in `keychain-access-groups` because `codesign --entitlements` does not expand Xcode build variables. Reverted to the hardcoded team prefix; personal-team contributors still use `TablePro.Debug.entitlements` (#1104)
+
 ## [0.39.0] - 2026-05-08
 
 ### Added
@@ -1656,7 +1662,8 @@ TablePro is a native macOS database client built with SwiftUI and AppKit, design
     - Custom SQL query templates
     - Performance optimized for large datasets
 
-[Unreleased]: https://github.com/TableProApp/TablePro/compare/v0.39.0...HEAD
+[Unreleased]: https://github.com/TableProApp/TablePro/compare/v0.39.1...HEAD
+[0.39.1]: https://github.com/TableProApp/TablePro/compare/v0.39.0...v0.39.1
 [0.39.0]: https://github.com/TableProApp/TablePro/compare/v0.38.0...v0.39.0
 [0.38.0]: https://github.com/TableProApp/TablePro/compare/v0.37.0...v0.38.0
 [0.37.0]: https://github.com/TableProApp/TablePro/compare/v0.36.0...v0.37.0
