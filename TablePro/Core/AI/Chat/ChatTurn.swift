@@ -49,26 +49,22 @@ struct ChatTurn: Codable, Equatable, Identifiable, Sendable {
 
         if let decodedBlocks = try container.decodeIfPresent([ChatContentBlock].self, forKey: .blocks) {
             blocks = decodedBlocks
-        } else if let legacyText = try container.decodeIfPresent(String.self, forKey: .content) {
-            blocks = [.text(legacyText)]
         } else {
-            blocks = []
+            let legacyContainer = try decoder.container(keyedBy: LegacyKeys.self)
+            if let legacyText = try legacyContainer.decodeIfPresent(String.self, forKey: .content) {
+                blocks = [.text(legacyText)]
+            } else {
+                blocks = []
+            }
         }
     }
 
-    func encode(to encoder: Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(id, forKey: .id)
-        try container.encode(role, forKey: .role)
-        try container.encode(blocks, forKey: .blocks)
-        try container.encode(timestamp, forKey: .timestamp)
-        try container.encodeIfPresent(usage, forKey: .usage)
-        try container.encodeIfPresent(modelId, forKey: .modelId)
-        try container.encodeIfPresent(providerId, forKey: .providerId)
+    private enum CodingKeys: String, CodingKey {
+        case id, role, blocks, timestamp, usage, modelId, providerId
     }
 
-    private enum CodingKeys: String, CodingKey {
-        case id, role, blocks, content, timestamp, usage, modelId, providerId
+    private enum LegacyKeys: String, CodingKey {
+        case content
     }
 
     var plainText: String {
@@ -139,10 +135,10 @@ enum ChatContentBlock: Codable, Equatable, Sendable {
 struct ToolUseBlock: Codable, Equatable, Sendable {
     let id: String
     let name: String
-    let input: JSONValue
+    let input: JsonValue
     var approvalState: ToolApprovalState
 
-    init(id: String, name: String, input: JSONValue, approvalState: ToolApprovalState = .approved) {
+    init(id: String, name: String, input: JsonValue, approvalState: ToolApprovalState = .approved) {
         self.id = id
         self.name = name
         self.input = input
@@ -153,7 +149,7 @@ struct ToolUseBlock: Codable, Equatable, Sendable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         id = try container.decode(String.self, forKey: .id)
         name = try container.decode(String.self, forKey: .name)
-        input = try container.decode(JSONValue.self, forKey: .input)
+        input = try container.decode(JsonValue.self, forKey: .input)
         approvalState = try container.decodeIfPresent(ToolApprovalState.self, forKey: .approvalState) ?? .approved
     }
 

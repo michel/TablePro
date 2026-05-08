@@ -2,10 +2,22 @@
 
 All notable changes to TablePro will be documented in this file.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+### Changed
+
+- AI inline suggestions: debounce now uses structured Swift concurrency, and the delay is configurable via the `inlineSuggestionDebounceMs` setting (default 500ms)
+- Copilot LSP shutdown caps at 10 seconds, closes pipes explicitly, and strips the quarantine attribute from the downloaded binary
+- AI Chat: streaming view model split into focused extensions backed by a single `streamingState` enum
+- MCP HTTP server: split transport into connection, router, and SSE writer files; pairing exchange store moved to a Swift actor; SSE streams send a 30-second keep-alive
+- AI providers: shared endpoint normalization and JSON encoding helpers; consistent 5s timeout and known-model fallback when listing models
+- AI settings: include schema and current query default to on for new installs, matching the previous decoded fallback
+- AI Chat: persisted conversations now carry a schema version so future migrations can read older files cleanly
+- AI Chat: custom slash commands reject duplicate names, including case-insensitive collisions on rename
+- Internal: unify JSON value type used by AI tools and MCP wire
 
 ## [0.39.1] - 2026-05-08
 
