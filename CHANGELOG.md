@@ -18,6 +18,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - AI Chat: persisted conversations now carry a schema version so future migrations can read older files cleanly
 - AI Chat: custom slash commands reject duplicate names, including case-insensitive collisions on rename
 - Internal: unify JSON value type used by AI tools and MCP wire
+- Internal: shared schema builder for AI chat tools, removes ~100 lines of duplicated JSON Schema boilerplate
+- Internal: AI chat tools declare their access mode (read-only, write, agent-only) rather than relying on a hardcoded allowlist; new tools are picked up automatically
+- AI providers: Anthropic test connection uses the configured model, known model list updated through Claude 4.7, and Ollama detection now logs the actual error category instead of swallowing every failure as 'not running'
+- AI Chat views: replace custom pill buttons with native `.borderless` styles, switch hardcoded text colors to semantic system colors, use relative font sizing in Markdown rendering, align spacing to the 8-pt grid, and add accessibility labels to icon-only buttons
+
+### Fixed
+
+- AI Chat: `@` mention detection no longer breaks when the cursor sits right after an emoji or other non-BMP character
 
 ## [0.39.1] - 2026-05-08
 
