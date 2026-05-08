@@ -9,12 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.39.1] - 2026-05-08
 
-### Fixed
-
-- App fails to launch on 0.39.0 with errno 163 "Launchd job spawn failed". Production entitlements shipped a literal `$(AppIdentifierPrefix)` placeholder in `keychain-access-groups` because `codesign --entitlements` does not expand Xcode build variables. Reverted to the hardcoded team prefix; personal-team contributors still use `TablePro.Debug.entitlements` (#1104)
-
-## [0.39.0] - 2026-05-08
-
 ### Added
 
 - AI Chat: tool calling with per-card approval, Ask / Edit / Agent modes, and 7 providers (Anthropic, OpenAI, OpenRouter, Gemini, Ollama, GitHub Copilot, custom OpenAI-compatible)
@@ -40,6 +34,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- App fails to launch on 0.39.0 with errno 163 "Launchd job spawn failed". Production entitlements shipped a literal `$(AppIdentifierPrefix)` placeholder in `keychain-access-groups` because `codesign --entitlements` does not expand Xcode build variables. Reverted to the hardcoded team prefix; personal-team contributors still use `TablePro.Debug.entitlements` (#1104)
 - "MariaDB plugin not installed" prompt for built-in lazy drivers
 - Cmd+K Quick Switcher schema selection on SQL Server and Oracle
 - iOS: crash opening some MySQL tables

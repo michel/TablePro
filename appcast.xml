@@ -3,6 +3,149 @@
     <channel>
         <title>TablePro</title>
         <item>
+            <title>0.39.1</title>
+            <pubDate>Thu, 07 May 2026 19:08:49 +0000</pubDate>
+            <sparkle:version>79</sparkle:version>
+            <sparkle:shortVersionString>0.39.1</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+            <description><![CDATA[<h3>Added</h3>
+<ul>
+<li>AI Chat: tool calling with per-card approval, Ask / Edit / Agent modes, and 7 providers (Anthropic, OpenAI, OpenRouter, Gemini, Ollama, GitHub Copilot, custom OpenAI-compatible)</li>
+<li>AI Chat: `@` mentions for Schema, Table, Current Query, Query Results, and saved queries</li>
+<li>AI Chat: slash commands (`/explain`, `/optimize`, `/fix`, `/help`) plus user-defined commands</li>
+<li>AI Chat: inline model picker with per-turn model attribution</li>
+<li>AI Chat: per-connection rules for the assistant</li>
+<li>Linked SQL Folders: two-way sync between Favorites and a folder of `.sql` files</li>
+<li>Database type chooser sheet for new connections</li>
+<li>Connection URL import in the database type chooser</li>
+</ul>
+<h3>Changed</h3>
+<ul>
+<li>iOS: streaming data layer for large queries</li>
+<li>Toolbar shows a tinted engine icon to distinguish windows on the same database (#1044)</li>
+<li>XLSX export is free</li>
+<li>Safe Mode is free</li>
+<li>Favorites sidebar is connection-scoped</li>
+<li>Connection Form: sidebar navigation with native toolbar actions</li>
+<li>"Read-Only" / "Read-Write" renamed to "Read Only" / "Read & Write"</li>
+<li>ER diagram nodes scale with system text size</li>
+<li>Welcome, Connection Form, and Integrations Activity use SwiftUI scenes</li>
+</ul>
+<h3>Fixed</h3>
+<ul>
+<li>App fails to launch on 0.39.0 with errno 163 "Launchd job spawn failed" (#1104)</li>
+<li>"MariaDB plugin not installed" prompt for built-in lazy drivers</li>
+<li>Cmd+K Quick Switcher schema selection on SQL Server and Oracle</li>
+<li>iOS: crash opening some MySQL tables</li>
+<li>iOS: silent timeout on `.local` and local-network addresses</li>
+<li>iOS: row list "Index out of range" crash on shrink (#1094)</li>
+<li>iOS: out-of-range port crash on MySQL, PostgreSQL, Redis (#1094)</li>
+<li>IME editor jump after committing words like "测试" (#1012)</li>
+<li>Cmd+T tab focus flash</li>
+<li>Cmd+X with no selection now cuts the line (#1075)</li>
+<li>Cmd+A on a query with a trailing newline (#1075)</li>
+<li>Editor window size, position, and zoom across launches</li>
+<li>Personal Apple Developer team builds (#1020)</li>
+<li>SSH auth-failure alerts labelled the wrong cause (#1005)</li>
+<li>TOTP codes rejected across rotation boundary</li>
+<li>SSH Password against keyboard-interactive-only servers (#1005)</li>
+<li>SSH Password + Google Authenticator (#1005)</li>
+<li>Up/Down arrow at end-of-document caret</li>
+<li>Caret line-number color in the gutter</li>
+<li>Cmd+Left/Right at end of a line without a trailing newline (#1007)</li>
+<li>Multi-window tab persistence dropped all but one tab on relaunch</li>
+<li>Filter autocomplete focus on Full Keyboard Access</li>
+<li>Toolbar database name on relaunch</li>
+<li>Cmd+K database switch reverted in Cmd+T and other paths (#1043)</li>
+<li>AI provider Test Connection showed `unsupported URL` on draft endpoint</li>
+<li>Connection Form coordinator rebuilt on every parent re-render (#1102)</li>
+<li>MongoDB SRV connection strings include the port (#1101)</li>
+<li>AI Chat composer: IME, scroll bar, Shift+Return (#1100)</li>
+<li>AI Chat tool roundtrip limit raised 5 → 10 (#1096)</li>
+<li>AI Chat per-connection rules CloudKit sync (#1098)</li>
+<li>AI Chat Retry button on non-recoverable errors</li>
+<li>AI Chat code blocks without a language tag</li>
+<li>AI Chat Insert button focus</li>
+<li>MCP errors surface readable messages (#1095)</li>
+<li>Data grid column header inset</li>
+<li>Toolbar connection status left inset</li>
+</ul>
+]]></description>
+            <enclosure url="https://github.com/TableProApp/TablePro/releases/download/v0.39.1/TablePro-0.39.1-arm64.zip" length="20929675" type="application/octet-stream" sparkle:edSignature="nBKNicjeowEPD1wmUxHDPL2OlRVJpCxDlvRUj0z8OD2QwO2/YKKxoPxE+r4WCTeVkcMyD9Z3l6Ttf062uH1QAg=="/>
+        </item>
+        <item>
+            <title>0.39.1</title>
+            <pubDate>Thu, 07 May 2026 19:08:49 +0000</pubDate>
+            <sparkle:version>79</sparkle:version>
+            <sparkle:shortVersionString>0.39.1</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <description><![CDATA[<h3>Added</h3>
+<ul>
+<li>AI Chat: tool calling with per-card approval, Ask / Edit / Agent modes, and 7 providers (Anthropic, OpenAI, OpenRouter, Gemini, Ollama, GitHub Copilot, custom OpenAI-compatible)</li>
+<li>AI Chat: `@` mentions for Schema, Table, Current Query, Query Results, and saved queries</li>
+<li>AI Chat: slash commands (`/explain`, `/optimize`, `/fix`, `/help`) plus user-defined commands</li>
+<li>AI Chat: inline model picker with per-turn model attribution</li>
+<li>AI Chat: per-connection rules for the assistant</li>
+<li>Linked SQL Folders: two-way sync between Favorites and a folder of `.sql` files</li>
+<li>Database type chooser sheet for new connections</li>
+<li>Connection URL import in the database type chooser</li>
+</ul>
+<h3>Changed</h3>
+<ul>
+<li>iOS: streaming data layer for large queries</li>
+<li>Toolbar shows a tinted engine icon to distinguish windows on the same database (#1044)</li>
+<li>XLSX export is free</li>
+<li>Safe Mode is free</li>
+<li>Favorites sidebar is connection-scoped</li>
+<li>Connection Form: sidebar navigation with native toolbar actions</li>
+<li>"Read-Only" / "Read-Write" renamed to "Read Only" / "Read & Write"</li>
+<li>ER diagram nodes scale with system text size</li>
+<li>Welcome, Connection Form, and Integrations Activity use SwiftUI scenes</li>
+</ul>
+<h3>Fixed</h3>
+<ul>
+<li>App fails to launch on 0.39.0 with errno 163 "Launchd job spawn failed" (#1104)</li>
+<li>"MariaDB plugin not installed" prompt for built-in lazy drivers</li>
+<li>Cmd+K Quick Switcher schema selection on SQL Server and Oracle</li>
+<li>iOS: crash opening some MySQL tables</li>
+<li>iOS: silent timeout on `.local` and local-network addresses</li>
+<li>iOS: row list "Index out of range" crash on shrink (#1094)</li>
+<li>iOS: out-of-range port crash on MySQL, PostgreSQL, Redis (#1094)</li>
+<li>IME editor jump after committing words like "测试" (#1012)</li>
+<li>Cmd+T tab focus flash</li>
+<li>Cmd+X with no selection now cuts the line (#1075)</li>
+<li>Cmd+A on a query with a trailing newline (#1075)</li>
+<li>Editor window size, position, and zoom across launches</li>
+<li>Personal Apple Developer team builds (#1020)</li>
+<li>SSH auth-failure alerts labelled the wrong cause (#1005)</li>
+<li>TOTP codes rejected across rotation boundary</li>
+<li>SSH Password against keyboard-interactive-only servers (#1005)</li>
+<li>SSH Password + Google Authenticator (#1005)</li>
+<li>Up/Down arrow at end-of-document caret</li>
+<li>Caret line-number color in the gutter</li>
+<li>Cmd+Left/Right at end of a line without a trailing newline (#1007)</li>
+<li>Multi-window tab persistence dropped all but one tab on relaunch</li>
+<li>Filter autocomplete focus on Full Keyboard Access</li>
+<li>Toolbar database name on relaunch</li>
+<li>Cmd+K database switch reverted in Cmd+T and other paths (#1043)</li>
+<li>AI provider Test Connection showed `unsupported URL` on draft endpoint</li>
+<li>Connection Form coordinator rebuilt on every parent re-render (#1102)</li>
+<li>MongoDB SRV connection strings include the port (#1101)</li>
+<li>AI Chat composer: IME, scroll bar, Shift+Return (#1100)</li>
+<li>AI Chat tool roundtrip limit raised 5 → 10 (#1096)</li>
+<li>AI Chat per-connection rules CloudKit sync (#1098)</li>
+<li>AI Chat Retry button on non-recoverable errors</li>
+<li>AI Chat code blocks without a language tag</li>
+<li>AI Chat Insert button focus</li>
+<li>MCP errors surface readable messages (#1095)</li>
+<li>Data grid column header inset</li>
+<li>Toolbar connection status left inset</li>
+</ul>
+]]></description>
+            <enclosure url="https://github.com/TableProApp/TablePro/releases/download/v0.39.1/TablePro-0.39.1-x86_64.zip" length="22174952" type="application/octet-stream" sparkle:edSignature="aGIOUI4MrfwyaLsoVhcHnSd48kzc0cuwso0hCYXKEglHw3eTyltWLhimOMosfNnYoycrzCyHORUeP+HroZe+BQ=="/>
+        </item>
+        <item>
             <title>0.39.0</title>
             <pubDate>Thu, 07 May 2026 17:52:59 +0000</pubDate>
             <sparkle:version>78</sparkle:version>
